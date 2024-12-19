@@ -60,5 +60,6 @@
   "conversionLog": {
     "done": "Conversion terminée",
     "starting": "Conversion commencée"
-  }
+  },
+  "addTradBtn": "Ajouter des traductions"
 }

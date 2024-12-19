@@ -1,5 +1,5 @@
 import { parentPort } from 'worker_threads'
-import launchTranslation, { Request } from './translateFn'
+import launchTranslation, { Request } from './convertFn'
 import { ConversionStatus, ConversionStatusType } from '../global/types'
 
 const port = parentPort
@@ -14,6 +14,6 @@ port.on('message', (request: Request) => {
     })
     setTimeout(() => {
       port.close()
-    }, 10000)
+    }, 1000000)
   })
 })

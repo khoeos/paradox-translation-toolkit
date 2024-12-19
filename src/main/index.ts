@@ -4,14 +4,16 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import workerPath from './worker?modulePath'
 import { Worker } from 'worker_threads'
-import { Request } from './translateFn'
+import { Request } from './convertFn'
 import { ConversionStatus, ConversionStatusType, IpcKey } from '../global/types'
+import { exploreFolder } from './exploreFn/explore'
+import { createFile, parseFiles } from './exploreFn/parseFiles'
 
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    // x: 3430,
-    // y: 0,
+    x: 3430,
+    y: 0,
     width: 1080,
     height: 670,
     show: false,
@@ -37,7 +39,7 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // mainWindow.webContents.openDevTools({ mode: 'detach' })
+  mainWindow.webContents.openDevTools({ mode: 'detach' })
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
@@ -50,6 +52,16 @@ function createWindow(): void {
   ipcMain.on(IpcKey.SELECT_FOLDER_START, () => {
     dialog.showOpenDialog({ properties: ['openDirectory'] }).then((result) => {
       if (!result.canceled) {
+        mainWindow.webContents.send(IpcKey.SELECT_FOLDER_RESULT, result.filePaths[0])
+      }
+    })
+  })
+
+  ipcMain.on(IpcKey.SELECT_FOLDER_EXPLORER, () => {
+    dialog.showOpenDialog({ properties: ['openDirectory'] }).then((result) => {
+      if (!result.canceled) {
+        exploreFolder(result.filePaths[0])
+
         mainWindow.webContents.send(IpcKey.SELECT_FOLDER_RESULT, result.filePaths[0])
       }
     })
@@ -99,6 +111,20 @@ function createWindow(): void {
         console.error(`Worker stopped with exit code ${code}`)
       }
     })
+  })
+
+  ipcMain.on('parseFile', async (event: IpcMainEvent, request: Request) => {
+    try {
+      // const result = await parseFiles(
+      //   'C:/Users/Ljeanjean/Documents/Paradox text/new/3412590987/localisation'
+      // )
+      createFile()
+      console.log('Result of parseFiles:', result) // Debug output
+      event.sender.send('parseFileResult', result)
+    } catch (err) {
+      console.error('Error in parseFile handler:', err)
+      event.sender.send('parseFileResult', { error: err.message })
+    }
   })
 }
 

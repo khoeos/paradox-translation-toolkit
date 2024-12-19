@@ -30,6 +30,16 @@ export const DEFAULT_LANGUAGE_KEYS = {
   kr: 'korean',
   jp: 'japanese'
 }
+
+export const DEFAULT_LANGUAGE_KEYS_ALTERNATIVE = {
+  pt: 'braz_por',
+  zh: 'simp_chinese'
+}
+
+export const TRANSLATE_KEYS = [
+  ...Object.values(DEFAULT_LANGUAGE_KEYS),
+  ...Object.values(DEFAULT_LANGUAGE_KEYS_ALTERNATIVE)
+] as const
 //
 
 export interface Game {

@@ -5,9 +5,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
-} from '@renderer/components/ui/DropdownMenu'
+} from '@renderer/components/ui/dropdown-menu'
 import { useTheme } from '@renderer/components/theme-provider'
-import { Button } from '@renderer/components/ui/Button'
+import { Button } from '@renderer/components/ui/button'
 
 export function ModeToggle(): JSX.Element {
   const { setTheme } = useTheme()

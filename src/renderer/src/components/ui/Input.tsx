@@ -21,7 +21,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     )
   }
 )
-Input.displayName = 'Input'
+Input.displayName = 'input'
 
 const FolderInput = React.forwardRef<HTMLInputElement, InputProps & { ipc: IpcKey }>(
   ({ className, ipc, type, ...props }, ref) => {
@@ -50,6 +50,6 @@ const FolderInput = React.forwardRef<HTMLInputElement, InputProps & { ipc: IpcKe
     )
   }
 )
-FolderInput.displayName = 'FolderInput'
+FolderInput.displayName = 'Folderinput'
 
 export { Input, FolderInput }

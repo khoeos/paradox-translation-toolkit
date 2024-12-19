@@ -4,8 +4,8 @@ import {
   AccordionItem,
   AccordionTrigger
 } from '@renderer/components/ui/Accordion'
-import { Button } from '@renderer/components/ui/Button'
-import { Dialog, DialogContent, DialogTrigger } from '@renderer/components/ui/Dialog'
+import { Button } from '@renderer/components/ui/button'
+import { Dialog, DialogContent, DialogTrigger } from '@renderer/components/ui/dialog'
 import { ScrollArea } from '@renderer/components/ui/ScrollArea'
 import {
   Select,
@@ -13,7 +13,7 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger
-} from '@renderer/components/ui/Select'
+} from '@renderer/components/ui/select'
 import { HelpCircleIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
