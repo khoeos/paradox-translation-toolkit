@@ -1,4 +1,4 @@
-appId: com.pttk.app
+appId: com.khoeos.pttk
 productName: 'Paradox Translation Toolkit'
 directories:
   buildResources: build

@@ -6,7 +6,34 @@
   "description": "Help players and modders from many Paradox games to manage language and localisation files within mods",
   "main": "./out/main/index.js",
   "author": "Khoeos",
-  "homepage": "https://github.com/khoeos/Paradox-mod-language-converter",
+  "homepage": "https://github.com/khoeos/paradox-translation-toolkit",
+  "repository": "https://github.com/khoeos/paradox-translation-toolkit",
+  "publish": {
+    "provider": "github",
+    "owner": "khoeos",
+    "repo": "paradox-translation-toolkit",
+    "releaseType": "release"
+  },
+  "build": {
+    "appId": "com.khoeos.pttk",
+    "productName": "Paradox Translation Toolkit",
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "directories": {
+      "output": "build"
+    }
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
@@ -51,6 +78,8 @@
     "sonner": "^2.0.3",
     "tailwind-merge": "^3.2.0",
     "tailwindcss-animate": "^1.0.7",
+    "update-electron-app": "^3.1.1",
+    "vite-plugin-react-click-to-component": "^3.1.1",
     "yaml": "^2.7.1",
     "zustand": "^5.0.3"
   },
