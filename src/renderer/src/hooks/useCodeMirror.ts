@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { EditorView, basicSetup } from 'codemirror'
 import { javascript } from '@codemirror/lang-javascript'
+import { lang } from '@renderer/lib/langExtension'
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { tags } from '@lezer/highlight'
+
+const myHighlightStyle = HighlightStyle.define([
+  { tag: tags.propertyName, color: '#0080ff' },
+  { tag: tags.punctuation, color: '#ff8b19' }
+])
+
+const langTheme = syntaxHighlighting(myHighlightStyle)
 
 export default function useCodeMirror(extensions: any[]) {
   const editorRef = useRef<HTMLDivElement>(null)
@@ -12,10 +22,13 @@ export default function useCodeMirror(extensions: any[]) {
     const view = new EditorView({
       extensions: [
         basicSetup,
+        lang(),
         javascript({
           jsx: true,
           typescript: true
         }),
+        langTheme,
+        // EditorView.lineWrapping,
         EditorView.theme({
           '&': {
             backgroundColor: '#2f333c',

@@ -1,0 +1,9 @@
+@top TextFile { (Property | Punctuation)+ }
+
+@skip { space }
+
+@tokens {
+  space { @whitespace+ }
+  Property { $[a-zA-Z0-9_.]+ }
+  Punctuation { ":" }
+}
