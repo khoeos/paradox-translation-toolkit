@@ -1,0 +1,29 @@
+/* Coloration syntaxique personnalisée */
+.token.comment {
+  color: #6272a4; /* Commentaires */
+  font-style: italic;
+}
+
+.token.literal {
+  color: #8be9fd; /* Déclaration de langage */
+}
+
+.token.special {
+  color: #ff79c6; /* Marques spéciales */
+}
+
+.token.standard {
+  color: #f1fa8c; /* Balises standard */
+}
+
+.token.content {
+  color: #50fa7b; /* Contenu spécial */
+}
+
+.token.string {
+  color: #bd93f9; /* Chaînes */
+}
+
+.token.keyword {
+  color: #ffb86c; /* Mots-clés */
+}

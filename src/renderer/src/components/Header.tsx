@@ -34,14 +34,15 @@ export default function Header(): JSX.Element {
         <p className={'text-gray-700 dark:text-gray-200/70 font-light text-sm'}>{t('subtitle')}</p>
       </div>
       <div className={'flex gap-2'}>
-        <div className="flex gap-2">
-          <NavLink to={'/'}>
-            <Button variant="outline">{t('Converter')}</Button>
-          </NavLink>
-          <NavLink to={'/explorer'}>
-            <Button variant="outline">{t('Explorer')}</Button>
-          </NavLink>
-        </div>
+        <NavLink to={'/'}>
+          <Button variant="outline">{t('Converter')}</Button>
+        </NavLink>
+        <NavLink to={'/explorer'}>
+          <Button variant="outline">{t('Explorer')}</Button>
+        </NavLink>
+        <NavLink to={'/editor'}>
+          <Button variant="outline">{t('Editor')}</Button>
+        </NavLink>
         <Dialog>
           <DialogTrigger>
             <Button variant="outline">
