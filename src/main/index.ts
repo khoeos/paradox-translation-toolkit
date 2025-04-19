@@ -8,6 +8,10 @@ import { Request } from './convertFn'
 import { ConversionStatus, ConversionStatusType, IpcKey } from '../global/types'
 import { exploreFolder } from './exploreFn/explore'
 import { createFile, parseFiles } from './exploreFn/parseFiles'
+// import { autoUpdater, AppUpdater } from 'electron-updater'
+
+// autoUpdater.autoDownload = false
+// autoUpdater.autoInstallOnAppQuit = true
 
 function createWindow(): void {
   // Create the browser window.
@@ -133,7 +137,9 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.pttk.app')
+  electronApp.setAppUserModelId('com.khoeos.pttk')
+
+  // autoUpdater.checkForUpdates()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

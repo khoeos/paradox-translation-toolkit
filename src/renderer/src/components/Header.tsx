@@ -16,6 +16,7 @@ import {
 } from '@renderer/components/ui/select'
 import { HelpCircleIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { NavLink } from 'react-router'
 
 export default function Header(): JSX.Element {
   const { t, i18n } = useTranslation()
@@ -33,6 +34,14 @@ export default function Header(): JSX.Element {
         <p className={'text-gray-700 dark:text-gray-200/70 font-light text-sm'}>{t('subtitle')}</p>
       </div>
       <div className={'flex gap-2'}>
+        <div className="flex gap-2">
+          <NavLink to={'/'}>
+            <Button variant="outline">{t('Converter')}</Button>
+          </NavLink>
+          <NavLink to={'/explorer'}>
+            <Button variant="outline">{t('Explorer')}</Button>
+          </NavLink>
+        </div>
         <Dialog>
           <DialogTrigger>
             <Button variant="outline">
