@@ -119,10 +119,8 @@ function createWindow(): void {
 
   ipcMain.on('parseFile', async (event: IpcMainEvent, request: Request) => {
     try {
-      // const result = await parseFiles(
-      //   'C:/Users/Ljeanjean/Documents/Paradox text/new/3412590987/localisation'
-      // )
-      createFile()
+      const result = await parseFiles('/Users/ljeanjean/Documents/Perso/681576508/localisation')
+      // createFile() // Uncommenting createFile to execute it after parseFiles
       console.log('Result of parseFiles:', result) // Debug output
       event.sender.send('parseFileResult', result)
     } catch (err) {

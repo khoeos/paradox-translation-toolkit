@@ -37,7 +37,7 @@ const TablePagination = ({ table, id }: Props): JSX.Element => {
             <SelectValue placeholder="Select number of results" />
           </SelectTrigger>
           <SelectContent className="[&_*[role=option]>span]:end-2 [&_*[role=option]>span]:start-auto [&_*[role=option]]:pe-8 [&_*[role=option]]:ps-2">
-            {[5, 10, 25, 50].map((pageSize) => (
+            {[5, 10, 25, 50, 100].map((pageSize) => (
               <SelectItem key={pageSize} value={pageSize.toString()}>
                 {pageSize}
               </SelectItem>

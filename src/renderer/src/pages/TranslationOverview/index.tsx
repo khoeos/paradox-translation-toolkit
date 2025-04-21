@@ -14,7 +14,6 @@ export default function TranslationOverview(): JSX.Element {
 
   useEffect(() => {
     window.api.on('parseFileResult', (result: any) => {
-      console.log(result)
       setResults(
         Object.entries(result.keys).map(([key, translations]: [string, any]) => ({
           key_id: key,

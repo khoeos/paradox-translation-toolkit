@@ -48,7 +48,11 @@ async function extractKeysFromFile(filePath: string, jsonResult: any): Promise<v
     const key = match[1].trim()
     const value = match[2]
     if (!key.startsWith('#')) {
-      jsonResult[path.basename(filePath)].keys[key] = value
+      // Calculate line number based on match index
+      const precedingContent = fileContent.substring(0, match.index)
+      const lineNumber = (precedingContent.match(/\n/g) || []).length + 1
+
+      jsonResult[path.basename(filePath)].keys[key] = [value, lineNumber]
     }
   }
 }
@@ -71,7 +75,7 @@ export const parseFiles = async (dirPath: string): Promise<unknown> => {
     // Extract keys from each file asynchronously
     await Promise.all(
       ymlFiles
-        .filter((file) => file.includes('english'))
+        // .filter((file) => file.includes('english'))
         // .slice(0, 50)
         .map((filePath) => extractKeysFromFile(filePath, jsonResult))
     )
@@ -132,6 +136,4 @@ export const createFile = async () => {
     fileContent,
     { encoding: 'utf8', flag: 'wx' }
   )
-
-  console.log(fileContent)
 }

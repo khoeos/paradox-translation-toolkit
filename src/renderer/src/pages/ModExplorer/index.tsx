@@ -11,7 +11,7 @@ export default function ModExporer(): JSX.Element {
   }, [])
 
   return (
-    <div className="p-8">
+    <div className="p-8 max-w-screen">
       <FolderInput
         ipc={IpcKey.SELECT_FOLDER_EXPLORER}
         value={path}

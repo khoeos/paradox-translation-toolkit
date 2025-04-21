@@ -19,8 +19,8 @@ function App(): JSX.Element {
       <Header />
       <ScrollArea className={'h-full w-full mt-16 pb-16'}>
         <Routes>
-          <Route path="/" element={<LanguageConverter />} />
-          <Route path="/explorer" element={<ModExplorer />} />
+          {/* <Route path="/" element={<LanguageConverter />} /> */}
+          <Route path="/" element={<ModExplorer />} />
           <Route path="/editor" element={<Editor />} />
         </Routes>
       </ScrollArea>

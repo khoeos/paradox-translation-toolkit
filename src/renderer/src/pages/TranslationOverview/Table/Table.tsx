@@ -15,7 +15,7 @@ import {
   useReactTable
 } from '@tanstack/react-table'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { JSX, useEffect, useId, useRef, useState } from 'react'
 import TableFilters from '@renderer/pages/TranslationOverview/Table/TableFilters'
 import TranslationOverviewTableHeader from '@renderer/pages/TranslationOverview/Table/TableHeader'
 import TranslationOverviewTableBody from '@renderer/pages/TranslationOverview/Table/TableBody'
@@ -23,6 +23,7 @@ import TablePagination from '@renderer/pages/TranslationOverview/Table/TablePagi
 import TableRowActions from '@renderer/pages/TranslationOverview/Table/TableRowItems'
 import { CircleCheck, CircleX } from 'lucide-react'
 import { TranslationItem } from '@global/types'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@renderer/components/ui/hover-card'
 
 // Custom filter function for multi-column searching
 const multiColumnFilterFn: FilterFn<TranslationItem> = (row, columnId, filterValue) => {
@@ -87,20 +88,32 @@ const columns: ColumnDef<TranslationItem>[] = [
   {
     header: 'Anglais',
     accessorKey: 'english',
-    size: 220
+    size: 220,
+    cell: ({ row }) => {
+      const value = row.getValue<string[]>('english')
+      return <div>{value && value.length > 0 ? value[0] : ''}</div>
+    }
   },
   ...Object.keys(languages).map((language) => ({
     header: languages[language],
     accessorKey: language,
-    cell: ({ row }) => (
-      <div className="flex justify-center">
-        {row.getValue(language) ? (
-          <CircleCheck size={16} className="text-green-500" />
-        ) : (
-          <CircleX size={16} className="text-red-500" />
-        )}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const value = row.getValue(language)
+      return (
+        <div className="flex justify-center">
+          {value ? (
+            <HoverCard openDelay={100} closeDelay={100}>
+              <HoverCardTrigger className="flex items-center justify-center w-full">
+                <CircleCheck size={16} className="text-green-500" />
+              </HoverCardTrigger>
+              <HoverCardContent>{value && value.length > 0 ? value[0] : ''}</HoverCardContent>
+            </HoverCard>
+          ) : (
+            <CircleX size={16} className="text-red-500" />
+          )}
+        </div>
+      )
+    },
     size: 100,
     filterFn: statusFilterFn,
     meta: { className: 'text-center justify-center' }
