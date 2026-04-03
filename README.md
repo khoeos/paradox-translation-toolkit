@@ -139,6 +139,8 @@ Project Link: [https://github.com/khoeos/Paradox-mod-language-converter](https:/
 
 ## Project Setup
 
+Install [Node.js](https://nodejs.org/en/download)
+
 ### Recommended IDE Setup
 
 - [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
@@ -146,7 +148,7 @@ Project Link: [https://github.com/khoeos/Paradox-mod-language-converter](https:/
 ### Install
 
 ```bash
-$ npm run install
+$ npm install
 ```
 
 ### Development
