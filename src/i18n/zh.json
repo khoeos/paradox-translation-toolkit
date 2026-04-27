@@ -1,0 +1,64 @@
+{
+  "languages": {
+    "en": "英语",
+    "fr": "法语",
+    "de": "德语",
+    "es": "西班牙语",
+    "ru": "俄语",
+    "zh": "中文",
+    "pt": "葡萄牙语",
+    "pl": "波兰语",
+    "kr": "韩语",
+    "jp": "日语",
+    "custom": "自定义"
+  },
+  "ModFolder": "Mod 文件夹",
+  "ModFolderDescription": "选择需要翻译文件所在的文件夹。它可以是包含所有 Mod 的目录，也可以是某个特定 Mod 的文件夹。",
+  "Mode": "模式",
+  "ModeDescription": {
+    "0": "管理缺失翻译的处理方式",
+    "1": "将缺失的翻译添加到当前 Mod 文件夹中",
+    "2": "将缺失的翻译提取到一个新文件夹中，并保留原始目录结构",
+    "3": "创建一个包含缺失翻译的新 Mod（尚未实现）"
+  },
+  "AddToCurrent": "添加到当前目录",
+  "ExtractToFolder": "提取到文件夹",
+  "CreateTranslationMod": "创建翻译 Mod",
+  "Options": "选项",
+  "SourceLanguage": "源语言",
+  "TargetLanguage": "目标语言",
+  "subtitle": "原名为 Paradox Mod 语言转换器",
+  "ConvertTranslations": "转换翻译",
+  "CheckFilesBeforeCreation": "创建前检查文件",
+  "CheckFilesBeforeCreationDesc": "允许你查看并选择将要创建的文件",
+  "DeepCheck": "深度检查",
+  "DeepCheckDesc": "不只是比较现有文件，还会检查现有文件中是否包含源语言的全部键。",
+  "DeepCheckWarn": "实验性功能：请自行承担风险，速度会很慢",
+  "conversionLog": {
+    "starting": "开始扫描文件",
+    "done": "转换完成"
+  },
+  "Close": "关闭",
+  "HowToUse": "使用方法",
+  "HowToUseDesc": {
+    "1": "在顶部选择你的游戏",
+    "2": "选择 Mod 所在目录。它可以是单个 Mod 的文件夹、创意工坊 Mod 的目录，或任何包含 Mod 的文件夹",
+    "3": "选择目标语言",
+    "4": "选择模式",
+    "5": "如果需要，修改相关选项",
+    "6": "等待处理完成",
+    "7": "检查将要创建的文件"
+  },
+  "HowItWorks": "工作原理",
+  "HowItWorksDesc": {
+    "1": "简单来说，该工具会检查源语言的所有翻译文件，并确认是否存在目标语言的对应文件。如果不存在，就会基于源语言创建这些文件，以避免出现缺失翻译。",
+    "2": "它可以避免在你的语言尚未翻译时显示键名而不是文本。它不会自动翻译 Mod 本身，只会生成本地化文件。",
+    "3": "如果检测到本地化文件，即使它并不完整，默认情况下本应用也不会覆盖它。你可以在选项中修改此行为。",
+    "4": "未来你将能够检查现有文件中缺失的键。"
+  },
+  "Limitations": "限制与说明",
+  "LimitationsDesc": {
+    "1": "我看到有些 Mod 使用了比较特殊的文件夹或文件名，例如 \"synced_localisation\" 或 \"replace\"。目前该工具会忽略这些文件夹。",
+    "2": "这个工具主要在 Stellaris 上进行了测试，也测试过 EU4 和 CK3，但覆盖的 Mod 和使用场景较少；尚未测试过 Hoi4。整体逻辑是一样的，所以理论上不应有问题，但在某些特殊情况下可能无法正常工作。目前我暂时禁用了 Imperator: Rome 和 Victoria。"
+  }
+}

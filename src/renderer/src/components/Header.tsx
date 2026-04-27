@@ -91,6 +91,7 @@ export default function Header(): JSX.Element {
             <SelectGroup>
               <SelectItem value="en">{t('languages.en')}</SelectItem>
               <SelectItem value="fr">{t('languages.fr')}</SelectItem>
+              <SelectItem value="zh">{t('languages.zh')}</SelectItem>
             </SelectGroup>
           </SelectContent>
         </Select>
