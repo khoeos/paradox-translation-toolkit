@@ -1,0 +1,30 @@
+{
+  "name": "@ptt/i18n",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./locales/en": "./src/locales/en.json",
+    "./locales/fr": "./src/locales/fr.json"
+  },
+  "scripts": {
+    "lint": "oxlint src test",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "extract": "i18next-cli extract",
+    "extract:check": "i18next-cli extract --ci",
+    "clean": "rimraf dist .turbo"
+  },
+  "dependencies": {
+    "i18next": "catalog:"
+  },
+  "devDependencies": {
+    "i18next-cli": "^1.56.9",
+    "rimraf": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

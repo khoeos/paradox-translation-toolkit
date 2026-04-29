@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "exactOptionalPropertyTypes": false,
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "@ptt/ui/*": ["./src/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

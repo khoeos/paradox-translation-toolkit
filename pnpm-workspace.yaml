@@ -1,0 +1,24 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+  - 'games/*'
+
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  lefthook: true
+  msw: true
+
+# Shared dependency versions across the workspace.
+# Reference via "catalog:" in any package.json dependency or devDependency to
+# keep versions in lockstep without per-package upgrades.
+catalog:
+  '@vitest/coverage-v8': ^4.1.5
+  i18next: ^26.0.8
+  react: ^19.2.5
+  react-dom: ^19.2.5
+  rimraf: ^6.1.3
+  typescript: ^6.0.3
+  vitest: ^4.1.5
+  zod: ^4.3.6

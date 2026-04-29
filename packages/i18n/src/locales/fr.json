@@ -1,0 +1,165 @@
+{
+  "common": {
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "error": "Erreur",
+    "loading": "Chargement…"
+  },
+  "converter": {
+    "convert": "Convertir les traductions",
+    "intro": "Le convertisseur copie les fichiers de localisation manquants depuis une langue source vers les langues cibles, pour que les mods n'affichent plus les clés de traduction brutes.",
+    "mode": "Mode",
+    "modes": {
+      "addToCurrent": "Ajouter au mod",
+      "addToCurrentHint": "Écrit les fichiers manquants dans le dossier de chaque mod",
+      "extractToFolder": "Extraire dans un dossier",
+      "extractToFolderHint": "Écrit les fichiers manquants dans un dossier dédié"
+    },
+    "modFolder": "Dossier de mod",
+    "modFolderPlaceholder": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\…",
+    "noGameSelected": "Sélectionne un jeu ci-dessus pour commencer à convertir les fichiers de localisation.",
+    "noLanguagesPickGame": "Choisis d'abord un jeu.",
+    "outputFolder": "Dossier de sortie",
+    "outputFolderPlaceholder": "D:\\Traduction",
+    "overwriteHint": "Force la recréation des fichiers cibles depuis la source, même s'ils existent déjà.",
+    "overwriteLabel": "Écraser les fichiers existants",
+    "pickGame": "Choisis un jeu",
+    "runError": "Impossible de démarrer la conversion : {{message}}",
+    "sourceLanguage": "Langue source",
+    "sourceLanguageDefault": "Anglais (par défaut)",
+    "starting": "Démarrage…",
+    "targetLanguages": "Langues cibles"
+  },
+  "editor": {
+    "comingSoon": "Bientôt - édition côte à côte des entrées de localisation avec CodeMirror.",
+    "title": "Éditeur de traduction"
+  },
+  "explorer": {
+    "comingSoon": "Bientôt - parcourir les mods, voir les fichiers de localisation, descendre dans les clés.",
+    "title": "Explorateur de mods"
+  },
+  "header": {
+    "nav": {
+      "converter": "Convertisseur",
+      "editor": "Éditeur",
+      "explorer": "Explorateur",
+      "settings": "Paramètres"
+    },
+    "subtitle": "v3.0.0"
+  },
+  "languages": {
+    "de": "Allemand",
+    "en": "Anglais",
+    "es": "Espagnol",
+    "fr": "Français",
+    "ja": "Japonais",
+    "ko": "Coréen",
+    "pl": "Polonais",
+    "pt-BR": "Portugais",
+    "ru": "Russe",
+    "tr": "Turc",
+    "zh-Hans": "Chinois simplifié"
+  },
+  "modal": {
+    "cancelJob": "Annuler la tâche",
+    "doneToast": "Conversion terminée - {{count}} fichiers créés",
+    "doneToast_one": "Conversion terminée - {{count}} fichier créé",
+    "doneToast_many": "Conversion terminée - {{count}} fichiers créés",
+    "doneToast_other": "Conversion terminée - {{count}} fichiers créés",
+    "errorToast": "Conversion échouée : {{message}}",
+    "filesCreated": "Fichiers créés :",
+    "filesOverwritten": "Fichiers écrasés :",
+    "filesPerLang": "{{lang}} - {{count}} fichiers créés",
+    "filesPerLang_one": "{{lang}} - {{count}} fichier créé",
+    "filesPerLang_many": "{{lang}} - {{count}} fichiers créés",
+    "filesPerLang_other": "{{lang}} - {{count}} fichiers créés",
+    "log": {
+      "conversionFinished": "Conversion terminée",
+      "errorPrefix": "Erreur : {{message}}",
+      "filesScanned_one": "{{count}} fichier analysé",
+      "filesScanned_many": "{{count}} fichiers analysés",
+      "filesScanned_other": "{{count}} fichiers analysés",
+      "missingFiles_one": "{{count}} fichier manquant",
+      "missingFiles_many": "{{count}} fichiers manquants",
+      "missingFiles_other": "{{count}} fichiers manquants",
+      "sourceFiles_one": "{{count}} fichier dans la langue source",
+      "sourceFiles_many": "{{count}} fichiers dans la langue source",
+      "sourceFiles_other": "{{count}} fichiers dans la langue source",
+      "startingScanning": "Analyse des fichiers en cours"
+    },
+    "noFilesNeeded": "Toutes les langues cibles ont déjà tous les fichiers. Rien à faire.",
+    "openPathError": "Impossible d'ouvrir le chemin : {{message}}",
+    "overwrittenPerLang": "{{lang}} - {{count}} fichiers écrasés",
+    "overwrittenPerLang_one": "{{lang}} - {{count}} fichier écrasé",
+    "overwrittenPerLang_many": "{{lang}} - {{count}} fichiers écrasés",
+    "overwrittenPerLang_other": "{{lang}} - {{count}} fichiers écrasés",
+    "status": {
+      "applying": "Création des fichiers…",
+      "cancelled": "Annulé",
+      "done": "Terminé",
+      "error": "Erreur",
+      "scanning": "Analyse des fichiers…"
+    }
+  },
+  "settings": {
+    "allowedFolders": {
+      "empty": "Aucun dossier personnalisé autorisé pour l'instant.",
+      "hint": "Dossiers en dehors des emplacements Paradox habituels que vous avez explicitement autorisés via la demande de confirmation. Retirez ceux que vous n'utilisez plus.",
+      "remove": "Retirer des dossiers autorisés",
+      "title": "Dossiers autorisés"
+    },
+    "defaultMode": "Mode par défaut",
+    "diagnostics": {
+      "hint": "Utile pour signaler un problème : joignez les fichiers de log les plus récents.",
+      "openLogs": "Ouvrir le dossier des logs",
+      "openLogsError": "Impossible d'ouvrir le dossier des logs : {{message}}",
+      "title": "Diagnostics"
+    },
+    "language": "Langue",
+    "lastFolders": "Derniers dossiers de mods",
+    "lastGame": "Dernier jeu ouvert",
+    "loading": "Chargement des paramètres…",
+    "noFoldersYet": "Aucun mémorisé pour l'instant.",
+    "noneYet": "Aucun",
+    "resetAll": "Réinitialiser tous les paramètres",
+    "resetConfirm": "Réinitialiser tous les paramètres ?",
+    "theme": "Thème",
+    "themes": {
+      "dark": "Sombre",
+      "light": "Clair",
+      "system": "Système"
+    },
+    "title": "Paramètres"
+  },
+  "updater": {
+    "autoCheckHint": "Recherche automatique de nouvelles versions quelques secondes après le démarrage.",
+    "autoCheckLabel": "Vérifier les mises à jour au lancement",
+    "banner": {
+      "available": "Version {{version}} disponible",
+      "dismiss": "Ignorer",
+      "download": "Télécharger",
+      "downloading": "Téléchargement… {{percent}}%",
+      "openInBrowser": "Ouvrir dans le navigateur",
+      "ready": "Mise à jour {{version}} prête",
+      "restart": "Redémarrer",
+      "unsignedTooltip": "Ce build n'est pas signé. Vérifie le hash SHA-256 sur la page de release GitHub avant d'installer.",
+      "unsignedWarning": "build non signé"
+    },
+    "betaChannelHint": "Accède aux pré-releases. Nouvelles fonctionnalités plus tôt mais des bugs sont attendus.",
+    "betaChannelLabel": "Recevoir les versions bêta",
+    "checkForUpdates": "Vérifier les mises à jour",
+    "currentVersion": "Version actuelle : {{version}}",
+    "manualUpdateBanner": "Mises à jour manuelles uniquement sur cette plateforme. On te prévient quand une nouvelle version est disponible, le téléchargement se fait via GitHub Releases.",
+    "statuses": {
+      "available": "Mise à jour disponible : {{version}}",
+      "checking": "Vérification…",
+      "disabled": "Mises à jour désactivées",
+      "downloading": "Téléchargement… {{percent}}%",
+      "error": "Erreur : {{message}}",
+      "idle": "Pas encore vérifié",
+      "notAvailable": "À jour",
+      "ready": "Mise à jour {{version}} prête (redémarrer pour appliquer)"
+    },
+    "title": "Mises à jour"
+  }
+}

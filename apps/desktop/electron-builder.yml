@@ -1,0 +1,75 @@
+appId: com.ptt.app
+productName: Paradox Translation Toolkit
+copyright: Copyright © 2026 Khoeos
+# `${name}` resolves to the package.json name `@ptt/desktop` which contains a
+# slash - NSIS / electron-builder treat that as a path separator and fail with
+# "Can't open output file". We use a hand-rolled slug instead.
+artifactName: paradox-translation-toolkit-${version}-${os}-${arch}.${ext}
+asar: true
+compression: maximum
+electronLanguages:
+  - en-US
+  - fr
+  - zh-CN
+directories:
+  # We run electron-builder from `dist-deploy/` (created by `pnpm deploy`).
+  # Send installers/zips back into the desktop's `dist/` so they're easy to find.
+  output: ../dist
+asarUnpack:
+  - resources/**
+# Allowlist: electron-vite bundles the whole main + preload + renderer into
+# `out/`, so the packed app needs nothing else. We explicitly list what to ship
+# and exclude the entire `node_modules/` tree that `pnpm deploy` populates.
+files:
+  - package.json
+  - out/**
+  - resources/**
+  - '!**/node_modules/**'
+
+publish:
+  provider: github
+  owner: khoeos
+  repo: Paradox-translation-toolkit
+
+win:
+  executableName: ParadoxTranslationToolkit
+  target:
+    - target: nsis
+      arch: [x64]
+  # Code signing kicks in only when WIN_CSC_LINK + WIN_CSC_KEY_PASSWORD are
+  # present in the build environment (set from CI GitHub Secrets once a Certum
+  # Open Source certificate is purchased, see docs/publishing.md). Without
+  # those secrets, electron-builder skips signing and ships an unsigned NSIS
+  # installer; the app then routes update downloads to the GitHub release page.
+  signtoolOptions:
+    # `publisherName` MUST match the CN of the certificate exactly. It is used
+    # by electron-updater to validate that an incoming update was signed by the
+    # same publisher as the running binary. Update when the cert is issued.
+    publisherName:
+      - 'Open Source Developer, Khoeos'
+    signingHashAlgorithms:
+      - sha256
+    rfc3161TimeStampServer: http://time.certum.pl
+    timeStampServer: http://time.certum.pl
+
+mac:
+  category: public.app-category.utilities
+  target:
+    - target: zip
+      arch: [x64, arm64]
+    - target: dmg
+      arch: [x64, arm64]
+
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: Khoeos
+  category: Utility
+
+nsis:
+  artifactName: paradox-translation-toolkit-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  differentialPackage: true

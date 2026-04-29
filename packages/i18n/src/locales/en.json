@@ -1,0 +1,159 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "error": "Error",
+    "loading": "Loading…"
+  },
+  "converter": {
+    "convert": "Convert translations",
+    "intro": "The converter copies missing localisation files from a source language into target languages, so mods stop displaying raw translation tags.",
+    "mode": "Mode",
+    "modes": {
+      "addToCurrent": "Add to current",
+      "addToCurrentHint": "Write missing files inside each mod folder",
+      "extractToFolder": "Extract to folder",
+      "extractToFolderHint": "Write missing files into a separate output folder"
+    },
+    "modFolder": "Mod folder",
+    "modFolderPlaceholder": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\…",
+    "noGameSelected": "Pick a game above to start converting localisation files.",
+    "noLanguagesPickGame": "Pick a game first.",
+    "outputFolder": "Output folder",
+    "outputFolderPlaceholder": "D:\\Translation",
+    "overwriteHint": "Force re-create target files from the source, even if they already exist.",
+    "overwriteLabel": "Overwrite existing files",
+    "pickGame": "Pick a game",
+    "runError": "Could not start the conversion: {{message}}",
+    "sourceLanguage": "Source language",
+    "sourceLanguageDefault": "English (default)",
+    "starting": "Starting…",
+    "targetLanguages": "Target languages"
+  },
+  "editor": {
+    "comingSoon": "Coming soon - side-by-side editing of locale entries with CodeMirror.",
+    "title": "Translation Editor"
+  },
+  "explorer": {
+    "comingSoon": "Coming soon - browse mods, see locale files, drill into keys.",
+    "title": "Mod Explorer"
+  },
+  "header": {
+    "nav": {
+      "converter": "Converter",
+      "editor": "Editor",
+      "explorer": "Explorer",
+      "settings": "Settings"
+    },
+    "subtitle": "v3.0.0"
+  },
+  "languages": {
+    "de": "German",
+    "en": "English",
+    "es": "Spanish",
+    "fr": "French",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "pl": "Polish",
+    "pt-BR": "Portuguese",
+    "ru": "Russian",
+    "tr": "Turkish",
+    "zh-Hans": "Simplified Chinese"
+  },
+  "modal": {
+    "cancelJob": "Cancel job",
+    "doneToast": "Conversion done - {{count}} files created",
+    "doneToast_one": "Conversion done - {{count}} file created",
+    "doneToast_other": "Conversion done - {{count}} files created",
+    "errorToast": "Conversion failed: {{message}}",
+    "filesCreated": "Files created:",
+    "filesOverwritten": "Files overwritten:",
+    "filesPerLang": "{{lang}} - {{count}} files created",
+    "filesPerLang_one": "{{lang}} - {{count}} file created",
+    "filesPerLang_other": "{{lang}} - {{count}} files created",
+    "log": {
+      "conversionFinished": "Conversion finished",
+      "errorPrefix": "Error: {{message}}",
+      "filesScanned_one": "{{count}} file scanned",
+      "filesScanned_other": "{{count}} files scanned",
+      "missingFiles_one": "{{count}} file missing",
+      "missingFiles_other": "{{count}} files missing",
+      "sourceFiles_one": "{{count}} file from source language",
+      "sourceFiles_other": "{{count}} files from source language",
+      "startingScanning": "Starting scanning files"
+    },
+    "noFilesNeeded": "All target languages already have all files. Nothing to do.",
+    "openPathError": "Could not open path: {{message}}",
+    "overwrittenPerLang": "{{lang}} - {{count}} files overwritten",
+    "overwrittenPerLang_one": "{{lang}} - {{count}} file overwritten",
+    "overwrittenPerLang_other": "{{lang}} - {{count}} files overwritten",
+    "status": {
+      "applying": "Creating files…",
+      "cancelled": "Cancelled",
+      "done": "Done",
+      "error": "Error",
+      "scanning": "Scanning files…"
+    }
+  },
+  "settings": {
+    "allowedFolders": {
+      "empty": "No custom folders allowed yet.",
+      "hint": "Folders outside typical Paradox locations that you've explicitly allowed via the authorisation prompt. Remove any you no longer trust.",
+      "remove": "Remove from allowed folders",
+      "title": "Allowed folders"
+    },
+    "defaultMode": "Default mode",
+    "diagnostics": {
+      "hint": "Useful when reporting an issue: attach the latest log files.",
+      "openLogs": "Open log folder",
+      "openLogsError": "Could not open log folder: {{message}}",
+      "title": "Diagnostics"
+    },
+    "language": "Language",
+    "lastFolders": "Last mod folders",
+    "lastGame": "Last opened game",
+    "loading": "Loading settings…",
+    "noFoldersYet": "None remembered yet.",
+    "noneYet": "None",
+    "resetAll": "Reset all settings",
+    "resetConfirm": "Reset all settings to defaults?",
+    "theme": "Theme",
+    "themes": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "title": "Settings"
+  },
+  "updater": {
+    "autoCheckHint": "Automatically look for new versions a few seconds after the app starts.",
+    "autoCheckLabel": "Check for updates on launch",
+    "banner": {
+      "available": "Version {{version}} available",
+      "dismiss": "Dismiss",
+      "download": "Download",
+      "downloading": "Downloading update… {{percent}}%",
+      "openInBrowser": "Open in browser",
+      "ready": "Update {{version}} ready",
+      "restart": "Restart now",
+      "unsignedTooltip": "This build is not code-signed. Verify the SHA-256 hash from the GitHub release page before installing.",
+      "unsignedWarning": "unsigned build"
+    },
+    "betaChannelHint": "Get pre-release builds. Faster access to new features but expect bugs.",
+    "betaChannelLabel": "Subscribe to beta releases",
+    "checkForUpdates": "Check for updates",
+    "currentVersion": "Current version: {{version}}",
+    "manualUpdateBanner": "Manual updates only on this platform. We'll tell you when a new version is available, but downloads happen via GitHub Releases.",
+    "statuses": {
+      "available": "Update available: {{version}}",
+      "checking": "Checking…",
+      "disabled": "Updates disabled",
+      "downloading": "Downloading… {{percent}}%",
+      "error": "Error: {{message}}",
+      "idle": "Not checked yet",
+      "notAvailable": "Up to date",
+      "ready": "Update {{version}} ready (restart to apply)"
+    },
+    "title": "Updates"
+  }
+}

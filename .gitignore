@@ -1,5 +1,32 @@
 node_modules
 dist
+dist-deploy
 out
 .DS_Store
 *.log*
+
+# TypeScript incremental build artifacts (referenced by tsBuildInfoFile in
+# each package's tsconfig). Currently nested under dist/ but kept here so
+# stray copies outside dist/ don't get committed if rootDir/outDir shift.
+*.tsbuildinfo
+
+# Turbo
+.turbo
+
+# Test coverage
+coverage
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# Editor
+.idea
+*.swp
+
+# Local-only test fixtures (copyrighted game content)
+**/test/fixtures-private/
+
+# Claude Code working dir
+.claude/

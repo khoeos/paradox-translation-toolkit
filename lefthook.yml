@@ -1,0 +1,29 @@
+pre-commit:
+  parallel: true
+  commands:
+    oxlint:
+      glob: '*.{ts,tsx,js,jsx}'
+      run: pnpm exec oxlint --fix {staged_files}
+      stage_fixed: true
+    typecheck:
+      run: pnpm turbo typecheck
+    test:
+      run: pnpm turbo test
+      only:
+        - ref: main
+        - ref: develop
+
+commit-msg:
+  commands:
+    commitlint:
+      run: pnpm commitlint --edit {1}
+
+pre-push:
+  parallel: true
+  commands:
+    oxlint:
+      run: pnpm lint check --no-errors-on-unmatched --files-ignore-unknown=true .
+    typecheck:
+      run: pnpm turbo typecheck
+    test:
+      run: pnpm turbo test

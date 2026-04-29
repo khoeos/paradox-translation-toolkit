@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error",
+    "perf": "warn",
+    "suspicious": "warn",
+    "style": "off"
+  },
+  "rules": {
+    "no-await-in-loop": "off",
+    "@typescript-eslint/no-extraneous-class": "off",
+    "unicorn/require-module-specifiers": "off",
+    "unicorn/require-post-message-target-origin": "off"
+  },
+  "ignorePatterns": [
+    "deprecated/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/.turbo/**",
+    "**/coverage/**",
+    "**/node_modules/**"
+  ]
+}

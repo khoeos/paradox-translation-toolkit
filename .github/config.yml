@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discord
+    url: https://discordapp.com/users/170144954964770816
+    about: For general questions, support, and discussion, ping me on Discord.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/khoeos/paradox-translation-toolkit/security/advisories/new
+    about: Report security vulnerabilities privately. See SECURITY.md for the full process.

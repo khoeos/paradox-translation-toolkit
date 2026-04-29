@@ -1,14 +1,15 @@
 {
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "i18n-ally.localesPaths": [
-    "src/i18n"
-  ]
+  "js/ts.preferences.includePackageJsonAutoImports": "on",
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
+  "js/ts.suggest.autoImports": true,
+  "oxc.enable": true,
+  "oxc.fmt.configPath": ".oxfmtrc.json",
+  "oxc.configPath": ".oxlintrc.json",
+  "editor.formatOnSave": true,
+  "[javascript]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+  "[javascriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+  "[typescript]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "oxc.oxc-vscode" },
+  "i18n-ally.localesPaths": ["packages/i18n/src/locales"],
+  "i18n-ally.keystyle": "nested"
 }

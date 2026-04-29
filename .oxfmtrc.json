@@ -1,0 +1,41 @@
+{
+  "singleQuote": true,
+  "semi": false,
+  "arrowParens": "avoid",
+  "trailingComma": "none",
+  "printWidth": 100,
+  "sortImports": {
+    "internalPattern": ["@/", "#/"],
+    "customGroups": [
+      { "groupName": "ptt", "elementNamePattern": ["@ptt/**"] },
+      { "groupName": "renderer", "elementNamePattern": ["@renderer/**"] },
+      { "groupName": "main", "elementNamePattern": ["@main/**"] },
+      { "groupName": "preload", "elementNamePattern": ["@preload/**"] }
+    ],
+    "groups": [
+      ["builtin", "external"],
+      { "newlinesBetween": true },
+      "ptt",
+      { "newlinesBetween": true },
+      ["preload", "main", "renderer"],
+      { "newlinesBetween": true },
+      "internal",
+      { "newlinesBetween": true },
+      ["parent", "sibling", "index"]
+    ],
+    "newlinesBetween": false,
+    "order": "asc",
+    "ignoreCase": true
+  },
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    "packages/ui/**",
+    "deprecated/**",
+    "**/dist/**",
+    "**/out/**",
+    "**/.turbo/**",
+    "**/coverage/**",
+    "**/node_modules/**",
+    ".changeset/**"
+  ]
+}

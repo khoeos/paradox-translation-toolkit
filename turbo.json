@@ -1,0 +1,55 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "ui": "tui",
+  "globalDependencies": ["tsconfig.base.json", "pnpm-workspace.yaml", "pnpm-lock.yaml"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "out/**"],
+      "inputs": [
+        "src/**",
+        "package.json",
+        "tsconfig.json",
+        "tsconfig.*.json",
+        "*.config.ts",
+        "*.config.js",
+        "*.config.mjs",
+        "*.config.cjs",
+        "electron-builder.yml",
+        "index.html"
+      ]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "@ptt/desktop#dev": {
+      "cache": false,
+      "persistent": true,
+      "with": ["@ptt/ui#dev"]
+    },
+    "lint": {
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "inputs": ["src/**", "test/**", "package.json", "tsconfig.json", "tsconfig.*.json"]
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "src/**",
+        "test/**",
+        "package.json",
+        "tsconfig.json",
+        "tsconfig.*.json",
+        "vitest.config.*"
+      ]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

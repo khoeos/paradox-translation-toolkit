@@ -1,0 +1,32 @@
+{
+  "name": "@ptt/game-registry",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint src test",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rimraf dist .turbo"
+  },
+  "dependencies": {
+    "@ptt/game-ck3": "workspace:*",
+    "@ptt/game-eu4": "workspace:*",
+    "@ptt/game-eu5": "workspace:*",
+    "@ptt/game-hoi4": "workspace:*",
+    "@ptt/game-imperator": "workspace:*",
+    "@ptt/game-stellaris": "workspace:*",
+    "@ptt/game-vic3": "workspace:*",
+    "@ptt/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "rimraf": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

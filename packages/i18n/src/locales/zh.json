@@ -1,0 +1,153 @@
+{
+  "common": {
+    "cancel": "取消",
+    "close": "关闭",
+    "error": "错误",
+    "loading": "加载中…"
+  },
+  "converter": {
+    "convert": "转换翻译",
+    "intro": "转换器会将源语言的本地化文件复制到目标语言中,以避免 Mod 显示原始翻译标签。",
+    "mode": "模式",
+    "modes": {
+      "addToCurrent": "添加到当前 Mod",
+      "addToCurrentHint": "在每个 Mod 文件夹内写入缺失的文件",
+      "extractToFolder": "提取到文件夹",
+      "extractToFolderHint": "将缺失的文件写入单独的输出文件夹"
+    },
+    "modFolder": "Mod 文件夹",
+    "modFolderPlaceholder": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\…",
+    "noGameSelected": "在上方选择一个游戏以开始转换本地化文件。",
+    "noLanguagesPickGame": "请先选择一个游戏。",
+    "outputFolder": "输出文件夹",
+    "outputFolderPlaceholder": "D:\\Translation",
+    "overwriteHint": "即使目标文件已存在,也强制使用源文件重新生成。",
+    "overwriteLabel": "覆盖已存在的文件",
+    "pickGame": "选择一个游戏",
+    "runError": "无法启动转换:{{message}}",
+    "sourceLanguage": "源语言",
+    "sourceLanguageDefault": "英语 (默认)",
+    "starting": "正在启动…",
+    "targetLanguages": "目标语言"
+  },
+  "editor": {
+    "comingSoon": "即将推出 - 使用 CodeMirror 进行并排编辑本地化条目。",
+    "title": "翻译编辑器"
+  },
+  "explorer": {
+    "comingSoon": "即将推出 - 浏览 Mod、查看本地化文件、深入查看键。",
+    "title": "Mod 浏览器"
+  },
+  "header": {
+    "nav": {
+      "converter": "转换器",
+      "editor": "编辑器",
+      "explorer": "浏览器",
+      "settings": "设置"
+    },
+    "subtitle": "v3.0.0"
+  },
+  "languages": {
+    "de": "德语",
+    "en": "英语",
+    "es": "西班牙语",
+    "fr": "法语",
+    "ja": "日语",
+    "ko": "韩语",
+    "pl": "波兰语",
+    "pt-BR": "葡萄牙语",
+    "ru": "俄语",
+    "tr": "土耳其语",
+    "zh-Hans": "简体中文"
+  },
+  "modal": {
+    "cancelJob": "取消任务",
+    "doneToast": "转换完成 - 已创建 {{count}} 个文件",
+    "doneToast_other": "转换完成 - 已创建 {{count}} 个文件",
+    "errorToast": "转换失败:{{message}}",
+    "filesCreated": "已创建的文件:",
+    "filesOverwritten": "已覆盖的文件:",
+    "filesPerLang": "{{lang}} - 已创建 {{count}} 个文件",
+    "filesPerLang_other": "{{lang}} - 已创建 {{count}} 个文件",
+    "log": {
+      "conversionFinished": "转换完成",
+      "errorPrefix": "错误:{{message}}",
+      "filesScanned_other": "已扫描 {{count}} 个文件",
+      "missingFiles_other": "缺少 {{count}} 个文件",
+      "sourceFiles_other": "源语言中有 {{count}} 个文件",
+      "startingScanning": "开始扫描文件"
+    },
+    "noFilesNeeded": "所有目标语言已有全部文件,无需操作。",
+    "openPathError": "无法打开路径:{{message}}",
+    "overwrittenPerLang": "{{lang}} - 已覆盖 {{count}} 个文件",
+    "overwrittenPerLang_other": "{{lang}} - 已覆盖 {{count}} 个文件",
+    "status": {
+      "applying": "创建文件中…",
+      "cancelled": "已取消",
+      "done": "完成",
+      "error": "错误",
+      "scanning": "扫描文件中…"
+    }
+  },
+  "settings": {
+    "allowedFolders": {
+      "empty": "尚未授权自定义文件夹。",
+      "hint": "通过授权提示明确允许的非典型 Paradox 位置文件夹。可移除不再信任的项。",
+      "remove": "从已授权文件夹中移除",
+      "title": "已授权的文件夹"
+    },
+    "defaultMode": "默认模式",
+    "diagnostics": {
+      "hint": "报告问题时很有用:附上最新的日志文件。",
+      "openLogs": "打开日志文件夹",
+      "openLogsError": "无法打开日志文件夹:{{message}}",
+      "title": "诊断"
+    },
+    "language": "语言",
+    "lastFolders": "最近的 Mod 文件夹",
+    "lastGame": "最近打开的游戏",
+    "loading": "正在加载设置…",
+    "noFoldersYet": "暂无记录。",
+    "noneYet": "无",
+    "resetAll": "重置所有设置",
+    "resetConfirm": "将所有设置恢复为默认值?",
+    "theme": "主题",
+    "themes": {
+      "dark": "深色",
+      "light": "浅色",
+      "system": "跟随系统"
+    },
+    "title": "设置"
+  },
+  "updater": {
+    "autoCheckHint": "应用启动几秒后自动查找新版本。",
+    "autoCheckLabel": "启动时检查更新",
+    "banner": {
+      "available": "{{version}} 版本可用",
+      "dismiss": "忽略",
+      "download": "下载",
+      "downloading": "下载更新… {{percent}}%",
+      "openInBrowser": "在浏览器中打开",
+      "ready": "更新 {{version}} 已就绪",
+      "restart": "立即重启",
+      "unsignedTooltip": "此版本未经代码签名。安装前请在 GitHub 发布页面核对 SHA-256 哈希值。",
+      "unsignedWarning": "未签名版本"
+    },
+    "betaChannelHint": "获取预览版本。可更早体验新功能,但可能存在缺陷。",
+    "betaChannelLabel": "订阅 Beta 版",
+    "checkForUpdates": "检查更新",
+    "currentVersion": "当前版本:{{version}}",
+    "manualUpdateBanner": "此平台仅支持手动更新。我们会在新版本可用时提醒你,但需要从 GitHub Releases 手动下载。",
+    "statuses": {
+      "available": "有可用更新:{{version}}",
+      "checking": "检查中…",
+      "disabled": "更新已禁用",
+      "downloading": "下载中… {{percent}}%",
+      "error": "错误:{{message}}",
+      "idle": "尚未检查",
+      "notAvailable": "已是最新",
+      "ready": "更新 {{version}} 已就绪 (重启以应用)"
+    },
+    "title": "更新"
+  }
+}
