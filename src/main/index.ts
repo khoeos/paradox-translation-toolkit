@@ -70,6 +70,14 @@ function createWindow(): void {
     })
   })
 
+  ipcMain.on(IpcKey.SELECT_GAME_START, () => {
+    dialog.showOpenDialog({ properties: ['openDirectory'] }).then((result) => {
+      if (!result.canceled) {
+        mainWindow.webContents.send(IpcKey.SELECT_GAME_RESULT, result.filePaths[0])
+      }
+    })
+  })
+
   ipcMain.on(IpcKey.OPEN_FOLDER, (_, path: string) => {
     shell.openPath(path)
   })

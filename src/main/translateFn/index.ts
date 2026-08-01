@@ -17,6 +17,7 @@ import {
   WorkerAction
 } from '../../global/types'
 import { TranslationEngine } from '../translate/engine'
+import { Glossary, loadGlossary } from '../translate/glossary'
 import { TranslationMemory } from '../translate/memory'
 import { entryKey, isTranslatable, parseLocFile, serializeLocFile } from '../translate/yml'
 
@@ -946,13 +947,37 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
     memory = new TranslationMemory(path.join(userDataPath, 'translation-memory'))
     // The renderer knows nothing about what the game is about, the worker does
     const config = { ...request.translate, domain: GAMES[game].domain }
-    engine = new TranslationEngine(config, memory, (translation) => {
-      workerPort.postMessage({
-        type: ConversionStatusType.PROGRESS,
-        ...lastProgress,
-        translation
+
+    let glossary: Glossary | undefined
+    if (config.gamePath) {
+      // One target language at a time keeps the glossary small; the first is the one that
+      // matters, the rest still gain from the domain sentence
+      glossary = await loadGlossary(
+        path.join(userDataPath, 'glossary'),
+        config.gamePath,
+        `${game}-${request.sourceLanguage}-${request.targetLanguages[0]}`,
+        translateKey,
+        request.sourceLanguage,
+        request.targetLanguages[0]
+      )
+      addLog(ConversionLogMessage.GLOSSARY, {
+        terms: glossary.terms.size,
+        strings: glossary.exact.size
       })
-    })
+    }
+
+    engine = new TranslationEngine(
+      config,
+      memory,
+      (translation) => {
+        workerPort.postMessage({
+          type: ConversionStatusType.PROGRESS,
+          ...lastProgress,
+          translation
+        })
+      },
+      glossary
+    )
     addLog(ConversionLogMessage.TRANSLATING, {
       provider: request.translate.provider,
       model: request.translate.model

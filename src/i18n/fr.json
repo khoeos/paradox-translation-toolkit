@@ -65,7 +65,8 @@
     "summary": "{{created}} fichier(s) créé(s) dans {{mods}} mod(s), {{failed}} échec(s)",
     "modCreated": "Mod de traduction « {{name}} » écrit",
     "translating": "Traduction via {{provider}} / {{model}}",
-    "cancelled": "Arrêté par l'utilisateur"
+    "cancelled": "Arrêté par l'utilisateur",
+    "glossary": "Glossaire du jeu : {{terms}} termes, {{strings}} chaînes connues"
   },
   "status": {
     "waiting": "En attente",
@@ -124,5 +125,7 @@
   "NothingToCreate": "Rien à créer, tous les fichiers cibles existent déjà.",
   "TranslationModHint": "Nom du mod créé dans votre dossier de mods. Les fichiers sont regroupés dans un sous-dossier par mod source.",
   "TranslationModCreated": "Mod « {{name}} » créé, supported_version {{version}}",
-  "TranslationModLoadOrder": "Activez-le dans le launcher et placez-le en dernier dans l'ordre de chargement."
+  "TranslationModLoadOrder": "Activez-le dans le launcher et placez-le en dernier dans l'ordre de chargement.",
+  "GamePath": "Dossier du jeu (facultatif, fortement recommandé)",
+  "GamePathHint": "La localisation du jeu de base sert de glossaire : sa terminologie officielle est réutilisée et les chaînes identiques ne sont pas envoyées à un modèle."
 }

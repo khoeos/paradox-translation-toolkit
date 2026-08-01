@@ -6,16 +6,33 @@ export interface Provider {
    * Translate a batch of strings
    * @param texts - The strings to translate
    * @param language - The target language, in English (Russian, German, ...)
+   * @param hints - Wording taken from the game itself for terms occurring in this batch
    * @returns The translations, same order and same length as `texts`
    */
-  translate(texts: string[], language: string): Promise<string[]>
+  translate(
+    texts: string[],
+    language: string,
+    hints?: { source: string; target: string }[]
+  ): Promise<string[]>
 }
 
 /** Instructions shared by every backend, they all speak the same prompt */
-const buildPrompt = (texts: string[], language: string, domain?: string): string =>
+const buildPrompt = (
+  texts: string[],
+  language: string,
+  domain?: string,
+  hints?: { source: string; target: string }[]
+): string =>
   `You translate video game localisation strings from English to ${language}.
 
-${domain ? `These strings belong to a mod for ${domain}\n\n` : ''}Rules:
+${domain ? `These strings belong to a mod for ${domain}\n\n` : ''}${
+    hints?.length
+      ? `The base game already translates these terms. Reuse its wording wherever it fits, ` +
+        `it is what players of this game expect:\n${hints
+          .map((hint) => `  ${hint.source} = ${hint.target}`)
+          .join('\n')}\n\n`
+      : ''
+  }Rules:
 - Translate only the human readable text.
 - Use the wording the game itself uses. These are interface strings of a known game,
   not generic prose: a trait, a title or a casus belli must read the way a player of
@@ -80,7 +97,11 @@ class OllamaProvider implements Provider {
     private readonly domain?: string
   ) {}
 
-  async translate(texts: string[], language: string): Promise<string[]> {
+  async translate(
+    texts: string[],
+    language: string,
+    hints?: { source: string; target: string }[]
+  ): Promise<string[]> {
     const response = await fetch(`${this.baseUrl.replace(/\/+$/, '')}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -92,7 +113,7 @@ class OllamaProvider implements Provider {
         think: false,
         format: 'json',
         options: { temperature: 0.2 },
-        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain) }]
+        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain, hints) }]
       })
     })
 
@@ -113,7 +134,11 @@ class OpenAiProvider implements Provider {
     private readonly domain?: string
   ) {}
 
-  async translate(texts: string[], language: string): Promise<string[]> {
+  async translate(
+    texts: string[],
+    language: string,
+    hints?: { source: string; target: string }[]
+  ): Promise<string[]> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`
 
@@ -125,7 +150,7 @@ class OpenAiProvider implements Provider {
         model: this.model,
         temperature: 0.2,
         response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain) }]
+        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain, hints) }]
       })
     })
 

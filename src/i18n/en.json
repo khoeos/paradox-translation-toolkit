@@ -42,7 +42,8 @@
     "summary": "{{created}} file(s) created in {{mods}} mod(s), {{failed}} failure(s)",
     "modCreated": "Translation mod \"{{name}}\" written",
     "translating": "Translating with {{provider}} / {{model}}",
-    "cancelled": "Stopped by user"
+    "cancelled": "Stopped by user",
+    "glossary": "Glossary from the game: {{terms}} terms, {{strings}} known strings"
   },
   "status": {
     "waiting": "Waiting",
@@ -124,5 +125,7 @@
   "LimitationsDesc": {
     "1": "I saw multiple mods using exotic folder or file names like \"synced_localisation\" or \"replace\". The tool will ignore these folders for now.",
     "2": "This tool is mainly tested with stellaris, i've tested it with eu4 and ck3, but with fewer mods/usecase and i've not tested Hoi4, the logic is the same so there should be no problems but for some specific case it may not work. I've disabled imperator rome and victoria for now"
-  }
+  },
+  "GamePath": "Game folder (optional, strongly recommended)",
+  "GamePathHint": "The base game localisation is used as a glossary: its official wording is reused and identical strings are not sent to a model at all."
 }

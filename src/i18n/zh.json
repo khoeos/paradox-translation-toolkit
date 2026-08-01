@@ -42,7 +42,8 @@
     "summary": "在 {{mods}} 个 Mod 中创建了 {{created}} 个文件，{{failed}} 个失败",
     "modCreated": "已写入翻译 Mod「{{name}}」",
     "translating": "正在通过 {{provider}} / {{model}} 翻译",
-    "cancelled": "已被用户停止"
+    "cancelled": "已被用户停止",
+    "glossary": "来自游戏的术语库：{{terms}} 个术语，{{strings}} 条已知文本"
   },
   "status": {
     "waiting": "等待中",
@@ -124,5 +125,7 @@
   "LimitationsDesc": {
     "1": "我看到有些 Mod 使用了比较特殊的文件夹或文件名，例如 \"synced_localisation\" 或 \"replace\"。目前该工具会忽略这些文件夹。",
     "2": "这个工具主要在 Stellaris 上进行了测试，也测试过 EU4 和 CK3，但覆盖的 Mod 和使用场景较少；尚未测试过 Hoi4。整体逻辑是一样的，所以理论上不应有问题，但在某些特殊情况下可能无法正常工作。目前我暂时禁用了 Imperator: Rome 和 Victoria。"
-  }
+  },
+  "GamePath": "游戏文件夹（可选，强烈建议）",
+  "GamePathHint": "基础游戏的本地化会作为术语库：沿用官方译法，完全相同的文本不再发送给模型。"
 }

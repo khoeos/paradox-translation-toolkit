@@ -7,6 +7,8 @@ export enum IpcKey {
   SELECT_FOLDER_RESULT = 'folderSelected',
   SELECT_OUTPUT_START = 'startSelectOutput',
   SELECT_OUTPUT_RESULT = 'outputSelected',
+  SELECT_GAME_START = 'startSelectGame',
+  SELECT_GAME_RESULT = 'gameSelected',
   OPEN_FOLDER = 'openFolder',
   TEST_PROVIDER = 'testProvider',
   TEST_PROVIDER_RESULT = 'testProviderResult'
@@ -40,6 +42,8 @@ export interface TranslateConfig {
   timeout: number
   /** What the game is about, filled in by the worker from the selected game */
   domain?: string
+  /** Game installation folder, its own localisation is the best glossary there is */
+  gamePath?: string
 }
 
 export enum ConversionStatusType {
@@ -56,6 +60,7 @@ export enum ConversionLogMessage {
   SUMMARY = 'conversionLog.summary',
   MOD_CREATED = 'conversionLog.modCreated',
   TRANSLATING = 'conversionLog.translating',
+  GLOSSARY = 'conversionLog.glossary',
   CANCELLED = 'conversionLog.cancelled'
 }
 

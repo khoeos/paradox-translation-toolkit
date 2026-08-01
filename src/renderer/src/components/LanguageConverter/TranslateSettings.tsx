@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { IpcKey, TranslateProvider } from '@global/types'
 import { Card, CardContent } from '@renderer/components/ui/Card'
 import { Button } from '@renderer/components/ui/Button'
-import { Input } from '@renderer/components/ui/Input'
+import { FolderInput, Input } from '@renderer/components/ui/Input'
 import { Switch } from '@renderer/components/ui/Switch'
 import { Popover, PopoverContent, PopoverTrigger } from '@renderer/components/ui/Popover'
 import { HelpCircleIcon } from 'lucide-react'
@@ -27,6 +27,7 @@ export default function TranslateSettings(): JSX.Element {
       setTesting(false)
       setResult(data as TestResult)
     })
+    window.api.on(IpcKey.SELECT_GAME_RESULT, (data) => setTranslate({ gamePath: data as string }))
   }, [])
 
   const runTest = (): void => {
@@ -136,6 +137,18 @@ export default function TranslateSettings(): JSX.Element {
                   className={'h-9'}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className={'block mb-1 text-xs text-gray-300/80'}>{t('GamePath')}</label>
+              <FolderInput
+                ipc={IpcKey.SELECT_GAME_START}
+                value={translate.gamePath ?? ''}
+                onChange={(e) => setTranslate({ gamePath: e.target.value })}
+                placeholder={'D:\\SteamLibrary\\steamapps\\common\\Crusader Kings III'}
+                className={'h-9'}
+              />
+              <p className={'mt-1 text-xs text-gray-300/80'}>{t('GamePathHint')}</p>
             </div>
 
             <div className={'flex items-center gap-3'}>

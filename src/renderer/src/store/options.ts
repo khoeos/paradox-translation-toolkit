@@ -13,6 +13,7 @@ const DEFAULT_TRANSLATE: TranslateConfig = {
   provider: TranslateProvider.OLLAMA,
   ...PROVIDER_DEFAULTS[TranslateProvider.OLLAMA],
   apiKey: '',
+  gamePath: '',
   batchSize: 20,
   concurrency: 1,
   retries: 2,
