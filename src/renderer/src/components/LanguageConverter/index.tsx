@@ -553,6 +553,7 @@ export default function LanguageConverter(): JSX.Element {
             onToggle={toggleSelectedMod}
             withEstimate={translate.enabled}
             translateKey={GAMES[game].translateKey}
+            provider={translate.provider}
           />
         )}
         <Dialog open={modalOpen}>

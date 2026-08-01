@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScannedMod } from '@global/types'
+import { ScannedMod, TranslateProvider } from '@global/types'
 import { Card, CardContent } from '@renderer/components/ui/Card'
 import { Button } from '@renderer/components/ui/Button'
 import { Input } from '@renderer/components/ui/Input'
@@ -8,18 +8,24 @@ import { ScrollArea } from '@renderer/components/ui/ScrollArea'
 import { cn } from '@renderer/lib/utils'
 
 /**
- * Rough throughput of a local model, only used to turn a line count into an order of
- * magnitude. Wrong by a factor of two is fine, wrong by a factor of ten is not.
+ * Rough throughput per backend, only used to turn a line count into an order of magnitude.
+ * A hosted translator is twenty times faster than a local model, so one shared constant
+ * turned a 45 minute job into a quoted 15 hours and invited the wrong decision.
+ * The RapidAPI figure is measured; the others are conservative.
  */
-const LINES_PER_SECOND = 3
+const LINES_PER_SECOND: Record<string, number> = {
+  [TranslateProvider.OLLAMA]: 3,
+  [TranslateProvider.OPENAI]: 3,
+  [TranslateProvider.RAPIDAPI]: 60
+}
 
 /**
  * Turn a line count into a readable duration
  * @param lines - Number of lines to translate
  * @returns A short human readable estimate
  */
-const formatEstimate = (lines: number): string => {
-  const seconds = Math.round(lines / LINES_PER_SECOND)
+const formatEstimate = (lines: number, provider: string): string => {
+  const seconds = Math.round(lines / (LINES_PER_SECOND[provider] ?? 3))
   if (seconds < 90) return `~${seconds} s`
   if (seconds < 5400) return `~${Math.round(seconds / 60)} min`
   return `~${(seconds / 3600).toFixed(1)} h`
@@ -57,6 +63,8 @@ interface Props {
   withEstimate: boolean
   /** localisation or localization, whichever the selected game uses */
   translateKey: string
+  /** Which backend will do the work, the estimate depends on it entirely */
+  provider: string
 }
 
 export default function ModList({
@@ -65,7 +73,8 @@ export default function ModList({
   onSelect,
   onToggle,
   withEstimate,
-  translateKey
+  translateKey,
+  provider
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const [filter, setFilter] = useState('')
@@ -219,7 +228,7 @@ export default function ModList({
           {t('SelectionSummary', { mods: totals.mods, files: totals.files })}
           {withEstimate && totals.lines > 0 && (
             <span className={'text-amber-500 ml-2'}>
-              {t('LinesCount', { count: totals.lines })} · {formatEstimate(totals.lines)}
+              {t('LinesCount', { count: totals.lines })} · {formatEstimate(totals.lines, provider)}
             </span>
           )}
         </p>
