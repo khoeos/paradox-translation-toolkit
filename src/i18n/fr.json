@@ -84,6 +84,13 @@
   "SelectMissing": "Sélectionner les manquants",
   "SelectNone": "Tout décocher",
   "UpToDate": "à jour",
+  "idle": {
+    "noLocalisation": "pas de dossier de localisation",
+    "noSourceFiles": "aucun fichier anglais",
+    "upToDate": "à jour"
+  },
+  "IdleBreakdown": "Ignorés : {{noLocalisation}} sans dossier de localisation, {{noSourceFiles}} sans fichier anglais, {{upToDate}} déjà traduits",
+  "ModCounts": "{{localisation}} fichiers de localisation, dont {{source}} en anglais",
   "NoModsMatch": "Aucun mod ne correspond au filtre",
   "LinesCount": "{{count}} lignes",
   "SelectionSummary": "{{mods}} mods sélectionnés, {{files}} fichiers à créer",

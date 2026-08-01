@@ -18,7 +18,7 @@ import {
 } from '../../global/types'
 import { TranslationEngine } from '../translate/engine'
 import { TranslationMemory } from '../translate/memory'
-import { isTranslatable, parseLocFile, serializeLocFile } from '../translate/yml'
+import { entryKey, isTranslatable, parseLocFile, serializeLocFile } from '../translate/yml'
 
 export interface Request {
   action?: WorkerAction
@@ -45,8 +45,12 @@ const MOD_CONCURRENCY = 8
 /** How many created files are reported per mod, the rest is only counted */
 const MAX_LISTED_FILES_PER_MOD = 100
 
-/** Localisation subfolder holding overrides of vanilla files, out of scope for now */
-const EXCLUDED_LOC_FOLDER = 'replace'
+/**
+ * Suffix for a generated file that sits next to an existing translation.
+ * Topping up an existing file would mean rewriting someone else's work, so the missing
+ * keys go into a file of their own instead.
+ */
+const PARTIAL_SUFFIX = '_ptt_missing'
 
 /** Fallbacks when the user leaves the translation mod name empty */
 const DEFAULT_MOD_NAME = 'Missing Translations'
@@ -71,6 +75,28 @@ interface CreationJob {
   target: string
   /** Path below the language folder, used when packing into a translation mod */
   packed: string[]
+  /** Only these keys go into the target file, everything else is already translated */
+  keys: Set<string>
+}
+
+interface Descriptor {
+  name?: string
+  supportedVersion?: string
+  remoteFileId?: string
+  dependencies?: string[]
+}
+
+interface LocalisationEntry {
+  key: string
+  file: string
+  described: LocalisationFile
+  language: string
+}
+
+interface ModKeys {
+  files: number
+  /** Language to key to where that key was declared */
+  byLanguage: Map<string, Map<string, LocalisationEntry>>
 }
 
 /** Split a path on both separators so the logic is not Windows only */
@@ -137,8 +163,7 @@ async function listTradFiles(
     const name = item.name.toLowerCase()
 
     if (item.isDirectory()) {
-      // TODO: Manage the replace folder
-      if (inLocalisation && name === EXCLUDED_LOC_FOLDER) continue
+      // replace/ used to be skipped; real mods keep translated strings there, so it counts
       subDirectories.push(
         listTradFiles(fullPath, translateKey, inLocalisation || name === translateKey, errors)
       )
@@ -163,24 +188,6 @@ const parseLocalisationFile = (filePath: string, translateKey: string): Localisa
   const locIndex = segments.map((segment) => segment.toLowerCase()).lastIndexOf(translateKey)
   if (locIndex === -1 || locIndex === segments.length - 1) return null
   return { path: filePath, locIndex, rest: segments.slice(locIndex + 1) }
-}
-
-/**
- * Tell if a localisation file belongs to the source language
- * Either it sits in a folder named after the language, or its name carries the language tag
- * @param file - The described localisation file
- * @param sourceLanguage - The source language key
- * @returns True if the file is a source language file
- */
-const isSourceLanguageFile = (file: LocalisationFile, sourceLanguage: string): boolean => {
-  const fileName = file.rest[file.rest.length - 1].toLowerCase()
-  const folders = file.rest.slice(0, -1).map((segment) => segment.toLowerCase())
-
-  return (
-    folders.includes(sourceLanguage) ||
-    fileName.includes(`l_${sourceLanguage}`) ||
-    (folders.length === 0 && fileName.includes(sourceLanguage))
-  )
 }
 
 /**
@@ -216,9 +223,7 @@ const getTargetFile = (
  * @param modPath - The mod folder
  * @returns The declared name and supported version, both optional
  */
-const readDescriptor = async (
-  modPath: string
-): Promise<{ name?: string; supportedVersion?: string }> => {
+const readDescriptor = async (modPath: string): Promise<Descriptor> => {
   let descriptors: string[]
   try {
     const items = await fs.readdir(modPath, { withFileTypes: true })
@@ -239,13 +244,111 @@ const readDescriptor = async (
       const content = await fs.readFile(path.join(modPath, descriptor), 'utf8')
       const name = content.match(/^\s*name\s*=\s*"([^"]*)"/m)?.[1]?.trim()
       const supportedVersion = content.match(/^\s*supported_version\s*=\s*"([^"]*)"/m)?.[1]?.trim()
-      if (name || supportedVersion) return { name, supportedVersion }
+      const remoteFileId = content.match(/^\s*remote_file_id\s*=\s*"([^"]*)"/m)?.[1]?.trim()
+      // dependencies={ "Original Mod" } holds the untranslated name of the patched mod
+      const block = content.match(/dependencies\s*=\s*\{([^}]*)\}/)?.[1] ?? ''
+      const dependencies = [...block.matchAll(/"([^"]*)"/g)].map((match) => match[1].trim())
+
+      if (name || supportedVersion) return { name, supportedVersion, remoteFileId, dependencies }
     } catch {
       // Unreadable descriptor is not worth failing the mod for
     }
   }
 
   return {}
+}
+
+/**
+ * Read every localisation key a mod declares, grouped by language
+ * @param modPath - The mod folder
+ * @param translateKey - The game's folder translate key
+ * @param errors - Collects unreadable folders
+ * @returns Language to the keys it covers, and the source entries with their file
+ */
+const readModKeys = async (
+  modPath: string,
+  translateKey: string,
+  errors: string[]
+): Promise<ModKeys> => {
+  const files = await listTradFiles(modPath, translateKey, false, errors)
+  const byLanguage = new Map<string, Map<string, LocalisationEntry>>()
+
+  for (const file of files) {
+    const described = parseLocalisationFile(file, translateKey)
+    if (!described) continue
+
+    let content: string
+    try {
+      content = await fs.readFile(file, 'utf8')
+    } catch (error) {
+      errors.push(`${file} : ${(error as Error).message}`)
+      continue
+    }
+
+    // The l_<language> header is what the game actually reads, not the folder name
+    const language =
+      content.match(/^\s*l_([a-z_]+)\s*:/m)?.[1] ??
+      described.rest.slice(0, -1).find((segment) => /^[a-z_]+$/.test(segment)) ??
+      ''
+
+    let keys = byLanguage.get(language)
+    if (!keys) byLanguage.set(language, (keys = new Map()))
+
+    for (const line of parseLocFile(content)) {
+      if (!line.entry) continue
+      const key = entryKey(line.entry.prefix)
+      if (!keys.has(key)) keys.set(key, { key, file, described, language })
+    }
+  }
+
+  return { files: files.length, byLanguage }
+}
+
+/**
+ * Keys already translated for the mods, including the ones supplied by separate
+ * localisation mods that declare a dependency on them
+ * @param mods - Every discovered mod folder
+ * @param translateKey - The game's folder translate key
+ * @returns Mod id to language to the keys covered by its localisation mods
+ */
+const buildCoverage = async (
+  mods: ModFolder[],
+  translateKey: string
+): Promise<Map<string, Map<string, Set<string>>>> => {
+  const descriptors = await mapWithConcurrency(mods, MOD_CONCURRENCY, (mod) =>
+    readDescriptor(mod.path)
+  )
+
+  const byName = new Map<string, ModFolder>()
+  mods.forEach((mod, index) => {
+    const name = descriptors[index].name
+    if (name) byName.set(name, mod)
+  })
+
+  const coverage = new Map<string, Map<string, Set<string>>>()
+
+  await mapWithConcurrency(mods, MOD_CONCURRENCY, async (mod, index) => {
+    const dependencies = descriptors[index].dependencies ?? []
+    if (dependencies.length === 0) return
+
+    const targets = dependencies
+      .map((name) => byName.get(name))
+      .filter((target): target is ModFolder => Boolean(target) && target !== mod)
+    if (targets.length === 0) return
+
+    const keys = await readModKeys(mod.path, translateKey, [])
+    for (const target of targets) {
+      let perLanguage = coverage.get(target.id)
+      if (!perLanguage) coverage.set(target.id, (perLanguage = new Map()))
+      for (const [language, entries] of keys.byLanguage) {
+        const merged = perLanguage.get(language) ?? new Set<string>()
+        for (const key of entries.keys()) merged.add(key)
+        perLanguage.set(language, merged)
+      }
+    }
+  })
+
+  return coverage
 }
 
 /**
@@ -268,6 +371,23 @@ const sanitizeFolderName = (value: string, maxLength: number): string =>
  * @param name - The source mod declared name
  * @returns A folder name unique per source mod
  */
+/**
+ * Rename a target file so it can live next to an existing translation
+ * @param target - The natural target path
+ * @returns The same path with the partial marker before the extension
+ */
+const withPartialSuffix = (target: string): string => {
+  const base = path.basename(target)
+  // The games only load files whose name ends with _l_<language>.yml, so the marker
+  // has to go before that tail, never after it
+  const tail = base.match(/(_l_[a-z_]+\.yml)$/i)
+  const renamed = tail
+    ? `${base.slice(0, -tail[1].length)}${PARTIAL_SUFFIX}${tail[1]}`
+    : `${base.slice(0, -path.extname(base).length)}${PARTIAL_SUFFIX}${path.extname(base)}`
+
+  return path.join(path.dirname(target), renamed)
+}
+
 const getModNamespace = (mod: ModFolder, name: string): string => {
   const id = sanitizeFolderName(mod.id, 32)
   const label = sanitizeFolderName(name, 32)
@@ -406,7 +526,8 @@ const planMod = async (
   mod: ModFolder,
   request: Request,
   translateKey: string,
-  packed: boolean
+  packed: boolean,
+  coverage?: Map<string, Set<string>>
 ): Promise<ModPlan> => {
   const { sourceLanguage, targetLanguages } = request
   const errors: string[] = []
@@ -422,33 +543,52 @@ const planMod = async (
     errors
   }
 
-  const allFiles = await listTradFiles(mod.path, translateKey, false, errors)
-  plan.localisationFiles = allFiles.length
-  if (allFiles.length === 0) return plan
+  const modKeys = await readModKeys(mod.path, translateKey, errors)
+  plan.localisationFiles = modKeys.files
+  if (modKeys.files === 0) return plan
 
-  const existingFiles = new Set(allFiles.map(pathKey))
-  const sourceFiles = allFiles
-    .map((file) => parseLocalisationFile(file, translateKey))
-    .filter((file): file is LocalisationFile => file !== null)
-    .filter((file) => isSourceLanguageFile(file, sourceLanguage))
-  plan.sourceFiles = sourceFiles.length
+  const sourceEntries = modKeys.byLanguage.get(sourceLanguage)
+  if (!sourceEntries || sourceEntries.size === 0) return plan
+  plan.sourceFiles = new Set([...sourceEntries.values()].map((entry) => entry.file)).size
+
+  const existingFiles = new Set<string>()
+  for (const entries of modKeys.byLanguage.values()) {
+    for (const entry of entries.values()) existingFiles.add(pathKey(entry.file))
+  }
 
   for (const language of targetLanguages) {
     if (language === sourceLanguage) continue
 
+    // A key counts as done when the mod itself translated it, or when a localisation
+    // mod depending on this one did. Generating it again would shadow a real translation.
+    const covered = new Set(modKeys.byLanguage.get(language)?.keys() ?? [])
+    for (const key of coverage?.get(language) ?? []) covered.add(key)
+
+    const byFile = new Map<string, { entry: LocalisationEntry; keys: Set<string> }>()
+    for (const [key, entry] of sourceEntries) {
+      if (covered.has(key)) continue
+      let group = byFile.get(entry.file)
+      if (!group) byFile.set(entry.file, (group = { entry, keys: new Set() }))
+      group.keys.add(key)
+    }
+
     const seen = new Set<string>()
     const languageJobs: CreationJob[] = []
 
-    for (const file of sourceFiles) {
-      const target = getTargetFile(file, sourceLanguage, language)
+    for (const { entry, keys } of byFile.values()) {
+      let target = getTargetFile(entry.described, sourceLanguage, language)
+      if (pathKey(target) === pathKey(entry.file)) continue
+      // The natural name is taken by an existing translation: never rewrite it, sit beside it
+      if (existingFiles.has(pathKey(target))) target = withPartialSuffix(target)
       const key = pathKey(target)
-      // Two source files can map onto the same target, keep the first one only
-      if (key === pathKey(file.path) || existingFiles.has(key) || seen.has(key)) continue
+      if (seen.has(key)) continue
       seen.add(key)
+
       languageJobs.push({
-        source: file.path,
+        source: entry.file,
         target,
-        packed: packed ? getTranslationModPath(file, target, sourceLanguage) : []
+        packed: packed ? getTranslationModPath(entry.described, target, sourceLanguage) : [],
+        keys
       })
     }
 
@@ -464,24 +604,28 @@ const planMod = async (
  * @returns The number of translatable lines
  */
 const countTranslatableLines = async (jobs: Record<string, CreationJob[]>): Promise<number> => {
-  const perFile = new Map<string, number>()
+  const perFile = new Map<string, Map<string, boolean>>()
   let total = 0
 
   for (const language of Object.keys(jobs)) {
     for (const job of jobs[language]) {
-      let count = perFile.get(job.source)
-      if (count === undefined) {
+      let translatable = perFile.get(job.source)
+      if (!translatable) {
+        translatable = new Map()
         try {
           const content = await fs.readFile(job.source, 'utf8')
-          count = parseLocFile(content).filter(
-            (line) => line.entry && isTranslatable(line.entry.value)
-          ).length
+          for (const line of parseLocFile(content)) {
+            if (line.entry) {
+              translatable.set(entryKey(line.entry.prefix), isTranslatable(line.entry.value))
+            }
+          }
         } catch {
-          count = 0
+          // An unreadable file simply contributes nothing to the estimate
         }
-        perFile.set(job.source, count)
+        perFile.set(job.source, translatable)
       }
-      total += count
+      // Only the missing keys are sent to a translator, not the whole file
+      for (const key of job.keys) if (translatable.get(key)) total++
     }
   }
 
@@ -500,9 +644,10 @@ const scanMod = async (
   mod: ModFolder,
   request: Request,
   translateKey: string,
-  countLines: boolean
+  countLines: boolean,
+  coverage?: Map<string, Set<string>>
 ): Promise<ScannedMod> => {
-  const plan = await planMod(mod, request, translateKey, false)
+  const plan = await planMod(mod, request, translateKey, false, coverage)
 
   const missing: Record<string, number> = {}
   let missingFiles = 0
@@ -541,16 +686,22 @@ const buildTargetContent = async (
 ): Promise<string> => {
   const sourceContent = await fs.readFile(job.source, 'utf8')
   const retagged = sourceContent.replaceAll(`l_${sourceLanguage}`, `l_${language}`)
-  if (!translations) return retagged
 
-  const lines = parseLocFile(retagged).map((line) => {
-    const translated = line.entry && translations.get(line.entry.value)
+  // Only the keys nobody translated yet, so the file never shadows an existing translation
+  const kept = parseLocFile(retagged).filter((line, index) =>
+    line.entry
+      ? job.keys.has(entryKey(line.entry.prefix))
+      : index === 0 || /^\s*l_[a-z_]+\s*:/.test(line.raw)
+  )
+
+  const lines = kept.map((line) => {
+    const translated = line.entry && translations?.get(line.entry.value)
     return translated && line.entry
       ? { ...line, entry: { ...line.entry, value: translated } }
       : line
   })
 
-  return serializeLocFile(lines)
+  return `${serializeLocFile(lines)}\n`
 }
 
 /**
@@ -570,13 +721,14 @@ const processMod = async (
   translateKey: string,
   translationMod?: TranslationMod,
   engine?: TranslationEngine,
-  languageNames: Record<string, string> = {}
+  languageNames: Record<string, string> = {},
+  coverage?: Map<string, Set<string>>
 ): Promise<ModResult> => {
   const { sourceLanguage, mode, outputPath } = request
   const outputDir = mode === ConvertMode.EXTRACT_TO_FOLDER ? outputPath : undefined
 
   const created: Record<string, string[]> = {}
-  const plan = await planMod(mod, request, translateKey, Boolean(translationMod))
+  const plan = await planMod(mod, request, translateKey, Boolean(translationMod), coverage)
   const result: ModResult = {
     id: mod.id,
     name: plan.name,
@@ -705,10 +857,11 @@ const launchScan = async (request: Request, workerPort: any): Promise<ScanOutput
   })
 
   const { mods } = await discoverMods(request.path, translateKey)
+  const coverage = await buildCoverage(mods, translateKey)
 
   let done = 0
   const results = await mapWithConcurrency(mods, MOD_CONCURRENCY, async (mod) => {
-    const result = await scanMod(mod, request, translateKey, countLines)
+    const result = await scanMod(mod, request, translateKey, countLines, coverage.get(mod.id))
     done++
     workerPort.postMessage({
       type: ConversionStatusType.PROGRESS,
@@ -774,6 +927,8 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
   })
 
   const discovered = await discoverMods(rootPath, translateKey)
+  // Built from every discovered mod: a localisation mod the user did not tick still counts
+  const coverage = await buildCoverage(discovered.mods, translateKey)
   // The user ticked the mods to handle in the scan list, an empty selection means everything
   const mods = selectedMods?.length
     ? discovered.mods.filter((mod) => selectedMods.includes(mod.id))
@@ -789,7 +944,9 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
   if (request.translate?.enabled) {
     if (!userDataPath) throw new Error('Translation memory folder could not be resolved')
     memory = new TranslationMemory(path.join(userDataPath, 'translation-memory'))
-    engine = new TranslationEngine(request.translate, memory, (translation) => {
+    // The renderer knows nothing about what the game is about, the worker does
+    const config = { ...request.translate, domain: GAMES[game].domain }
+    engine = new TranslationEngine(config, memory, (translation) => {
       workerPort.postMessage({
         type: ConversionStatusType.PROGRESS,
         ...lastProgress,
@@ -819,7 +976,8 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
       translateKey,
       translationMod,
       engine,
-      languageNames
+      languageNames,
+      coverage.get(mod.id)
     )
     done++
     lastProgress = { current: done, total: mods.length, modName: result.name }

@@ -61,6 +61,13 @@
   "SelectMissing": "Select missing",
   "SelectNone": "Clear",
   "UpToDate": "up to date",
+  "idle": {
+    "noLocalisation": "no localisation folder",
+    "noSourceFiles": "no English files",
+    "upToDate": "up to date"
+  },
+  "IdleBreakdown": "Skipped: {{noLocalisation}} without a localisation folder, {{noSourceFiles}} without English files, {{upToDate}} already translated",
+  "ModCounts": "{{localisation}} localisation files, {{source}} of them English",
   "NoModsMatch": "No mod matches the filter",
   "LinesCount": "{{count}} lines",
   "SelectionSummary": "{{mods}} mods selected, {{files}} files to create",

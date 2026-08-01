@@ -61,6 +61,13 @@
   "SelectMissing": "选择缺失的",
   "SelectNone": "全部取消",
   "UpToDate": "已完整",
+  "idle": {
+    "noLocalisation": "没有本地化文件夹",
+    "noSourceFiles": "没有英文文件",
+    "upToDate": "已完整"
+  },
+  "IdleBreakdown": "已跳过：{{noLocalisation}} 个没有本地化文件夹，{{noSourceFiles}} 个没有英文文件，{{upToDate}} 个已翻译",
+  "ModCounts": "{{localisation}} 个本地化文件，其中 {{source}} 个为英文",
   "NoModsMatch": "没有匹配的 Mod",
   "LinesCount": "{{count}} 行",
   "SelectionSummary": "已选 {{mods}} 个 Mod，待创建 {{files}} 个文件",

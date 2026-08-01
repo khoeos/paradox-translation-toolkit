@@ -38,6 +38,8 @@ export interface TranslateConfig {
   retries: number
   /** Per request timeout in milliseconds */
   timeout: number
+  /** What the game is about, filled in by the worker from the selected game */
+  domain?: string
 }
 
 export enum ConversionStatusType {

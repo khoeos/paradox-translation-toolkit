@@ -37,6 +37,13 @@ export const parseLocFile = (content: string): LocLine[] =>
   })
 
 /**
+ * The localisation key of an entry, without its version number
+ * @param prefix - The entry prefix, ` my_key:0 `
+ * @returns `my_key`
+ */
+export const entryKey = (prefix: string): string => prefix.trim().replace(/:\d*$/, '')
+
+/**
  * Quotes inside a value must stay escaped or the game stops reading the file
  * @param value - The translated value
  * @returns The value with every quote escaped exactly once

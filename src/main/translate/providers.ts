@@ -12,11 +12,14 @@ export interface Provider {
 }
 
 /** Instructions shared by every backend, they all speak the same prompt */
-const buildPrompt = (texts: string[], language: string): string =>
+const buildPrompt = (texts: string[], language: string, domain?: string): string =>
   `You translate video game localisation strings from English to ${language}.
 
-Rules:
+${domain ? `These strings belong to a mod for ${domain}\n\n` : ''}Rules:
 - Translate only the human readable text.
+- Use the wording the game itself uses. These are interface strings of a known game,
+  not generic prose: a trait, a title or a casus belli must read the way a player of
+  that game expects, not as a literal dictionary rendering.
 - Markup tokens MUST be reproduced exactly, character for character, in the same order:
   $VARIABLE$, [Scope.Function], £icon£, §Y and §! colour codes, #bold and #!, \\n, \\t
 - Never add, remove, reorder or translate a markup token.
@@ -73,7 +76,8 @@ class OllamaProvider implements Provider {
   constructor(
     private readonly baseUrl: string,
     private readonly model: string,
-    private readonly timeout: number
+    private readonly timeout: number,
+    private readonly domain?: string
   ) {}
 
   async translate(texts: string[], language: string): Promise<string[]> {
@@ -88,7 +92,7 @@ class OllamaProvider implements Provider {
         think: false,
         format: 'json',
         options: { temperature: 0.2 },
-        messages: [{ role: 'user', content: buildPrompt(texts, language) }]
+        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain) }]
       })
     })
 
@@ -105,7 +109,8 @@ class OpenAiProvider implements Provider {
     private readonly baseUrl: string,
     private readonly model: string,
     private readonly apiKey: string,
-    private readonly timeout: number
+    private readonly timeout: number,
+    private readonly domain?: string
   ) {}
 
   async translate(texts: string[], language: string): Promise<string[]> {
@@ -120,7 +125,7 @@ class OpenAiProvider implements Provider {
         model: this.model,
         temperature: 0.2,
         response_format: { type: 'json_object' },
-        messages: [{ role: 'user', content: buildPrompt(texts, language) }]
+        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain) }]
       })
     })
 
@@ -138,5 +143,11 @@ class OpenAiProvider implements Provider {
  */
 export const createProvider = (config: TranslateConfig): Provider =>
   config.provider === TranslateProvider.OLLAMA
-    ? new OllamaProvider(config.baseUrl, config.model, config.timeout)
-    : new OpenAiProvider(config.baseUrl, config.model, config.apiKey ?? '', config.timeout)
+    ? new OllamaProvider(config.baseUrl, config.model, config.timeout, config.domain)
+    : new OpenAiProvider(
+        config.baseUrl,
+        config.model,
+        config.apiKey ?? '',
+        config.timeout,
+        config.domain
+      )

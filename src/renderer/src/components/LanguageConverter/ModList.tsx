@@ -25,6 +25,15 @@ const formatEstimate = (lines: number): string => {
   return `~${(seconds / 3600).toFixed(1)} h`
 }
 
+/** Why a mod has nothing to do: three very different situations, worth telling apart */
+type IdleReason = 'noLocalisation' | 'noSourceFiles' | 'upToDate'
+
+const getIdleReason = (mod: ScannedMod): IdleReason => {
+  if (mod.localisationFiles === 0) return 'noLocalisation'
+  if (mod.sourceFiles === 0) return 'noSourceFiles'
+  return 'upToDate'
+}
+
 interface Props {
   mods: ScannedMod[]
   selected: string[]
@@ -62,6 +71,16 @@ export default function ModList({
       lines: chosen.reduce((sum, mod) => sum + mod.missingLines, 0)
     }
   }, [mods, selected])
+
+  // Why the greyed out mods were skipped, the single most asked question of a scan
+  const idleBreakdown = useMemo(() => {
+    const counts = { noLocalisation: 0, noSourceFiles: 0, upToDate: 0 }
+    for (const mod of mods) {
+      if (mod.missingFiles > 0) continue
+      counts[getIdleReason(mod)]++
+    }
+    return counts
+  }, [mods])
 
   return (
     <Card className={'col-span-12'}>
@@ -112,7 +131,13 @@ export default function ModList({
                     onChange={() => onToggle(mod.id)}
                     onClick={(e) => e.stopPropagation()}
                   />
-                  <span className={'truncate grow'} title={`${mod.name}\n${mod.path}`}>
+                  <span
+                    className={'truncate grow'}
+                    title={`${mod.name}\n${mod.path}\n${t('ModCounts', {
+                      localisation: mod.localisationFiles,
+                      source: mod.sourceFiles
+                    })}`}
+                  >
                     {mod.name}
                   </span>
                   {mod.errors.length > 0 && (
@@ -121,7 +146,9 @@ export default function ModList({
                     </span>
                   )}
                   <span className={'text-gray-400 shrink-0 tabular-nums'}>
-                    {idle ? t('UpToDate') : t('FilesCount', { count: mod.missingFiles })}
+                    {idle
+                      ? t(`idle.${getIdleReason(mod)}`)
+                      : t('FilesCount', { count: mod.missingFiles })}
                   </span>
                   {withEstimate && mod.missingLines > 0 && (
                     <span className={'text-amber-500/80 shrink-0 tabular-nums w-20 text-right'}>
@@ -145,6 +172,7 @@ export default function ModList({
             </span>
           )}
         </p>
+        <p className={'mt-1 text-xs text-gray-400'}>{t('IdleBreakdown', idleBreakdown)}</p>
       </CardContent>
     </Card>
   )
