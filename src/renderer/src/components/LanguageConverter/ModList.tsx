@@ -55,6 +55,8 @@ interface Props {
   onToggle: (id: string) => void
   /** Show the translation time estimate */
   withEstimate: boolean
+  /** localisation or localization, whichever the selected game uses */
+  translateKey: string
 }
 
 export default function ModList({
@@ -62,10 +64,18 @@ export default function ModList({
   selected,
   onSelect,
   onToggle,
-  withEstimate
+  withEstimate,
+  translateKey
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const [filter, setFilter] = useState('')
+
+  // Not a single mod carrying localisation almost always means the wrong game tab
+  const otherSpelling = useMemo(() => mods.filter((mod) => mod.otherSpelling).length, [mods])
+  const wrongGame = useMemo(
+    () => mods.length > 0 && mods.every((mod) => mod.localisationFiles === 0),
+    [mods]
+  )
 
   const visible = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -122,6 +132,20 @@ export default function ModList({
             {t('SelectNone')}
           </Button>
         </div>
+
+        {wrongGame && (
+          <p
+            className={
+              'mb-2 px-3 py-2 text-sm rounded border border-red-500/60 bg-red-950/40 text-red-200'
+            }
+          >
+            {t(otherSpelling > 0 ? 'WrongGameSpelling' : 'WrongGameNoLocalisation', {
+              expected: translateKey,
+              other: translateKey === 'localization' ? 'localisation' : 'localization',
+              count: otherSpelling
+            })}
+          </p>
+        )}
 
         <p className={'mb-2 text-xs text-gray-300/80'}>{t('CoverageHint')}</p>
 

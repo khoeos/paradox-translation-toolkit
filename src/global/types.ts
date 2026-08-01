@@ -122,6 +122,8 @@ export interface ScannedMod {
   missing: Record<string, number>
   /** Total keys the source language declares */
   sourceKeys: number
+  /** A localisation folder spelled the other way exists here: wrong game selected */
+  otherSpelling?: boolean
   /** Keys still untranslated, per target language */
   missingKeys: Record<string, number>
   missingFiles: number
@@ -137,6 +139,10 @@ export interface ScanOutput {
     mods: number
     missingFiles: number
     missingLines: number
+    /** Mods holding no localisation folder for the selected game */
+    withoutLocalisation: number
+    /** Mods where the other spelling was found instead */
+    otherSpelling: number
   }
 }
 

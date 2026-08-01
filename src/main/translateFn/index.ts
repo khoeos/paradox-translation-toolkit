@@ -146,7 +146,8 @@ async function listTradFiles(
   dirPath: string,
   translateKey: string,
   inLocalisation: boolean,
-  errors: string[]
+  errors: string[],
+  notes?: { otherSpelling: boolean }
 ): Promise<string[]> {
   let items: Dirent[]
   try {
@@ -164,9 +165,19 @@ async function listTradFiles(
     const name = item.name.toLowerCase()
 
     if (item.isDirectory()) {
+      // The two spellings are a classic mix-up: CK3 says localization, the others localisation
+      if (notes && name !== translateKey && (name === 'localisation' || name === 'localization')) {
+        notes.otherSpelling = true
+      }
       // replace/ used to be skipped; real mods keep translated strings there, so it counts
       subDirectories.push(
-        listTradFiles(fullPath, translateKey, inLocalisation || name === translateKey, errors)
+        listTradFiles(
+          fullPath,
+          translateKey,
+          inLocalisation || name === translateKey,
+          errors,
+          notes
+        )
       )
     } else if (inLocalisation && item.isFile() && name.endsWith('.yml')) {
       ymlFiles.push(fullPath)
@@ -269,9 +280,10 @@ const readDescriptor = async (modPath: string): Promise<Descriptor> => {
 const readModKeys = async (
   modPath: string,
   translateKey: string,
-  errors: string[]
+  errors: string[],
+  notes?: { otherSpelling: boolean }
 ): Promise<ModKeys> => {
-  const files = await listTradFiles(modPath, translateKey, false, errors)
+  const files = await listTradFiles(modPath, translateKey, false, errors, notes)
   const byLanguage = new Map<string, Map<string, LocalisationEntry>>()
 
   for (const file of files) {
@@ -507,6 +519,8 @@ export const cancellation = { requested: false }
 /** What a mod needs, computed once and reused by the scan and the conversion */
 interface ModPlan {
   name: string
+  /** A localisation folder spelled the other way was found, so the game is likely wrong */
+  otherSpelling?: boolean
   /** Total keys the source language declares */
   sourceKeys: number
   supportedVersion?: string
@@ -547,7 +561,9 @@ const planMod = async (
     errors
   }
 
-  const modKeys = await readModKeys(mod.path, translateKey, errors)
+  const notes = { otherSpelling: false }
+  const modKeys = await readModKeys(mod.path, translateKey, errors, notes)
+  plan.otherSpelling = notes.otherSpelling
   plan.localisationFiles = modKeys.files
   if (modKeys.files === 0) return plan
 
@@ -678,6 +694,7 @@ const scanMod = async (
     localisationFiles: plan.localisationFiles,
     sourceFiles: plan.sourceFiles,
     sourceKeys: plan.sourceKeys,
+    otherSpelling: plan.otherSpelling,
     missing,
     missingKeys,
     missingFiles,
@@ -893,9 +910,11 @@ const launchScan = async (request: Request, workerPort: any): Promise<ScanOutput
     (acc, mod) => ({
       mods: acc.mods + 1,
       missingFiles: acc.missingFiles + mod.missingFiles,
-      missingLines: acc.missingLines + mod.missingLines
+      missingLines: acc.missingLines + mod.missingLines,
+      withoutLocalisation: acc.withoutLocalisation + (mod.localisationFiles === 0 ? 1 : 0),
+      otherSpelling: acc.otherSpelling + (mod.otherSpelling ? 1 : 0)
     }),
-    { mods: 0, missingFiles: 0, missingLines: 0 }
+    { mods: 0, missingFiles: 0, missingLines: 0, withoutLocalisation: 0, otherSpelling: 0 }
   )
 
   // Mods needing work first, the rest keeps the list readable

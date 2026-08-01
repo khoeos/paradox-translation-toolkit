@@ -128,5 +128,7 @@
   },
   "GamePath": "游戏文件夹（可选，强烈建议）",
   "GamePathHint": "基础游戏的本地化会作为术语库：沿用官方译法，完全相同的文本不再发送给模型。",
-  "CoverageHint": "数字表示已翻译的键 / 英文键总数。只要 Mod 自身或依赖它的翻译 Mod 含有该键，就算已翻译。"
+  "CoverageHint": "数字表示已翻译的键 / 英文键总数。只要 Mod 自身或依赖它的翻译 Mod 含有该键，就算已翻译。",
+  "WrongGameSpelling": "没有任何 Mod 含有「{{expected}}」文件夹，但有 {{count}} 个含有「{{other}}」。这是另一款游戏的拼写方式，请检查窗口顶部选择的游戏。",
+  "WrongGameNoLocalisation": "没有任何 Mod 含有「{{expected}}」文件夹。可能是窗口顶部选错了游戏，或该文件夹中没有带文本的 Mod。"
 }
