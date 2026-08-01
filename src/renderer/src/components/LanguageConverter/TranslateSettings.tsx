@@ -21,6 +21,7 @@ export default function TranslateSettings(): JSX.Element {
   const { translate, setTranslate, setTranslateProvider } = useOptionsStore()
   const [testing, setTesting] = useState(false)
   const [result, setResult] = useState<TestResult | null>(null)
+  const [cleared, setCleared] = useState(false)
 
   useEffect(() => {
     window.api.on(IpcKey.TEST_PROVIDER_RESULT, (data) => {
@@ -28,6 +29,7 @@ export default function TranslateSettings(): JSX.Element {
       setResult(data as TestResult)
     })
     window.api.on(IpcKey.SELECT_GAME_RESULT, (data) => setTranslate({ gamePath: data as string }))
+    window.api.on(IpcKey.CLEAR_MEMORY_RESULT, () => setCleared(true))
   }, [])
 
   const runTest = (): void => {
@@ -173,6 +175,16 @@ export default function TranslateSettings(): JSX.Element {
               >
                 {testing ? t('Testing') : t('TestProvider')}
               </Button>
+              <Button
+                className={'bg-gray-900 text-white hover:text-gray-800 h-9'}
+                onClick={() => {
+                  setCleared(false)
+                  window.electron.ipcRenderer.send(IpcKey.CLEAR_MEMORY)
+                }}
+              >
+                {t('ClearMemory')}
+              </Button>
+              {cleared && <span className={'text-sm text-emerald-400'}>{t('MemoryCleared')}</span>}
               {result?.ok && (
                 <span className={'text-sm text-emerald-400 truncate'}>
                   {t('TestOk', { sample: result.sample })}

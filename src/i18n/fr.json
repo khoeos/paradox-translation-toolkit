@@ -134,5 +134,8 @@
   "ProviderRapidApi": "Traducteur RapidAPI",
   "Elapsed": "écoulé {{time}}",
   "PerSecond": "chaînes/s",
-  "Remaining": "~{{time}} restant"
+  "Remaining": "~{{time}} restant",
+  "ClearMemory": "Vider la mémoire de traduction",
+  "MemoryCleared": "vidée",
+  "CoveredBy": "couvert par {{names}}"
 }

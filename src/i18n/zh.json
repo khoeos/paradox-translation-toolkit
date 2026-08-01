@@ -134,5 +134,8 @@
   "ProviderRapidApi": "RapidAPI 翻译",
   "Elapsed": "已用 {{time}}",
   "PerSecond": "条/秒",
-  "Remaining": "约剩 {{time}}"
+  "Remaining": "约剩 {{time}}",
+  "ClearMemory": "清空翻译记忆",
+  "MemoryCleared": "已清空",
+  "CoveredBy": "由 {{names}} 覆盖"
 }

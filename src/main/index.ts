@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, IpcMainEvent } from 'electron'
 import { join } from 'path'
+import { rm } from 'fs/promises'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import workerPath from './worker?modulePath'
@@ -144,6 +145,20 @@ function createWindow(): void {
   ipcMain.on(IpcKey.CONVERT_CANCEL, () => {
     // Le worker s'arrête de lui-même entre deux unités de travail
     currentWorker?.postMessage({ cancel: true })
+  })
+
+  ipcMain.on(IpcKey.CLEAR_MEMORY, async () => {
+    // Only the remembered translations go: the glossary is rebuilt from the game anyway
+    const folder = join(app.getPath('userData'), 'translation-memory')
+    try {
+      await rm(folder, { recursive: true, force: true })
+      mainWindow.webContents.send(IpcKey.CLEAR_MEMORY_RESULT, { ok: true })
+    } catch (error) {
+      mainWindow.webContents.send(IpcKey.CLEAR_MEMORY_RESULT, {
+        ok: false,
+        error: (error as Error).message
+      })
+    }
   })
 
   ipcMain.on(IpcKey.TEST_PROVIDER, async (_, config: TranslateConfig) => {

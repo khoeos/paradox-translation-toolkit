@@ -11,7 +11,9 @@ export enum IpcKey {
   SELECT_GAME_RESULT = 'gameSelected',
   OPEN_FOLDER = 'openFolder',
   TEST_PROVIDER = 'testProvider',
-  TEST_PROVIDER_RESULT = 'testProviderResult'
+  TEST_PROVIDER_RESULT = 'testProviderResult',
+  CLEAR_MEMORY = 'clearMemory',
+  CLEAR_MEMORY_RESULT = 'clearMemoryResult'
 }
 
 /** What the worker was asked to do */
@@ -125,6 +127,8 @@ export interface ScannedMod {
   sourceKeys: number
   /** A localisation folder spelled the other way exists here: wrong game selected */
   otherSpelling?: boolean
+  /** Localisation mods supplying part of this one's translation */
+  coveredBy?: string[]
   /** Keys still untranslated, per target language */
   missingKeys: Record<string, number>
   missingFiles: number

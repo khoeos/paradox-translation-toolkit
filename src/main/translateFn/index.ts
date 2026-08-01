@@ -43,6 +43,9 @@ export interface Request {
 /** How many mods are scanned at the same time */
 const MOD_CONCURRENCY = 8
 
+/** Share of a localisation mod key set that must land on one mod to call it a patch of it */
+const KEY_OVERLAP_MATCH = 0.5
+
 /** How many created files are reported per mod, the rest is only counted */
 const MAX_LISTED_FILES_PER_MOD = 100
 
@@ -92,6 +95,12 @@ interface LocalisationEntry {
   file: string
   described: LocalisationFile
   language: string
+}
+
+interface Coverage {
+  byLanguage: Map<string, Set<string>>
+  /** Names of the mods providing the coverage, shown so the user can see who covers what */
+  sources: string[]
 }
 
 interface ModKeys {
@@ -326,39 +335,71 @@ const readModKeys = async (
  */
 const buildCoverage = async (
   mods: ModFolder[],
-  translateKey: string
-): Promise<Map<string, Map<string, Set<string>>>> => {
+  translateKey: string,
+  sourceLanguage: string
+): Promise<Map<string, Coverage>> => {
   const descriptors = await mapWithConcurrency(mods, MOD_CONCURRENCY, (mod) =>
     readDescriptor(mod.path)
   )
+  const allKeys = await mapWithConcurrency(mods, MOD_CONCURRENCY, (mod) =>
+    readModKeys(mod.path, translateKey, [])
+  )
 
-  const byName = new Map<string, ModFolder>()
-  mods.forEach((mod, index) => {
+  const byName = new Map<string, number>()
+  mods.forEach((_mod, index) => {
     const name = descriptors[index].name
-    if (name) byName.set(name, mod)
+    if (name) byName.set(name, index)
   })
 
-  const coverage = new Map<string, Map<string, Set<string>>>()
+  const coverage = new Map<string, Coverage>()
+  const credit = (targetIndex: number, patchIndex: number): void => {
+    const target = mods[targetIndex]
+    let entry = coverage.get(target.id)
+    if (!entry) coverage.set(target.id, (entry = { byLanguage: new Map(), sources: [] }))
 
-  await mapWithConcurrency(mods, MOD_CONCURRENCY, async (mod, index) => {
-    const dependencies = descriptors[index].dependencies ?? []
-    if (dependencies.length === 0) return
+    const name = descriptors[patchIndex].name ?? mods[patchIndex].id
+    if (!entry.sources.includes(name)) entry.sources.push(name)
 
-    const targets = dependencies
-      .map((name) => byName.get(name))
-      .filter((target): target is ModFolder => Boolean(target) && target !== mod)
-    if (targets.length === 0) return
-
-    const keys = await readModKeys(mod.path, translateKey, [])
-    for (const target of targets) {
-      let perLanguage = coverage.get(target.id)
-      if (!perLanguage) coverage.set(target.id, (perLanguage = new Map()))
-      for (const [language, entries] of keys.byLanguage) {
-        const merged = perLanguage.get(language) ?? new Set<string>()
-        for (const key of entries.keys()) merged.add(key)
-        perLanguage.set(language, merged)
-      }
+    for (const [language, entries] of allKeys[patchIndex].byLanguage) {
+      if (language === sourceLanguage) continue
+      const merged = entry.byLanguage.get(language) ?? new Set<string>()
+      for (const key of entries.keys()) merged.add(key)
+      entry.byLanguage.set(language, merged)
     }
+  }
+
+  mods.forEach((_mod, index) => {
+    for (const dependency of descriptors[index].dependencies ?? []) {
+      const targetIndex = byName.get(dependency)
+      if (targetIndex !== undefined && targetIndex !== index) credit(targetIndex, index)
+    }
+  })
+
+  // Plenty of localisation mods never fill in dependencies. One that carries no source
+  // language of its own but repeats another mod's keys is patching that mod, whatever its
+  // descriptor says.
+  mods.forEach((_mod, index) => {
+    const keys = allKeys[index]
+    const ownSource = keys.byLanguage.get(sourceLanguage)
+    if (ownSource && ownSource.size > 0) return
+
+    const translated = new Set<string>()
+    for (const [language, entries] of keys.byLanguage) {
+      if (language === sourceLanguage) continue
+      for (const key of entries.keys()) translated.add(key)
+    }
+    if (translated.size === 0) return
+
+    mods.forEach((_other, otherIndex) => {
+      if (otherIndex === index) return
+      const englishKeys = allKeys[otherIndex].byLanguage.get(sourceLanguage)
+      if (!englishKeys || englishKeys.size === 0) return
+
+      let shared = 0
+      for (const key of translated) if (englishKeys.has(key)) shared++
+      // Half of the patch landing on one mod is no coincidence
+      if (shared > 0 && shared >= translated.size * KEY_OVERLAP_MATCH) credit(otherIndex, index)
+    })
   })
 
   return coverage
@@ -544,7 +585,7 @@ const planMod = async (
   request: Request,
   translateKey: string,
   packed: boolean,
-  coverage?: Map<string, Set<string>>
+  coverage?: Coverage
 ): Promise<ModPlan> => {
   const { sourceLanguage, targetLanguages } = request
   const errors: string[] = []
@@ -583,7 +624,7 @@ const planMod = async (
     // A key counts as done when the mod itself translated it, or when a localisation
     // mod depending on this one did. Generating it again would shadow a real translation.
     const covered = new Set(modKeys.byLanguage.get(language)?.keys() ?? [])
-    for (const key of coverage?.get(language) ?? []) covered.add(key)
+    for (const key of coverage?.byLanguage.get(language) ?? []) covered.add(key)
 
     const byFile = new Map<string, { entry: LocalisationEntry; keys: Set<string> }>()
     for (const [key, entry] of sourceEntries) {
@@ -666,7 +707,7 @@ const scanMod = async (
   request: Request,
   translateKey: string,
   countLines: boolean,
-  coverage?: Map<string, Set<string>>
+  coverage?: Coverage
 ): Promise<ScannedMod> => {
   const plan = await planMod(mod, request, translateKey, false, coverage)
 
@@ -695,6 +736,7 @@ const scanMod = async (
     sourceFiles: plan.sourceFiles,
     sourceKeys: plan.sourceKeys,
     otherSpelling: plan.otherSpelling,
+    coveredBy: coverage?.sources ?? [],
     missing,
     missingKeys,
     missingFiles,
@@ -756,7 +798,7 @@ const processMod = async (
   translationMod?: TranslationMod,
   engine?: TranslationEngine,
   languageNames: Record<string, string> = {},
-  coverage?: Map<string, Set<string>>
+  coverage?: Coverage
 ): Promise<ModResult> => {
   const { sourceLanguage, mode, outputPath } = request
   const outputDir = mode === ConvertMode.EXTRACT_TO_FOLDER ? outputPath : undefined
@@ -902,7 +944,7 @@ const launchScan = async (request: Request, workerPort: any): Promise<ScanOutput
   })
 
   const { mods } = await discoverMods(request.path, translateKey)
-  const coverage = await buildCoverage(mods, translateKey)
+  const coverage = await buildCoverage(mods, translateKey, request.sourceLanguage)
 
   let done = 0
   const results = await mapWithConcurrency(mods, MOD_CONCURRENCY, async (mod) => {
@@ -975,7 +1017,7 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
 
   const discovered = await discoverMods(rootPath, translateKey)
   // Built from every discovered mod: a localisation mod the user did not tick still counts
-  const coverage = await buildCoverage(discovered.mods, translateKey)
+  const coverage = await buildCoverage(discovered.mods, translateKey, request.sourceLanguage)
   // The user ticked the mods to handle in the scan list, an empty selection means everything
   const mods = selectedMods?.length
     ? discovered.mods.filter((mod) => selectedMods.includes(mod.id))

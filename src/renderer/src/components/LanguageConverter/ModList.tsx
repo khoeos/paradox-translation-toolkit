@@ -205,6 +205,14 @@ export default function ModList({
                       ? formatCoverage(mod)
                       : t(`idle.${getIdleReason(mod)}`)}
                   </span>
+                  {mod.coveredBy && mod.coveredBy.length > 0 && (
+                    <span
+                      className={'shrink-0 text-emerald-400/80 truncate max-w-[16rem]'}
+                      title={mod.coveredBy.join(', ')}
+                    >
+                      ← {mod.coveredBy.join(', ')}
+                    </span>
+                  )}
                   {!idle && (
                     <span className={'text-gray-400 shrink-0 tabular-nums'}>
                       {t('FilesCount', { count: mod.missingFiles })}
