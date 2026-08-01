@@ -507,6 +507,8 @@ export const cancellation = { requested: false }
 /** What a mod needs, computed once and reused by the scan and the conversion */
 interface ModPlan {
   name: string
+  /** Total keys the source language declares */
+  sourceKeys: number
   supportedVersion?: string
   localisationFiles: number
   sourceFiles: number
@@ -540,6 +542,7 @@ const planMod = async (
     supportedVersion: descriptor.supportedVersion,
     localisationFiles: 0,
     sourceFiles: 0,
+    sourceKeys: 0,
     jobs,
     errors
   }
@@ -551,6 +554,7 @@ const planMod = async (
   const sourceEntries = modKeys.byLanguage.get(sourceLanguage)
   if (!sourceEntries || sourceEntries.size === 0) return plan
   plan.sourceFiles = new Set([...sourceEntries.values()].map((entry) => entry.file)).size
+  plan.sourceKeys = sourceEntries.size
 
   const existingFiles = new Set<string>()
   for (const entries of modKeys.byLanguage.values()) {
@@ -651,9 +655,19 @@ const scanMod = async (
   const plan = await planMod(mod, request, translateKey, false, coverage)
 
   const missing: Record<string, number> = {}
+  const missingKeys: Record<string, number> = {}
   let missingFiles = 0
+
+  // Every requested language gets an entry, so "nothing missing" is stated rather than implied
+  for (const language of request.targetLanguages) {
+    if (language === request.sourceLanguage) continue
+    missing[language] = 0
+    missingKeys[language] = 0
+  }
+
   for (const language of Object.keys(plan.jobs)) {
     missing[language] = plan.jobs[language].length
+    missingKeys[language] = plan.jobs[language].reduce((sum, job) => sum + job.keys.size, 0)
     missingFiles += plan.jobs[language].length
   }
 
@@ -663,7 +677,9 @@ const scanMod = async (
     path: mod.path,
     localisationFiles: plan.localisationFiles,
     sourceFiles: plan.sourceFiles,
+    sourceKeys: plan.sourceKeys,
     missing,
+    missingKeys,
     missingFiles,
     missingLines: countLines && missingFiles > 0 ? await countTranslatableLines(plan.jobs) : 0,
     supportedVersion: plan.supportedVersion,

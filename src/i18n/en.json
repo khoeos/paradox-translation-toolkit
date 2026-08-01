@@ -67,8 +67,8 @@
     "noSourceFiles": "no English files",
     "upToDate": "up to date"
   },
-  "IdleBreakdown": "Skipped: {{noLocalisation}} without a localisation folder, {{noSourceFiles}} without English files, {{upToDate}} already translated",
-  "ModCounts": "{{localisation}} localisation files, {{source}} of them English",
+  "IdleBreakdown": "Skipped: {{noLocalisation}} without a localisation folder, {{noSourceFiles}} without English text, {{upToDate}} where every key is already translated",
+  "ModCounts": "{{localisation}} localisation files, {{source}} English, {{keys}} English keys",
   "NoModsMatch": "No mod matches the filter",
   "LinesCount": "{{count}} lines",
   "SelectionSummary": "{{mods}} mods selected, {{files}} files to create",
@@ -127,5 +127,6 @@
     "2": "This tool is mainly tested with stellaris, i've tested it with eu4 and ck3, but with fewer mods/usecase and i've not tested Hoi4, the logic is the same so there should be no problems but for some specific case it may not work. I've disabled imperator rome and victoria for now"
   },
   "GamePath": "Game folder (optional, strongly recommended)",
-  "GamePathHint": "The base game localisation is used as a glossary: its official wording is reused and identical strings are not sent to a model at all."
+  "GamePathHint": "The base game localisation is used as a glossary: its official wording is reused and identical strings are not sent to a model at all.",
+  "CoverageHint": "Numbers are translated keys out of English keys. A key counts as translated when the mod itself has it, or when a localisation mod depending on it has it."
 }

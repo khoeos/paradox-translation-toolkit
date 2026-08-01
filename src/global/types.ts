@@ -120,6 +120,10 @@ export interface ScannedMod {
   sourceFiles: number
   /** Missing files per target language */
   missing: Record<string, number>
+  /** Total keys the source language declares */
+  sourceKeys: number
+  /** Keys still untranslated, per target language */
+  missingKeys: Record<string, number>
   missingFiles: number
   /** Translatable lines inside the missing files, drives the time estimate */
   missingLines: number

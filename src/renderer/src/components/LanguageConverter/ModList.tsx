@@ -30,9 +30,23 @@ type IdleReason = 'noLocalisation' | 'noSourceFiles' | 'upToDate'
 
 const getIdleReason = (mod: ScannedMod): IdleReason => {
   if (mod.localisationFiles === 0) return 'noLocalisation'
-  if (mod.sourceFiles === 0) return 'noSourceFiles'
+  if (mod.sourceFiles === 0 || mod.sourceKeys === 0) return 'noSourceFiles'
   return 'upToDate'
 }
+
+/**
+ * Coverage of a mod as a plain count per language.
+ * "up to date" says nothing on its own: up to date compared to what? The numbers do.
+ * @param mod - The scanned mod
+ * @returns One `russian 182/182` per requested language
+ */
+const formatCoverage = (mod: ScannedMod): string =>
+  Object.keys(mod.missingKeys)
+    .map((language) => {
+      const missing = mod.missingKeys[language] ?? 0
+      return `${language} ${mod.sourceKeys - missing}/${mod.sourceKeys}`
+    })
+    .join('  ')
 
 interface Props {
   mods: ScannedMod[]
@@ -109,6 +123,8 @@ export default function ModList({
           </Button>
         </div>
 
+        <p className={'mb-2 text-xs text-gray-300/80'}>{t('CoverageHint')}</p>
+
         <ScrollArea className={'h-56 border rounded border-gray-700 bg-gray-900/60'}>
           <ul className={'divide-y divide-gray-800'}>
             {visible.map((mod) => {
@@ -135,7 +151,8 @@ export default function ModList({
                     className={'truncate grow'}
                     title={`${mod.name}\n${mod.path}\n${t('ModCounts', {
                       localisation: mod.localisationFiles,
-                      source: mod.sourceFiles
+                      source: mod.sourceFiles,
+                      keys: mod.sourceKeys
                     })}`}
                   >
                     {mod.name}
@@ -145,11 +162,21 @@ export default function ModList({
                       {t('ErrorsCount', { count: mod.errors.length })}
                     </span>
                   )}
-                  <span className={'text-gray-400 shrink-0 tabular-nums'}>
-                    {idle
-                      ? t(`idle.${getIdleReason(mod)}`)
-                      : t('FilesCount', { count: mod.missingFiles })}
+                  <span
+                    className={cn(
+                      'shrink-0 tabular-nums',
+                      idle ? 'text-gray-400' : 'text-amber-500'
+                    )}
+                  >
+                    {getIdleReason(mod) === 'upToDate'
+                      ? formatCoverage(mod)
+                      : t(`idle.${getIdleReason(mod)}`)}
                   </span>
+                  {!idle && (
+                    <span className={'text-gray-400 shrink-0 tabular-nums'}>
+                      {t('FilesCount', { count: mod.missingFiles })}
+                    </span>
+                  )}
                   {withEstimate && mod.missingLines > 0 && (
                     <span className={'text-amber-500/80 shrink-0 tabular-nums w-20 text-right'}>
                       {t('LinesCount', { count: mod.missingLines })}
