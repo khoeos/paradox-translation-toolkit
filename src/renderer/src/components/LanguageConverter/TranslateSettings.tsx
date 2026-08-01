@@ -37,6 +37,9 @@ export default function TranslateSettings(): JSX.Element {
   }
 
   const isOllama = translate.provider === TranslateProvider.OLLAMA
+  const isRapid = translate.provider === TranslateProvider.RAPIDAPI
+  // A hosted translator has no model to choose and cannot be given a glossary prompt
+  const needsModel = !isRapid
 
   return (
     <Card className={'col-span-12'}>
@@ -63,7 +66,7 @@ export default function TranslateSettings(): JSX.Element {
 
         {translate.enabled && (
           <div className={'mt-3 space-y-3'}>
-            <div className={'grid grid-cols-2 gap-2'}>
+            <div className={'grid grid-cols-3 gap-2'}>
               <Button
                 className={cn(
                   'bg-gray-900 font-semibold tracking-wide text-white hover:text-gray-800',
@@ -76,11 +79,20 @@ export default function TranslateSettings(): JSX.Element {
               <Button
                 className={cn(
                   'bg-gray-900 font-semibold tracking-wide text-white hover:text-gray-800',
-                  !isOllama && 'bg-amber-600'
+                  translate.provider === TranslateProvider.OPENAI && 'bg-amber-600'
                 )}
                 onClick={() => setTranslateProvider(TranslateProvider.OPENAI)}
               >
                 {t('ProviderOpenAi')}
+              </Button>
+              <Button
+                className={cn(
+                  'bg-gray-900 font-semibold tracking-wide text-white hover:text-gray-800',
+                  isRapid && 'bg-amber-600'
+                )}
+                onClick={() => setTranslateProvider(TranslateProvider.RAPIDAPI)}
+              >
+                {t('ProviderRapidApi')}
               </Button>
             </div>
 
@@ -94,15 +106,17 @@ export default function TranslateSettings(): JSX.Element {
                   className={'h-9'}
                 />
               </div>
-              <div className={'col-span-6'}>
-                <label className={'block mb-1 text-xs text-gray-300/80'}>{t('Model')}</label>
-                <Input
-                  value={translate.model}
-                  onChange={(e) => setTranslate({ model: e.target.value })}
-                  placeholder={isOllama ? 'qwen3.6:latest' : 'llama-3.3-70b-versatile'}
-                  className={cn('h-9', translate.model.trim() === '' && 'border-red-500/60')}
-                />
-              </div>
+              {needsModel && (
+                <div className={'col-span-6'}>
+                  <label className={'block mb-1 text-xs text-gray-300/80'}>{t('Model')}</label>
+                  <Input
+                    value={translate.model}
+                    onChange={(e) => setTranslate({ model: e.target.value })}
+                    placeholder={isOllama ? 'qwen3.6:latest' : 'llama-3.3-70b-versatile'}
+                    className={cn('h-9', translate.model.trim() === '' && 'border-red-500/60')}
+                  />
+                </div>
+              )}
               {!isOllama && (
                 <div className={'col-span-6'}>
                   <label className={'block mb-1 text-xs text-gray-300/80'}>{t('ApiKey')}</label>
@@ -155,7 +169,7 @@ export default function TranslateSettings(): JSX.Element {
               <Button
                 className={'bg-gray-900 text-white hover:text-gray-800 h-9'}
                 onClick={runTest}
-                disabled={testing || translate.model.trim() === ''}
+                disabled={testing || (needsModel && translate.model.trim() === '')}
               >
                 {testing ? t('Testing') : t('TestProvider')}
               </Button>

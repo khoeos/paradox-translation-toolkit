@@ -22,7 +22,8 @@ export enum WorkerAction {
 
 export enum TranslateProvider {
   OLLAMA = 'ollama',
-  OPENAI = 'openai'
+  OPENAI = 'openai',
+  RAPIDAPI = 'rapidapi'
 }
 
 /** Everything the translation engine needs, all of it user editable */

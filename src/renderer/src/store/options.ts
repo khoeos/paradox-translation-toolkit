@@ -5,7 +5,11 @@ import { create } from 'zustand'
 /** Sensible starting point per backend, both are editable */
 export const PROVIDER_DEFAULTS: Record<TranslateProvider, { baseUrl: string; model: string }> = {
   [TranslateProvider.OLLAMA]: { baseUrl: 'http://localhost:11434', model: 'qwen3.6:latest' },
-  [TranslateProvider.OPENAI]: { baseUrl: 'https://api.groq.com/openai/v1', model: '' }
+  [TranslateProvider.OPENAI]: { baseUrl: 'https://api.groq.com/openai/v1', model: '' },
+  [TranslateProvider.RAPIDAPI]: {
+    baseUrl: 'https://translateai.p.rapidapi.com/google/translate/json',
+    model: ''
+  }
 }
 
 const DEFAULT_TRANSLATE: TranslateConfig = {

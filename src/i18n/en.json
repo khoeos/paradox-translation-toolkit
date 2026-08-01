@@ -130,5 +130,6 @@
   "GamePathHint": "The base game localisation is used as a glossary: its official wording is reused and identical strings are not sent to a model at all.",
   "CoverageHint": "Numbers are translated keys out of English keys. A key counts as translated when the mod itself has it, or when a localisation mod depending on it has it.",
   "WrongGameSpelling": "No mod holds a \"{{expected}}\" folder, but {{count}} of them hold \"{{other}}\" instead. That is another game’s spelling — check the game selected at the top of the window.",
-  "WrongGameNoLocalisation": "No mod holds a \"{{expected}}\" folder. Either the wrong game is selected at the top of the window, or this folder holds no mods with text."
+  "WrongGameNoLocalisation": "No mod holds a \"{{expected}}\" folder. Either the wrong game is selected at the top of the window, or this folder holds no mods with text.",
+  "ProviderRapidApi": "RapidAPI translator"
 }

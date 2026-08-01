@@ -22,6 +22,7 @@ import {
   ConversionStatusType,
   ConvertMode,
   IpcKey,
+  TranslateProvider,
   LogValues,
   ModResult,
   ScanOutput,
@@ -217,9 +218,20 @@ export default function LanguageConverter(): JSX.Element {
       targetLanguage.length > 0 &&
       (mode !== ConvertMode.EXTRACT_TO_FOLDER || outputPath !== '') &&
       (mode !== ConvertMode.CREATE_TRANSLATION_MOD || modName.trim() !== '') &&
-      (!translate.enabled || translate.model.trim() !== '')
+      (!translate.enabled ||
+        translate.provider === TranslateProvider.RAPIDAPI ||
+        translate.model.trim() !== '')
     setCanConvert(canConvert)
-  }, [path, targetLanguage, mode, outputPath, modName, translate.enabled, translate.model])
+  }, [
+    path,
+    targetLanguage,
+    mode,
+    outputPath,
+    modName,
+    translate.enabled,
+    translate.model,
+    translate.provider
+  ])
 
   // Discovery is worth a few percent, the rest follows the mods actually done
   const progress = isDone

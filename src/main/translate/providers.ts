@@ -1,4 +1,5 @@
 import { TranslateConfig, TranslateProvider } from '../../global/types'
+import { maskTokens, restoreTokens } from './yml'
 
 /** A batch translator, whatever backend actually does the work */
 export interface Provider {
@@ -161,18 +162,86 @@ class OpenAiProvider implements Provider {
   }
 }
 
+/** The service wants ISO codes, the rest of the app speaks English language names */
+const ISO_CODES: Record<string, string> = {
+  english: 'en',
+  french: 'fr',
+  german: 'de',
+  spanish: 'es',
+  polish: 'pl',
+  portuguese: 'pt',
+  russian: 'ru',
+  chinese: 'zh',
+  korean: 'ko',
+  japanese: 'ja'
+}
+
+/**
+ * A RapidAPI translation hub speaking the TranslateAI JSON shape.
+ *
+ * Unlike a model, it cannot be told to leave markup alone, so every token is masked before
+ * sending and put back afterwards. A string whose placeholders did not survive is dropped
+ * rather than written half broken.
+ */
+class RapidApiProvider implements Provider {
+  constructor(
+    private readonly baseUrl: string,
+    private readonly apiKey: string,
+    private readonly timeout: number
+  ) {}
+
+  async translate(texts: string[], language: string): Promise<string[]> {
+    const masked = texts.map((text) => maskTokens(text))
+    const content: Record<string, string> = {}
+    masked.forEach((item, index) => {
+      content[String(index)] = item.masked
+    })
+
+    const url = new URL(this.baseUrl)
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-rapidapi-key': this.apiKey,
+        'x-rapidapi-host': url.host
+      },
+      signal: AbortSignal.timeout(this.timeout),
+      body: JSON.stringify({
+        origin_language: 'en',
+        target_language: ISO_CODES[language.toLowerCase()] ?? language.toLowerCase(),
+        json_content: content
+      })
+    })
+
+    if (!response.ok) throw new Error(await describeFailure(response))
+
+    const data = await response.json()
+    const translated = data?.translated_json
+    if (!translated) throw new Error('Service answered without translated_json')
+
+    return masked.map((item, index) => {
+      const answer = translated[String(index)]
+      if (typeof answer !== 'string') return ''
+      // An empty result makes the caller keep the source string, which is the safe outcome
+      return restoreTokens(answer, item.tokens) ?? ''
+    })
+  }
+}
+
 /**
  * Build the provider described by the user settings
  * @param config - The translation settings
  * @returns The provider
  */
 export const createProvider = (config: TranslateConfig): Provider =>
-  config.provider === TranslateProvider.OLLAMA
-    ? new OllamaProvider(config.baseUrl, config.model, config.timeout, config.domain)
-    : new OpenAiProvider(
-        config.baseUrl,
-        config.model,
-        config.apiKey ?? '',
-        config.timeout,
-        config.domain
-      )
+  config.provider === TranslateProvider.RAPIDAPI
+    ? new RapidApiProvider(config.baseUrl, config.apiKey ?? '', config.timeout)
+    : config.provider === TranslateProvider.OLLAMA
+      ? new OllamaProvider(config.baseUrl, config.model, config.timeout, config.domain)
+      : new OpenAiProvider(
+          config.baseUrl,
+          config.model,
+          config.apiKey ?? '',
+          config.timeout,
+          config.domain
+        )

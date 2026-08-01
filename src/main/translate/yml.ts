@@ -89,6 +89,42 @@ export const isTranslatable = (value: string): boolean =>
 export const extractTokens = (value: string): string[] => (value.match(TOKEN_PATTERN) ?? []).sort()
 
 /**
+ * Hide markup behind numbered placeholders.
+ *
+ * A machine translator has no notion of "leave this alone": it renders £energy£ as
+ * £энергии£ and drops \n entirely. Numbered placeholders come back untouched and in order,
+ * measured against the real service, so the markup is put back afterwards rather than
+ * trusted to survive.
+ * @param text - The source value
+ * @returns The masked text and the tokens that were taken out
+ */
+export const maskTokens = (text: string): { masked: string; tokens: string[] } => {
+  const tokens: string[] = []
+  const masked = text.replace(TOKEN_PATTERN, (token) => {
+    tokens.push(token)
+    return `{${tokens.length - 1}}`
+  })
+  return { masked, tokens }
+}
+
+/**
+ * Put the markup back where the placeholders are
+ * @param text - The translated masked text
+ * @param tokens - The tokens taken out by maskTokens
+ * @returns The text with markup restored, or null when a placeholder was lost
+ */
+export const restoreTokens = (text: string, tokens: string[]): string | null => {
+  let restored = text
+  for (const [index, token] of tokens.entries()) {
+    const placeholder = `{${index}}`
+    if (!restored.includes(placeholder)) return null
+    restored = restored.replace(placeholder, () => token)
+  }
+  // A leftover placeholder means the service invented one, the string cannot be trusted
+  return /\{\d+\}/.test(restored) ? null : restored
+}
+
+/**
  * Check a translation kept every markup token of its source
  * @param source - The source value
  * @param translated - The translated value
