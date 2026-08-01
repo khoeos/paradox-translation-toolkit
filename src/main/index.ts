@@ -5,7 +5,14 @@ import icon from '../../resources/icon.png?asset'
 import workerPath from './worker?modulePath'
 import { Worker } from 'worker_threads'
 import { Request } from './translateFn'
-import { ConversionStatus, ConversionStatusType, IpcKey } from '../global/types'
+import { createProvider } from './translate/providers'
+import {
+  ConversionStatus,
+  ConversionStatusType,
+  IpcKey,
+  TranslateConfig,
+  WorkerAction
+} from '../global/types'
 
 function createWindow(): void {
   // Create the browser window.
@@ -67,16 +74,26 @@ function createWindow(): void {
     shell.openPath(path)
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ipcMain.on(IpcKey.CONVERT_START, (event: IpcMainEvent, request: Request) => {
+  // Un seul travail à la fois, la référence sert à l'annulation
+  let currentWorker: Worker | null = null
+
+  const startWorker = (event: IpcMainEvent, request: Request, action: WorkerAction): void => {
+    currentWorker?.terminate()
+
     event.sender.send(IpcKey.CONVERT_STATUS, {
       type: ConversionStatusType.STATUS,
       status: ConversionStatus.STARTED
     })
     const worker = new Worker(workerPath, {})
+    currentWorker = worker
 
-    // Envoie la requête de traduction au worker
-    worker.postMessage(request)
+    // Electron n'est pas disponible dans le worker, on résout les dossiers ici
+    worker.postMessage({
+      ...request,
+      action,
+      documentsPath: app.getPath('documents'),
+      userDataPath: app.getPath('userData')
+    })
 
     // Récupère les logs une fois la traduction terminée
     worker.on('message', (statusUpdate) => {
@@ -89,16 +106,43 @@ function createWindow(): void {
       event.sender.send(IpcKey.CONVERT_STATUS, {
         type: ConversionStatusType.STATUS,
         status: ConversionStatus.ERROR,
-        error
+        error: error.message
       })
     })
 
     // Gestion de la fin du worker
     worker.on('exit', (code) => {
+      if (worker === currentWorker) currentWorker = null
       if (code !== 0) {
         console.error(`Worker stopped with exit code ${code}`)
       }
     })
+  }
+
+  ipcMain.on(IpcKey.CONVERT_START, (event: IpcMainEvent, request: Request) => {
+    startWorker(event, request, WorkerAction.CONVERT)
+  })
+
+  ipcMain.on(IpcKey.SCAN_START, (event: IpcMainEvent, request: Request) => {
+    startWorker(event, request, WorkerAction.SCAN)
+  })
+
+  ipcMain.on(IpcKey.CONVERT_CANCEL, () => {
+    // Le worker s'arrête de lui-même entre deux unités de travail
+    currentWorker?.postMessage({ cancel: true })
+  })
+
+  ipcMain.on(IpcKey.TEST_PROVIDER, async (_, config: TranslateConfig) => {
+    try {
+      const provider = createProvider(config)
+      const [answer] = await provider.translate(['Colony Ship'], 'Russian')
+      mainWindow.webContents.send(IpcKey.TEST_PROVIDER_RESULT, { ok: true, sample: answer })
+    } catch (error) {
+      mainWindow.webContents.send(IpcKey.TEST_PROVIDER_RESULT, {
+        ok: false,
+        error: (error as Error).message
+      })
+    }
   })
 }
 

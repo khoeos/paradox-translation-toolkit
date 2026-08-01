@@ -1,0 +1,151 @@
+import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { ScannedMod } from '@global/types'
+import { Card, CardContent } from '@renderer/components/ui/Card'
+import { Button } from '@renderer/components/ui/Button'
+import { Input } from '@renderer/components/ui/Input'
+import { ScrollArea } from '@renderer/components/ui/ScrollArea'
+import { cn } from '@renderer/lib/utils'
+
+/**
+ * Rough throughput of a local model, only used to turn a line count into an order of
+ * magnitude. Wrong by a factor of two is fine, wrong by a factor of ten is not.
+ */
+const LINES_PER_SECOND = 3
+
+/**
+ * Turn a line count into a readable duration
+ * @param lines - Number of lines to translate
+ * @returns A short human readable estimate
+ */
+const formatEstimate = (lines: number): string => {
+  const seconds = Math.round(lines / LINES_PER_SECOND)
+  if (seconds < 90) return `~${seconds} s`
+  if (seconds < 5400) return `~${Math.round(seconds / 60)} min`
+  return `~${(seconds / 3600).toFixed(1)} h`
+}
+
+interface Props {
+  mods: ScannedMod[]
+  selected: string[]
+  onSelect: (ids: string[]) => void
+  onToggle: (id: string) => void
+  /** Show the translation time estimate */
+  withEstimate: boolean
+}
+
+export default function ModList({
+  mods,
+  selected,
+  onSelect,
+  onToggle,
+  withEstimate
+}: Props): JSX.Element {
+  const { t } = useTranslation()
+  const [filter, setFilter] = useState('')
+
+  const visible = useMemo(() => {
+    const needle = filter.trim().toLowerCase()
+    if (!needle) return mods
+    return mods.filter(
+      (mod) => mod.name.toLowerCase().includes(needle) || mod.id.toLowerCase().includes(needle)
+    )
+  }, [mods, filter])
+
+  const withWork = useMemo(() => mods.filter((mod) => mod.missingFiles > 0), [mods])
+
+  const totals = useMemo(() => {
+    const chosen = mods.filter((mod) => selected.includes(mod.id))
+    return {
+      mods: chosen.length,
+      files: chosen.reduce((sum, mod) => sum + mod.missingFiles, 0),
+      lines: chosen.reduce((sum, mod) => sum + mod.missingLines, 0)
+    }
+  }, [mods, selected])
+
+  return (
+    <Card className={'col-span-12'}>
+      <CardContent>
+        <div className={'flex flex-wrap items-center gap-2 mt-2 mb-3'}>
+          <h2 className={'text-xl font-semibold tracking-wide mr-auto'}>
+            {t('ScanResult', { count: mods.length })}
+          </h2>
+          <Input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder={t('FilterMods')}
+            className={'h-8 w-48'}
+          />
+          <Button
+            className={'h-8 px-3 bg-gray-900 text-white hover:text-gray-800'}
+            onClick={() => onSelect(withWork.map((mod) => mod.id))}
+          >
+            {t('SelectMissing')}
+          </Button>
+          <Button
+            className={'h-8 px-3 bg-gray-900 text-white hover:text-gray-800'}
+            onClick={() => onSelect([])}
+          >
+            {t('SelectNone')}
+          </Button>
+        </div>
+
+        <ScrollArea className={'h-56 border rounded border-gray-700 bg-gray-900/60'}>
+          <ul className={'divide-y divide-gray-800'}>
+            {visible.map((mod) => {
+              const checked = selected.includes(mod.id)
+              const idle = mod.missingFiles === 0
+              return (
+                <li
+                  key={mod.id}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-1.5 text-sm cursor-pointer hover:bg-gray-800/60',
+                    idle && 'opacity-50'
+                  )}
+                  onClick={() => !idle && onToggle(mod.id)}
+                >
+                  <input
+                    type="checkbox"
+                    className={'accent-amber-600 w-4 h-4 shrink-0'}
+                    checked={checked}
+                    disabled={idle}
+                    onChange={() => onToggle(mod.id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <span className={'truncate grow'} title={`${mod.name}\n${mod.path}`}>
+                    {mod.name}
+                  </span>
+                  {mod.errors.length > 0 && (
+                    <span className={'text-red-400 shrink-0'}>
+                      {t('ErrorsCount', { count: mod.errors.length })}
+                    </span>
+                  )}
+                  <span className={'text-gray-400 shrink-0 tabular-nums'}>
+                    {idle ? t('UpToDate') : t('FilesCount', { count: mod.missingFiles })}
+                  </span>
+                  {withEstimate && mod.missingLines > 0 && (
+                    <span className={'text-amber-500/80 shrink-0 tabular-nums w-20 text-right'}>
+                      {t('LinesCount', { count: mod.missingLines })}
+                    </span>
+                  )}
+                </li>
+              )
+            })}
+            {visible.length === 0 && (
+              <li className={'px-3 py-2 text-sm text-gray-400'}>{t('NoModsMatch')}</li>
+            )}
+          </ul>
+        </ScrollArea>
+
+        <p className={'mt-2 text-sm text-gray-300'}>
+          {t('SelectionSummary', { mods: totals.mods, files: totals.files })}
+          {withEstimate && totals.lines > 0 && (
+            <span className={'text-amber-500 ml-2'}>
+              {t('LinesCount', { count: totals.lines })} · {formatEstimate(totals.lines)}
+            </span>
+          )}
+        </p>
+      </CardContent>
+    </Card>
+  )
+}

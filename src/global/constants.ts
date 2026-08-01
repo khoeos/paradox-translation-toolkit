@@ -37,6 +37,8 @@ export interface Game {
   key: GameId
   name: string
   translateKey: translateKey
+  /** Folder name under Documents\Paradox Interactive holding the user mods */
+  userFolder: string
   languageKeys: Record<keyof typeof LANGUAGES, string>
 }
 
@@ -54,6 +56,7 @@ export const GAMES: Games = {
     key: 'stl',
     name: 'Stellaris',
     translateKey: translateKey.localisation,
+    userFolder: 'Stellaris',
     languageKeys: { ...DEFAULT_LANGUAGE_KEYS, pt: 'braz_por', zh: 'simp_chinese' }
   },
   hoi4: {
@@ -61,6 +64,7 @@ export const GAMES: Games = {
     key: 'hoi4',
     name: 'Hearts of Iron IV',
     translateKey: translateKey.localisation,
+    userFolder: 'Hearts of Iron IV',
     languageKeys: DEFAULT_LANGUAGE_KEYS
   },
   eu4: {
@@ -68,6 +72,7 @@ export const GAMES: Games = {
     key: 'eu4',
     name: 'Europa Universalis IV',
     translateKey: translateKey.localisation,
+    userFolder: 'Europa Universalis IV',
     languageKeys: DEFAULT_LANGUAGE_KEYS
   },
   ck3: {
@@ -75,6 +80,7 @@ export const GAMES: Games = {
     key: 'ck3',
     name: 'Crusader Kings III',
     translateKey: translateKey.localization,
+    userFolder: 'Crusader Kings III',
     languageKeys: DEFAULT_LANGUAGE_KEYS
   },
   vic3: {
@@ -82,6 +88,7 @@ export const GAMES: Games = {
     key: 'vic3',
     name: 'Victoria III',
     translateKey: translateKey.localisation,
+    userFolder: 'Victoria 3',
     languageKeys: DEFAULT_LANGUAGE_KEYS
   }
 }
