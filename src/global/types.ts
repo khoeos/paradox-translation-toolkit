@@ -165,6 +165,8 @@ export interface ModResult {
   truncated: number
   /** supported_version declared by the mod, reused for the generated translation mod */
   supportedVersion?: string
+  /** What the translator did for this mod alone, for debugging a run */
+  translation?: TranslationCounters
   errors: string[]
 }
 

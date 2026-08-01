@@ -131,5 +131,8 @@
   "CoverageHint": "Les nombres sont les clés traduites sur les clés anglaises. Une clé compte comme traduite si le mod la possède, ou si un mod de traduction qui en dépend la possède.",
   "WrongGameSpelling": "Aucun mod ne possède de dossier « {{expected}} », mais {{count}} possèdent « {{other}} ». C’est l’orthographe d’un autre jeu : vérifiez le jeu sélectionné en haut de la fenêtre.",
   "WrongGameNoLocalisation": "Aucun mod ne possède de dossier « {{expected}} ». Soit le mauvais jeu est sélectionné en haut de la fenêtre, soit ce dossier ne contient aucun mod avec du texte.",
-  "ProviderRapidApi": "Traducteur RapidAPI"
+  "ProviderRapidApi": "Traducteur RapidAPI",
+  "Elapsed": "écoulé {{time}}",
+  "PerSecond": "chaînes/s",
+  "Remaining": "~{{time}} restant"
 }

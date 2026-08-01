@@ -81,6 +81,8 @@ export default function LanguageConverter(): JSX.Element {
   const [modProgress, setModProgress] = useState<ModProgress | null>(null)
   const [translationCounters, setTranslationCounters] = useState<TranslationCounters | null>(null)
   const [error, setError] = useState<string>('')
+  const [startedAt, setStartedAt] = useState(0)
+  const [now, setNow] = useState(0)
   const [canConvert, setCanConvert] = useState(false)
 
   const isDone =
@@ -156,6 +158,8 @@ export default function LanguageConverter(): JSX.Element {
     setModProgress(null)
     setTranslationCounters(null)
     setError('')
+    setStartedAt(Date.now())
+    setNow(Date.now())
     setModalOpen(true)
   }
 
@@ -233,12 +237,39 @@ export default function LanguageConverter(): JSX.Element {
     translate.provider
   ])
 
+  // A run lasting hours needs a clock, not just a bar
+  useEffect(() => {
+    if (!modalOpen || isDone) return
+    const tick = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(tick)
+  }, [modalOpen, isDone])
+
+  // How many strings this run is expected to handle, known from the scan
+  const expectedLines = scannedMods
+    .filter((mod) => selectedMods.includes(mod.id))
+    .reduce((sum, mod) => sum + mod.missingLines, 0)
+
+  const handled = translationCounters
+    ? translationCounters.translated + translationCounters.cached + translationCounters.failed
+    : 0
+  const elapsed = startedAt ? Math.max(0, Math.round((now - startedAt) / 1000)) : 0
+  const rate = elapsed > 0 && handled > 0 ? handled / elapsed : 0
+  const remaining = rate > 0 && expectedLines > handled ? (expectedLines - handled) / rate : 0
+
+  const formatDuration = (seconds: number): string => {
+    if (seconds < 60) return `${Math.round(seconds)} s`
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`
+    return `${Math.floor(seconds / 3600)} h ${Math.round((seconds % 3600) / 60)} min`
+  }
+
   // Discovery is worth a few percent, the rest follows the mods actually done
   const progress = isDone
     ? 100
-    : modProgress && modProgress.total > 0
-      ? 5 + Math.round((95 * modProgress.current) / modProgress.total)
-      : 5
+    : translationCounters && expectedLines > 0
+      ? 5 + Math.min(95, Math.round((95 * handled) / expectedLines))
+      : modProgress && modProgress.total > 0
+        ? 5 + Math.round((95 * modProgress.current) / modProgress.total)
+        : 5
 
   const reportedMods = output?.mods.filter((mod) => mod.createdCount > 0 || mod.errors.length > 0)
 
@@ -554,8 +585,14 @@ export default function LanguageConverter(): JSX.Element {
                 {translationCounters && (
                   <p className={'text-sm text-amber-500'}>
                     {t('TranslationProgress', translationCounters)}
+                    {expectedLines > 0 && ` — ${handled} / ${expectedLines}`}
                   </p>
                 )}
+                <p className={'text-sm text-gray-400'}>
+                  {t('Elapsed', { time: formatDuration(elapsed) })}
+                  {rate > 0 && ` · ${rate.toFixed(1)} ${t('PerSecond')}`}
+                  {remaining > 0 && ` · ${t('Remaining', { time: formatDuration(remaining) })}`}
+                </p>
                 <Button
                   className={'bg-gray-900 text-white hover:text-gray-800'}
                   onClick={() => window.electron.ipcRenderer.send(IpcKey.CONVERT_CANCEL)}
@@ -632,6 +669,11 @@ export default function LanguageConverter(): JSX.Element {
                           </span>
                           <span className={'ml-auto mr-2 shrink-0 text-gray-400'}>
                             {mod.createdCount > 0 && t('FilesCount', { count: mod.createdCount })}
+                            {mod.translation && (
+                              <span className={'ml-2 text-amber-500/80'}>
+                                {t('TranslationProgress', mod.translation)}
+                              </span>
+                            )}
                             {mod.errors.length > 0 && (
                               <span className={'ml-2 text-red-400'}>
                                 {t('ErrorsCount', { count: mod.errors.length })}

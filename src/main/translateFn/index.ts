@@ -514,7 +514,7 @@ const discoverMods = async (
 }
 
 /** Set by the worker when the user asks to stop, checked between units of work */
-export const cancellation = { requested: false }
+export const cancellation = { requested: false, controller: new AbortController() }
 
 /** What a mod needs, computed once and reused by the scan and the conversion */
 interface ModPlan {
@@ -799,7 +799,18 @@ const processMod = async (
       }
 
       try {
-        translations = await engine.translate(values, language, languageNames[language] ?? language)
+        const outcome = await engine.translate(
+          values,
+          language,
+          languageNames[language] ?? language
+        )
+        translations = outcome.results
+        // Per mod numbers, so a run can be read back mod by mod rather than as one total
+        result.translation = {
+          translated: (result.translation?.translated ?? 0) + outcome.stats.translated,
+          cached: (result.translation?.cached ?? 0) + outcome.stats.cached,
+          failed: (result.translation?.failed ?? 0) + outcome.stats.failed
+        }
       } catch (error) {
         // Backend down: fall back to copying, the run keeps its meaning
         plan.errors.push(`${language} : ${(error as Error).message}`)
@@ -1004,6 +1015,7 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
     engine = new TranslationEngine(
       config,
       memory,
+      cancellation.controller.signal,
       (translation) => {
         workerPort.postMessage({
           type: ConversionStatusType.PROGRESS,

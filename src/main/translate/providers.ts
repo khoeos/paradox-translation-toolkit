@@ -13,7 +13,8 @@ export interface Provider {
   translate(
     texts: string[],
     language: string,
-    hints?: { source: string; target: string }[]
+    hints?: { source: string; target: string }[],
+    signal?: AbortSignal
   ): Promise<string[]>
 }
 
@@ -80,6 +81,15 @@ const parseAnswer = (content: string, expected: number): string[] => {
 }
 
 /**
+ * A request must end on its own timeout, but also the moment the user hits stop
+ * @param timeout - Per request timeout
+ * @param signal - The run wide cancellation signal, when there is one
+ * @returns The signal to hand to fetch
+ */
+const withCancel = (timeout: number, signal?: AbortSignal): AbortSignal =>
+  signal ? AbortSignal.any([AbortSignal.timeout(timeout), signal]) : AbortSignal.timeout(timeout)
+
+/**
  * Read an error body without letting a huge HTML page into the logs
  * @param response - The failed response
  * @returns A short message
@@ -101,12 +111,13 @@ class OllamaProvider implements Provider {
   async translate(
     texts: string[],
     language: string,
-    hints?: { source: string; target: string }[]
+    hints?: { source: string; target: string }[],
+    signal?: AbortSignal
   ): Promise<string[]> {
     const response = await fetch(`${this.baseUrl.replace(/\/+$/, '')}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(this.timeout),
+      signal: withCancel(this.timeout, signal),
       body: JSON.stringify({
         model: this.model,
         stream: false,
@@ -138,7 +149,8 @@ class OpenAiProvider implements Provider {
   async translate(
     texts: string[],
     language: string,
-    hints?: { source: string; target: string }[]
+    hints?: { source: string; target: string }[],
+    signal?: AbortSignal
   ): Promise<string[]> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (this.apiKey) headers.Authorization = `Bearer ${this.apiKey}`
@@ -146,7 +158,7 @@ class OpenAiProvider implements Provider {
     const response = await fetch(`${this.baseUrl.replace(/\/+$/, '')}/chat/completions`, {
       method: 'POST',
       headers,
-      signal: AbortSignal.timeout(this.timeout),
+      signal: withCancel(this.timeout, signal),
       body: JSON.stringify({
         model: this.model,
         temperature: 0.2,
@@ -190,7 +202,12 @@ class RapidApiProvider implements Provider {
     private readonly timeout: number
   ) {}
 
-  async translate(texts: string[], language: string): Promise<string[]> {
+  async translate(
+    texts: string[],
+    language: string,
+    _hints?: { source: string; target: string }[],
+    signal?: AbortSignal
+  ): Promise<string[]> {
     const masked = texts.map((text) => maskTokens(text))
     const content: Record<string, string> = {}
     masked.forEach((item, index) => {
@@ -205,7 +222,7 @@ class RapidApiProvider implements Provider {
         'x-rapidapi-key': this.apiKey,
         'x-rapidapi-host': url.host
       },
-      signal: AbortSignal.timeout(this.timeout),
+      signal: withCancel(this.timeout, signal),
       body: JSON.stringify({
         origin_language: 'en',
         target_language: ISO_CODES[language.toLowerCase()] ?? language.toLowerCase(),

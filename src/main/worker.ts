@@ -9,6 +9,8 @@ port.on('message', (message: Request | { cancel: true }) => {
   // Cancelling is cooperative: killing the thread could leave a half written file behind
   if ('cancel' in message) {
     cancellation.requested = true
+    // Abort as well: a request already in flight would otherwise run its full timeout
+    cancellation.controller.abort()
     return
   }
 

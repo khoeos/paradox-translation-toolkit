@@ -14,6 +14,9 @@ import {
   WorkerAction
 } from '../global/types'
 
+// Un seul travail à la fois, la référence sert à l'annulation et à l'arrêt
+let currentWorker: Worker | null = null
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -32,6 +35,12 @@ function createWindow(): void {
       sandbox: false,
       nodeIntegrationInWorker: true
     }
+  })
+
+  mainWindow.on('closed', () => {
+    // A worker still translating would keep the process alive and pop an error dialog
+    currentWorker?.terminate()
+    currentWorker = null
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -81,9 +90,6 @@ function createWindow(): void {
   ipcMain.on(IpcKey.OPEN_FOLDER, (_, path: string) => {
     shell.openPath(path)
   })
-
-  // Un seul travail à la fois, la référence sert à l'annulation
-  let currentWorker: Worker | null = null
 
   const startWorker = (event: IpcMainEvent, request: Request, action: WorkerAction): void => {
     currentWorker?.terminate()
@@ -157,6 +163,15 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
+// Electron shows an undismissable modal for these; a log is enough and the app stays usable
+process.on('uncaughtException', (error) => console.error('Uncaught exception:', error))
+process.on('unhandledRejection', (reason) => console.error('Unhandled rejection:', reason))
+
+app.on('before-quit', () => {
+  currentWorker?.terminate()
+  currentWorker = null
+})
+
 app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.pttk.app')
