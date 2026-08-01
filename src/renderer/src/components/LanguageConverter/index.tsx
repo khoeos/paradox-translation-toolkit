@@ -241,7 +241,7 @@ export default function LanguageConverter(): JSX.Element {
   useEffect(() => {
     if (!modalOpen || isDone) return
     const tick = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(tick)
+    return (): void => clearInterval(tick)
   }, [modalOpen, isDone])
 
   // How many strings this run is expected to handle, known from the scan
