@@ -1,5 +1,11 @@
 import { GameId } from '@global/constants'
-import { ConvertMode, ScannedMod, TranslateConfig, TranslateProvider } from '@global/types'
+import {
+  ConvertMode,
+  ScannedMod,
+  ScanOutput,
+  TranslateConfig,
+  TranslateProvider
+} from '@global/types'
 import { create } from 'zustand'
 
 /** Sensible starting point per backend, both are editable */
@@ -60,6 +66,10 @@ interface OptionState {
 
   scannedMods: ScannedMod[]
   setScannedMods: (scannedMods: ScannedMod[]) => void
+
+  /** What the last scan found about our own generated mod, shown above the list */
+  scanNotes: Pick<ScanOutput, 'selfCopy' | 'generatedMod'>
+  setScanNotes: (scanNotes: Pick<ScanOutput, 'selfCopy' | 'generatedMod'>) => void
 
   selectedMods: string[]
   setSelectedMods: (selectedMods: string[]) => void
@@ -127,6 +137,10 @@ const useOptionsStore = create<OptionState>()((set) => ({
 
   scannedMods: [],
   setScannedMods: (scannedMods: ScannedMod[]): void => set({ scannedMods }),
+
+  scanNotes: {},
+  setScanNotes: (scanNotes: Pick<ScanOutput, 'selfCopy' | 'generatedMod'>): void =>
+    set({ scanNotes }),
 
   selectedMods: [],
   setSelectedMods: (selectedMods: string[]): void => set({ selectedMods }),

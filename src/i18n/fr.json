@@ -66,7 +66,8 @@
     "modCreated": "Mod de traduction « {{name}} » écrit",
     "translating": "Traduction via {{provider}} / {{model}}",
     "cancelled": "Arrêté par l'utilisateur",
-    "glossary": "Glossaire du jeu : {{terms}} termes, {{strings}} chaînes connues"
+    "glossary": "Glossaire du jeu : {{terms}} termes, {{strings}} chaînes connues",
+    "selfCopy": "Une copie du mod généré a été trouvée dans le dossier analysé et ignorée : {{path}}"
   },
   "status": {
     "waiting": "En attente",
@@ -120,6 +121,11 @@
   "SummaryDetails": "{{skipped}} fichier(s) déjà existant(s), {{failed}} échec(s)",
   "FilesCount": "{{count}} fichier(s)",
   "ErrorsCount": "{{count}} erreur(s)",
+  "RefusedCount": "{{count}} refusée(s)",
+  "RefusedHint": "Une exécution précédente a écrit ces clés dans la langue source. La prochaine les retente et les remplace.",
+  "SelfCopyFound": "Une copie du mod généré se trouve dans le dossier analysé et a été exclue de l'analyse : {{path}} — conservée, elle compterait comme la traduction d'un tiers et se porterait garante de son propre anglais.",
+  "GeneratedModSummary": "Mod généré : {{translated}} clés traduites, {{english}} encore dans la langue source, {{shadowed}} masquant une traduction fournie par un tiers (la prochaine exécution les retire).",
+  "RunReportHint": "Chaque clé restée dans la langue source, avec la raison du refus, a été écrite dans un rapport (un .csv se trouve à côté) :",
   "MoreFiles": "+ {{count}} autre(s) fichier(s)",
   "Errors": "Erreurs",
   "NothingToCreate": "Rien à créer, tous les fichiers cibles existent déjà.",

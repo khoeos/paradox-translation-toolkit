@@ -64,6 +64,7 @@ export enum ConversionLogMessage {
   MOD_CREATED = 'conversionLog.modCreated',
   TRANSLATING = 'conversionLog.translating',
   GLOSSARY = 'conversionLog.glossary',
+  SELF_COPY = 'conversionLog.selfCopy',
   CANCELLED = 'conversionLog.cancelled'
 }
 
@@ -114,6 +115,51 @@ export type TranslationCounters = {
   failed: number
 }
 
+/** Where the current value of a localisation key comes from */
+export enum KeyState {
+  /** The mod ships the translation itself */
+  OWN = 'own',
+  /** A separate localisation mod supplies it */
+  PATCH = 'patch',
+  /** Our own generated mod supplies a real translation */
+  GENERATED = 'generated',
+  /** Our own generated mod holds it, still in the source language: a refused string */
+  ENGLISH = 'english',
+  /**
+   * Our generated mod holds the source text, but the translation memory says the backend
+   * answered with exactly that. A proper name it chose to keep is not a refusal, and
+   * retrying it would only get the same answer back.
+   */
+  KEPT = 'kept',
+  /** Nobody translated it and nothing was generated for it */
+  MISSING = 'missing'
+}
+
+/** One localisation key of one mod, for one target language */
+export interface KeyReport {
+  modId: string
+  modName: string
+  language: string
+  key: string
+  /** Source file the key is declared in */
+  file: string
+  /** Value in the source language */
+  source: string
+  state: KeyState
+  /** Who supplies the current value: a mod name, or the generated file */
+  provider?: string
+  /** Why the translator left it alone, only filled by a run report */
+  reason?: string
+  /** Markup or numbers only, nothing here is ever sent to a translator */
+  markupOnly?: boolean
+  /**
+   * Our generated mod also holds this key while somebody else translates it. The generated
+   * mod loads last, so its value is the one the game shows: the real translation is hidden
+   * until the next run drops the key.
+   */
+  shadowed?: boolean
+}
+
 /** One mod as reported by a scan, before anything is written */
 export interface ScannedMod {
   id: string
@@ -131,6 +177,24 @@ export interface ScannedMod {
   coveredBy?: string[]
   /** Keys still untranslated, per target language */
   missingKeys: Record<string, number>
+  /** Keys already translated by anyone, our own generated mod included, per target language */
+  coveredKeys: Record<string, number>
+  /**
+   * Keys our own generated mod holds but left in the source language, per target language.
+   * They are counted as missing, not as covered: a previous run refused them and the next
+   * one has to try again.
+   */
+  englishKeys: Record<string, number>
+  /**
+   * Keys the backend answered with the source text itself, per target language. Proper
+   * names mostly: they read as untranslated but retrying them costs money for nothing.
+   */
+  keptKeys: Record<string, number>
+  /**
+   * Keys our generated mod holds although somebody else translates them, per target
+   * language. Our mod loads last, so these hide a real translation until the next run.
+   */
+  shadowedKeys: Record<string, number>
   missingFiles: number
   /** Translatable lines inside the missing files, drives the time estimate */
   missingLines: number
@@ -148,6 +212,33 @@ export interface ScanOutput {
     withoutLocalisation: number
     /** Mods where the other spelling was found instead */
     otherSpelling: number
+    /** Keys already translated across the whole collection */
+    coveredKeys: number
+    /** Keys our own generated mod holds but left in the source language */
+    englishKeys: number
+    /** Keys the backend answered with the source text itself, not a refusal */
+    keptKeys: number
+    /** Keys our own generated mod hides behind its own copy of somebody else's translation */
+    shadowedKeys: number
+  }
+  /**
+   * A copy of the generated mod found inside the scanned folder. It was left out of the
+   * scan: our own output must never vouch for itself.
+   */
+  selfCopy?: string
+  /** The generated mod that was read back, when one was found */
+  generatedMod?: {
+    path: string
+    /** Keys it supplies a real translation for */
+    translated: number
+    /** Keys it holds in the source language, they will be tried again */
+    english: number
+    /** Keys it holds unchanged because that is what the backend answered */
+    kept: number
+    /** Keys it hides behind its own copy while a real translation for them exists */
+    shadowed: number
+    /** Folders that no longer match any scanned mod, they shadow nothing useful */
+    orphanNamespaces: string[]
   }
 }
 
@@ -163,6 +254,8 @@ export interface ModResult {
   createdCount: number
   skippedCount: number
   failedCount: number
+  /** Files removed from the generated mod because nothing needs them any more */
+  prunedCount: number
   /** Sample of created files per language, capped to keep the IPC payload usable */
   created: Record<string, string[]>
   /** How many created files were left out of `created` */
@@ -190,12 +283,16 @@ export interface ConversionOutput {
   translationMod?: TranslationMod
   translation?: TranslationCounters
   cancelled?: boolean
+  /** Where the key by key report of this run was written */
+  reportPath?: string
   totals: {
     mods: number
     modsWithFiles: number
     created: number
     skipped: number
     failed: number
+    /** Generated files removed because nothing needs them any more */
+    pruned: number
     errors: number
   }
 }

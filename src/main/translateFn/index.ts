@@ -8,6 +8,8 @@ import {
   ConversionStatus,
   ConversionStatusType,
   ConvertMode,
+  KeyReport,
+  KeyState,
   LogValues,
   ModResult,
   ScannedMod,
@@ -16,6 +18,7 @@ import {
   TranslationMod,
   WorkerAction
 } from '../../global/types'
+import { writeRunReport } from '../report'
 import { TranslationEngine } from '../translate/engine'
 import { Glossary, loadGlossary } from '../translate/glossary'
 import { TranslationMemory } from '../translate/memory'
@@ -79,8 +82,17 @@ interface CreationJob {
   target: string
   /** Path below the language folder, used when packing into a translation mod */
   packed: string[]
-  /** Only these keys go into the target file, everything else is already translated */
-  keys: Set<string>
+  /**
+   * Every key the target file must hold, mapped to its source value. Keys somebody else
+   * already translated are not in here: writing them would shadow their work.
+   */
+  keys: Map<string, string>
+  /**
+   * Of those keys, the ones an earlier run of ours already translated, mapped to that
+   * translation. The generated file is rewritten whole on every run, so they have to be
+   * carried over, and none of them is ever sent to a translator twice.
+   */
+  known: Map<string, string>
 }
 
 interface Descriptor {
@@ -95,6 +107,8 @@ interface LocalisationEntry {
   file: string
   described: LocalisationFile
   language: string
+  /** The quoted value, needed to tell a real translation from a copied source string */
+  value: string
 }
 
 interface Coverage {
@@ -319,7 +333,9 @@ const readModKeys = async (
     for (const line of parseLocFile(content)) {
       if (!line.entry) continue
       const key = entryKey(line.entry.prefix)
-      if (!keys.has(key)) keys.set(key, { key, file, described, language })
+      if (!keys.has(key)) {
+        keys.set(key, { key, file, described, language, value: line.entry.value })
+      }
     }
   }
 
@@ -404,6 +420,108 @@ const buildCoverage = async (
 
   return coverage
 }
+
+/** One key our own generated mod already holds */
+interface GeneratedEntry {
+  value: string
+  file: string
+}
+
+/** What a previous run of this tool left in the game mod folder */
+interface GeneratedMod {
+  path: string
+  /** Namespace folder to language to key, the namespace naming the source mod */
+  byNamespace: Map<string, Map<string, Map<string, GeneratedEntry>>>
+}
+
+/**
+ * Read back the mod this tool generated on an earlier run.
+ *
+ * Without it a second scan reports everything as missing again, because the generated mod
+ * lives under Documents and never appears in the scanned workshop folder. Its first level
+ * folder below the language is the namespace built by `getModNamespace`, which is what ties
+ * a generated file back to the mod it was generated for.
+ * @param modPath - The generated mod folder
+ * @param translateKey - The game's folder translate key
+ * @returns The generated keys, or undefined when nothing was generated yet
+ */
+const readGeneratedMod = async (
+  modPath: string,
+  translateKey: string
+): Promise<GeneratedMod | undefined> => {
+  try {
+    await fs.access(modPath)
+  } catch {
+    return undefined
+  }
+
+  const keys = await readModKeys(modPath, translateKey, [])
+  const byNamespace = new Map<string, Map<string, Map<string, GeneratedEntry>>>()
+
+  for (const [language, entries] of keys.byLanguage) {
+    for (const entry of entries.values()) {
+      // rest is [language, namespace, ...path, file]; a file sitting straight under the
+      // language folder was not written by us and belongs to no mod
+      const namespace = entry.described.rest.length > 2 ? entry.described.rest[1] : ''
+      let languages = byNamespace.get(namespace)
+      if (!languages) byNamespace.set(namespace, (languages = new Map()))
+      let map = languages.get(language)
+      if (!map) languages.set(language, (map = new Map()))
+      map.set(entry.key, { value: entry.value, file: entry.file })
+    }
+  }
+
+  return { path: modPath, byNamespace }
+}
+
+/**
+ * Where the generated mod of a request lives, whether or not it exists yet
+ * @param request - The scan or conversion request
+ * @returns The mod folder and the game mod directory holding it
+ */
+const resolveGeneratedMod = (
+  request: Request
+): { modsDir: string; folder: string; path: string } | undefined => {
+  if (!request.documentsPath) return undefined
+  const modsDir = path.join(
+    request.documentsPath,
+    'Paradox Interactive',
+    GAMES[request.game].userFolder,
+    'mod'
+  )
+  const name = request.modName?.trim() || DEFAULT_MOD_NAME
+  const folder = sanitizeFolderName(name, 48) || DEFAULT_MOD_FOLDER
+  return { modsDir, folder, path: path.join(modsDir, folder) }
+}
+
+/**
+ * Take our own output out of the list of mods to scan.
+ *
+ * A copy of the generated mod sitting in the scanned folder, which is what happens when it
+ * is moved next to the workshop mods, carries no source language and repeats other mods'
+ * keys, so the coverage heuristics read it as a third party localisation mod. It would then
+ * vouch for its own English leftovers and hide the very work it was generated to do.
+ * @param mods - Every discovered mod folder
+ * @param generatedFolder - Folder name of the generated mod
+ * @returns The mods to scan, and the path of the copy that was dropped
+ */
+const dropOurOwnMod = (
+  mods: ModFolder[],
+  generatedFolder?: string
+): { mods: ModFolder[]; selfCopy?: string } => {
+  if (!generatedFolder) return { mods }
+  const ours = mods.find((mod) => mod.id.toLowerCase() === generatedFolder.toLowerCase())
+  return ours ? { mods: mods.filter((mod) => mod !== ours), selfCopy: ours.path } : { mods }
+}
+
+/**
+ * Whether a generated value is a real translation or the source string copied verbatim
+ * @param generated - The value found in the generated mod
+ * @param source - The value in the source language
+ * @returns True when the translator produced nothing for this key
+ */
+const isUntranslated = (generated: string, source: string): boolean =>
+  generated.trim() === source.trim()
 
 /**
  * Turn any label into something usable as a folder name
@@ -560,6 +678,8 @@ export const cancellation = { requested: false, controller: new AbortController(
 /** What a mod needs, computed once and reused by the scan and the conversion */
 interface ModPlan {
   name: string
+  /** Folder this mod owns inside the generated translation mod */
+  namespace: string
   /** A localisation folder spelled the other way was found, so the game is likely wrong */
   otherSpelling?: boolean
   /** Total keys the source language declares */
@@ -569,36 +689,67 @@ interface ModPlan {
   sourceFiles: number
   /** Files to create, per target language */
   jobs: Record<string, CreationJob[]>
+  /** Keys already translated by anyone, per target language */
+  covered: Record<string, number>
+  /** Keys our own generated mod holds in the source language, per target language */
+  english: Record<string, number>
+  /** Keys the backend answered with the source text itself, per target language */
+  kept: Record<string, number>
+  /** Keys our own generated mod holds although somebody else translates them */
+  shadowed: Record<string, number>
+  /** Key by key state, only filled when the caller asked for the detail */
+  keyStates: KeyReport[]
   errors: string[]
+}
+
+interface PlanOptions {
+  translateKey: string
+  /** Also compute the paths used inside a translation mod */
+  packed: boolean
+  coverage?: Coverage
+  /** What an earlier run already wrote, so its output is not generated a second time */
+  generated?: GeneratedMod
+  /**
+   * The translation memory, already loaded for the target languages. It is the only way to
+   * tell a string the backend refused from one it answered with the source text.
+   */
+  memory?: TranslationMemory
+  /** Collect the state of every key, which costs memory on a large collection */
+  detail?: boolean
 }
 
 /**
  * Work out what is missing in a mod, without touching the disk
  * @param mod - The mod folder
  * @param request - The conversion request
- * @param translateKey - The game's folder translate key
- * @param packed - Also compute the paths used inside a translation mod
+ * @param options - How to plan, see PlanOptions
  * @returns The plan for that mod
  */
 const planMod = async (
   mod: ModFolder,
   request: Request,
-  translateKey: string,
-  packed: boolean,
-  coverage?: Coverage
+  options: PlanOptions
 ): Promise<ModPlan> => {
   const { sourceLanguage, targetLanguages } = request
+  const { translateKey, packed, coverage, generated, memory, detail } = options
   const errors: string[] = []
   const jobs: Record<string, CreationJob[]> = {}
 
   const descriptor = await readDescriptor(mod.path)
+  const name = descriptor.name ?? mod.id
   const plan: ModPlan = {
-    name: descriptor.name ?? mod.id,
+    name,
+    namespace: getModNamespace(mod, name),
     supportedVersion: descriptor.supportedVersion,
     localisationFiles: 0,
     sourceFiles: 0,
     sourceKeys: 0,
     jobs,
+    covered: {},
+    english: {},
+    kept: {},
+    shadowed: {},
+    keyStates: [],
     errors
   }
 
@@ -618,26 +769,104 @@ const planMod = async (
     for (const entry of entries.values()) existingFiles.add(pathKey(entry.file))
   }
 
+  const generatedForMod = generated?.byNamespace.get(plan.namespace)
+
   for (const language of targetLanguages) {
     if (language === sourceLanguage) continue
 
     // A key counts as done when the mod itself translated it, or when a localisation
     // mod depending on this one did. Generating it again would shadow a real translation.
-    const covered = new Set(modKeys.byLanguage.get(language)?.keys() ?? [])
-    for (const key of coverage?.byLanguage.get(language) ?? []) covered.add(key)
+    const own = modKeys.byLanguage.get(language)
+    const patched = coverage?.byLanguage.get(language)
+    const ours = generatedForMod?.get(language)
 
-    const byFile = new Map<string, { entry: LocalisationEntry; keys: Set<string> }>()
-    for (const [key, entry] of sourceEntries) {
-      if (covered.has(key)) continue
-      let group = byFile.get(entry.file)
-      if (!group) byFile.set(entry.file, (group = { entry, keys: new Set() }))
-      group.keys.add(key)
+    let covered = 0
+    let english = 0
+    let kept = 0
+    let shadowed = 0
+
+    const byFile = new Map<
+      string,
+      { entry: LocalisationEntry; keys: Map<string, string>; known: Map<string, string> }
+    >()
+    const record = (
+      entry: LocalisationEntry,
+      state: KeyState,
+      provider?: string,
+      shadowedByUs?: boolean
+    ): void => {
+      if (!detail) return
+      plan.keyStates.push({
+        modId: mod.id,
+        modName: plan.name,
+        language,
+        key: entry.key,
+        file: entry.file,
+        source: entry.value,
+        state,
+        provider,
+        markupOnly: !isTranslatable(entry.value),
+        shadowed: shadowedByUs
+      })
     }
+
+    for (const [key, entry] of sourceEntries) {
+      // Somebody else's translation: our file must not hold this key at all. When it does,
+      // our mod loads last and hides their work until the next run drops the key.
+      if (own?.has(key) || patched?.has(key)) {
+        covered++
+        const hidden = ours?.has(key) ?? false
+        if (hidden) shadowed++
+        record(
+          entry,
+          own?.has(key) ? KeyState.OWN : KeyState.PATCH,
+          own?.has(key) ? plan.name : coverage?.sources.join(', '),
+          hidden
+        )
+        continue
+      }
+
+      let group = byFile.get(entry.file)
+      if (!group) byFile.set(entry.file, (group = { entry, keys: new Map(), known: new Map() }))
+      group.keys.set(key, entry.value)
+
+      const mine = ours?.get(key)
+      if (!mine) {
+        record(entry, KeyState.MISSING)
+        continue
+      }
+
+      // A value we copied verbatim is not a translation. Markup and numbers are copied on
+      // purpose and never sent anywhere, so only real text left as-is is in question.
+      const verbatim = isUntranslated(mine.value, entry.value) && isTranslatable(entry.value)
+      // The memory settles it: an entry holding the source text means the backend answered
+      // and answered with that. A proper name it chose to keep is worth no retry, only the
+      // same bill. No entry at all means nothing ever came back for this string.
+      if (verbatim && memory?.get(language, entry.value) !== entry.value) {
+        english++
+        record(entry, KeyState.ENGLISH, mine.file)
+        continue
+      }
+
+      covered++
+      group.known.set(key, mine.value)
+      if (verbatim) {
+        kept++
+        record(entry, KeyState.KEPT, mine.file)
+      } else {
+        record(entry, KeyState.GENERATED, mine.file)
+      }
+    }
+
+    plan.covered[language] = covered
+    plan.english[language] = english
+    plan.kept[language] = kept
+    plan.shadowed[language] = shadowed
 
     const seen = new Set<string>()
     const languageJobs: CreationJob[] = []
 
-    for (const { entry, keys } of byFile.values()) {
+    for (const { entry, keys, known } of byFile.values()) {
       let target = getTargetFile(entry.described, sourceLanguage, language)
       if (pathKey(target) === pathKey(entry.file)) continue
       // The natural name is taken by an existing translation: never rewrite it, sit beside it
@@ -650,7 +879,8 @@ const planMod = async (
         source: entry.file,
         target,
         packed: packed ? getTranslationModPath(entry.described, target, sourceLanguage) : [],
-        keys
+        keys,
+        known
       })
     }
 
@@ -665,34 +895,23 @@ const planMod = async (
  * @param jobs - The planned files, per language
  * @returns The number of translatable lines
  */
-const countTranslatableLines = async (jobs: Record<string, CreationJob[]>): Promise<number> => {
-  const perFile = new Map<string, Map<string, boolean>>()
+const countTranslatableLines = (jobs: Record<string, CreationJob[]>): number => {
   let total = 0
-
   for (const language of Object.keys(jobs)) {
     for (const job of jobs[language]) {
-      let translatable = perFile.get(job.source)
-      if (!translatable) {
-        translatable = new Map()
-        try {
-          const content = await fs.readFile(job.source, 'utf8')
-          for (const line of parseLocFile(content)) {
-            if (line.entry) {
-              translatable.set(entryKey(line.entry.prefix), isTranslatable(line.entry.value))
-            }
-          }
-        } catch {
-          // An unreadable file simply contributes nothing to the estimate
-        }
-        perFile.set(job.source, translatable)
-      }
-      // Only the missing keys are sent to a translator, not the whole file
-      for (const key of job.keys) if (translatable.get(key)) total++
+      // Only what still needs a translator: the rest is copied or carried over for free
+      for (const value of pendingValues(job)) if (isTranslatable(value)) total++
     }
   }
-
   return total
 }
+
+/** Source values of the keys nothing has translated yet */
+const pendingValues = (job: CreationJob): string[] =>
+  [...job.keys].filter(([key]) => !job.known.has(key)).map(([, value]) => value)
+
+/** Keys of a job that still need work, the rest is only carried over */
+const pendingCount = (job: CreationJob): number => job.keys.size - job.known.size
 
 /**
  * Report what a mod is missing, creating nothing
@@ -705,14 +924,17 @@ const countTranslatableLines = async (jobs: Record<string, CreationJob[]>): Prom
 const scanMod = async (
   mod: ModFolder,
   request: Request,
-  translateKey: string,
-  countLines: boolean,
-  coverage?: Coverage
-): Promise<ScannedMod> => {
-  const plan = await planMod(mod, request, translateKey, false, coverage)
+  options: PlanOptions,
+  countLines: boolean
+): Promise<{ scanned: ScannedMod; keyStates: KeyReport[] }> => {
+  const plan = await planMod(mod, request, options)
 
   const missing: Record<string, number> = {}
   const missingKeys: Record<string, number> = {}
+  const coveredKeys: Record<string, number> = {}
+  const englishKeys: Record<string, number> = {}
+  const keptKeys: Record<string, number> = {}
+  const shadowedKeys: Record<string, number> = {}
   let missingFiles = 0
 
   // Every requested language gets an entry, so "nothing missing" is stated rather than implied
@@ -720,29 +942,43 @@ const scanMod = async (
     if (language === request.sourceLanguage) continue
     missing[language] = 0
     missingKeys[language] = 0
+    coveredKeys[language] = plan.covered[language] ?? 0
+    englishKeys[language] = plan.english[language] ?? 0
+    keptKeys[language] = plan.kept[language] ?? 0
+    shadowedKeys[language] = plan.shadowed[language] ?? 0
   }
 
   for (const language of Object.keys(plan.jobs)) {
-    missing[language] = plan.jobs[language].length
-    missingKeys[language] = plan.jobs[language].reduce((sum, job) => sum + job.keys.size, 0)
-    missingFiles += plan.jobs[language].length
+    // A file whose keys are all carried over from an earlier run is no work: it is
+    // rewritten unchanged and must not be reported as missing
+    const pending = plan.jobs[language].filter((job) => pendingCount(job) > 0)
+    missing[language] = pending.length
+    missingKeys[language] = pending.reduce((sum, job) => sum + pendingCount(job), 0)
+    missingFiles += pending.length
   }
 
   return {
-    id: mod.id,
-    name: plan.name,
-    path: mod.path,
-    localisationFiles: plan.localisationFiles,
-    sourceFiles: plan.sourceFiles,
-    sourceKeys: plan.sourceKeys,
-    otherSpelling: plan.otherSpelling,
-    coveredBy: coverage?.sources ?? [],
-    missing,
-    missingKeys,
-    missingFiles,
-    missingLines: countLines && missingFiles > 0 ? await countTranslatableLines(plan.jobs) : 0,
-    supportedVersion: plan.supportedVersion,
-    errors: plan.errors
+    keyStates: plan.keyStates,
+    scanned: {
+      id: mod.id,
+      name: plan.name,
+      path: mod.path,
+      localisationFiles: plan.localisationFiles,
+      sourceFiles: plan.sourceFiles,
+      sourceKeys: plan.sourceKeys,
+      otherSpelling: plan.otherSpelling,
+      coveredBy: options.coverage?.sources ?? [],
+      missing,
+      missingKeys,
+      coveredKeys,
+      englishKeys,
+      keptKeys,
+      shadowedKeys,
+      missingFiles,
+      missingLines: countLines && missingFiles > 0 ? countTranslatableLines(plan.jobs) : 0,
+      supportedVersion: plan.supportedVersion,
+      errors: plan.errors
+    }
   }
 }
 
@@ -771,10 +1007,11 @@ const buildTargetContent = async (
   )
 
   const lines = kept.map((line) => {
-    const translated = line.entry && translations?.get(line.entry.value)
-    return translated && line.entry
-      ? { ...line, entry: { ...line.entry, value: translated } }
-      : line
+    if (!line.entry) return line
+    // What we translated on an earlier run wins: it is already in the file being rewritten
+    const translated =
+      job.known.get(entryKey(line.entry.prefix)) ?? translations?.get(line.entry.value)
+    return translated ? { ...line, entry: { ...line.entry, value: translated } } : line
   })
 
   return `${serializeLocFile(lines)}\n`
@@ -794,17 +1031,17 @@ const buildTargetContent = async (
 const processMod = async (
   mod: ModFolder,
   request: Request,
-  translateKey: string,
+  options: PlanOptions,
   translationMod?: TranslationMod,
   engine?: TranslationEngine,
-  languageNames: Record<string, string> = {},
-  coverage?: Coverage
-): Promise<ModResult> => {
+  languageNames: Record<string, string> = {}
+): Promise<{ result: ModResult; untranslated: KeyReport[] }> => {
   const { sourceLanguage, mode, outputPath } = request
+  const { translateKey } = options
   const outputDir = mode === ConvertMode.EXTRACT_TO_FOLDER ? outputPath : undefined
 
   const created: Record<string, string[]> = {}
-  const plan = await planMod(mod, request, translateKey, Boolean(translationMod), coverage)
+  const plan = await planMod(mod, request, options)
   const result: ModResult = {
     id: mod.id,
     name: plan.name,
@@ -814,13 +1051,17 @@ const processMod = async (
     createdCount: 0,
     skippedCount: 0,
     failedCount: 0,
+    prunedCount: 0,
     created,
     truncated: 0,
     supportedVersion: plan.supportedVersion,
     errors: plan.errors
   }
 
-  const namespace = translationMod ? getModNamespace(mod, plan.name) : ''
+  const namespace = plan.namespace
+  const untranslated: KeyReport[] = []
+  /** Files this run put into the generated mod, per language, so the rest can be pruned */
+  const producedByLanguage = new Map<string, Set<string>>()
 
   for (const language of Object.keys(plan.jobs)) {
     if (cancellation.requested) break
@@ -828,16 +1069,11 @@ const processMod = async (
 
     let translations: Map<string, string> | undefined
     if (engine) {
+      // Only what is still untranslated: sending the whole source file would pay again for
+      // strings another mod, or an earlier run of ours, already covered
       const values: string[] = []
       for (const job of jobs) {
-        try {
-          const content = await fs.readFile(job.source, 'utf8')
-          for (const line of parseLocFile(content)) {
-            if (line.entry && isTranslatable(line.entry.value)) values.push(line.entry.value)
-          }
-        } catch {
-          // The write below reports the unreadable file
-        }
+        for (const value of pendingValues(job)) if (isTranslatable(value)) values.push(value)
       }
 
       try {
@@ -862,7 +1098,31 @@ const processMod = async (
 
     if (cancellation.requested) break
 
+    // What is written now and still holds English is what the next run has to retry
+    if (engine) {
+      for (const job of jobs) {
+        for (const [key, value] of job.keys) {
+          if (job.known.has(key) || !isTranslatable(value) || translations?.has(value)) continue
+          const refusal = engine.refusalFor(value)
+          untranslated.push({
+            modId: mod.id,
+            modName: plan.name,
+            language,
+            key,
+            file: job.source,
+            source: value,
+            state: KeyState.ENGLISH,
+            reason: refusal
+              ? `${refusal.reason}${refusal.detail ? `: ${refusal.detail}` : ''}`
+              : 'not attempted'
+          })
+        }
+      }
+    }
+
     const languageFiles: string[] = []
+    const produced = new Set<string>()
+    producedByLanguage.set(language, produced)
 
     await Promise.all(
       jobs.map(async (job) => {
@@ -889,8 +1149,23 @@ const processMod = async (
           }
 
           await fs.mkdir(path.dirname(destination), { recursive: true })
-          // wx: never overwrite an existing translation, even outside the scanned folder
-          await fs.writeFile(destination, targetContent, { encoding: 'utf8', flag: 'wx' })
+
+          if (translationMod) {
+            // Our own generated mod is ours to rewrite: a previous run may have left English
+            // in it, and refusing to overwrite would make that first bad pass permanent.
+            // Rewriting a file that did not change would only churn the disk, though.
+            produced.add(pathKey(destination))
+            const before = await fs.readFile(destination, 'utf8').catch(() => undefined)
+            if (before === targetContent) {
+              result.skippedCount++
+              return
+            }
+            await fs.writeFile(destination, targetContent, 'utf8')
+          } else {
+            // wx: never overwrite an existing translation, even outside the scanned folder
+            await fs.writeFile(destination, targetContent, { encoding: 'utf8', flag: 'wx' })
+          }
+
           languageFiles.push(destination)
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
@@ -910,7 +1185,68 @@ const processMod = async (
     }
   }
 
-  return result
+  // Never prune on a mod we failed to read: an unreadable folder plans no job, and taking
+  // that for "nothing is missing any more" would delete a good translation
+  if (
+    translationMod &&
+    !cancellation.requested &&
+    plan.sourceKeys > 0 &&
+    plan.errors.length === 0
+  ) {
+    result.prunedCount = await pruneNamespace(
+      translationMod,
+      translateKey,
+      namespace,
+      request.targetLanguages.filter((language) => language !== sourceLanguage),
+      producedByLanguage,
+      plan.errors
+    )
+  }
+
+  return { result, untranslated }
+}
+
+/**
+ * Drop generated files this run no longer needs.
+ *
+ * A key covered since the last run, by the mod itself or by a localisation mod, leaves a
+ * file behind that would keep shadowing the real translation. Only the folder this mod owns
+ * inside the generated mod is touched, and only for the languages the run handled.
+ * @param translationMod - The generated mod
+ * @param translateKey - The game's folder translate key
+ * @param namespace - The folder belonging to this source mod
+ * @param languages - The target languages this run handled
+ * @param produced - Files written by this run, per language
+ * @param errors - Collects deletion failures
+ * @returns How many files were removed
+ */
+const pruneNamespace = async (
+  translationMod: TranslationMod,
+  translateKey: string,
+  namespace: string,
+  languages: string[],
+  produced: Map<string, Set<string>>,
+  errors: string[]
+): Promise<number> => {
+  let removed = 0
+
+  for (const language of languages) {
+    const folder = path.join(translationMod.path, translateKey, language, namespace)
+    const kept = produced.get(language) ?? new Set<string>()
+    const existing = await listTradFiles(folder, translateKey, true, [])
+
+    for (const file of existing) {
+      if (kept.has(pathKey(file))) continue
+      try {
+        await fs.rm(file)
+        removed++
+      } catch (error) {
+        errors.push(`${file} : ${(error as Error).message}`)
+      }
+    }
+  }
+
+  return removed
 }
 
 /**
@@ -927,14 +1263,44 @@ const getLanguageNames = (game: string): Record<string, string> => {
   return names
 }
 
+/** Sum a per language record, the UI and the CLI both want one number */
+const sumLanguages = (counts: Record<string, number>): number =>
+  Object.values(counts).reduce((sum, count) => sum + count, 0)
+
+/**
+ * The translation memory of a request, loaded for every target language.
+ *
+ * A scan writes nothing and would not need it, except to answer one question no file on disk
+ * can: whether a string left in the source language was refused or answered that way.
+ * @param request - The scan or conversion request
+ * @returns The loaded memory, or undefined when there is nowhere to read it from
+ */
+const loadMemory = async (
+  userDataPath: string,
+  languages: string[]
+): Promise<TranslationMemory> => {
+  const memory = new TranslationMemory(path.join(userDataPath, 'translation-memory'))
+  await Promise.all(languages.map((language) => memory.load(language)))
+  return memory
+}
+
+/** The same, for a caller that may have no data folder to read from */
+const loadMemoryFor = async (request: Request): Promise<TranslationMemory | undefined> =>
+  request.userDataPath ? loadMemory(request.userDataPath, request.targetLanguages) : undefined
+
 /**
  * Report what every mod is missing, without writing anything
  * @param request - The scan request
  * @param workerPort - The worker port, used for progress
- * @returns The scan result
+ * @param detail - Also return the state of every key, used by the CLI audit
+ * @returns The scan result, and the key states when they were asked for
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const launchScan = async (request: Request, workerPort: any): Promise<ScanOutput> => {
+const launchScan = async (
+  request: Request,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  workerPort: any,
+  detail = false
+): Promise<ScanOutput & { keyStates?: KeyReport[] }> => {
   const translateKey = GAMES[request.game].translateKey
   const countLines = Boolean(request.translate?.enabled)
 
@@ -943,39 +1309,110 @@ const launchScan = async (request: Request, workerPort: any): Promise<ScanOutput
     status: ConversionStatus.SCANNING_FILES
   })
 
-  const { mods } = await discoverMods(request.path, translateKey)
+  // Our own output normally lives under Documents, so without reading it back a second
+  // scan reports everything as missing again
+  const target = resolveGeneratedMod(request)
+  const generated = target ? await readGeneratedMod(target.path, translateKey) : undefined
+  const memory = await loadMemoryFor(request)
+
+  const discovered = await discoverMods(request.path, translateKey)
+  const { mods, selfCopy } = dropOurOwnMod(discovered.mods, target?.folder)
   const coverage = await buildCoverage(mods, translateKey, request.sourceLanguage)
 
   let done = 0
   const results = await mapWithConcurrency(mods, MOD_CONCURRENCY, async (mod) => {
-    const result = await scanMod(mod, request, translateKey, countLines, coverage.get(mod.id))
+    const result = await scanMod(
+      mod,
+      request,
+      { translateKey, packed: false, coverage: coverage.get(mod.id), generated, memory, detail },
+      countLines
+    )
     done++
     workerPort.postMessage({
       type: ConversionStatusType.PROGRESS,
       current: done,
       total: mods.length,
-      modName: result.name
+      modName: result.scanned.name
     })
     return result
   })
 
-  const totals = results.reduce(
+  const scanned = results.map((result) => result.scanned)
+  const totals = scanned.reduce(
     (acc, mod) => ({
       mods: acc.mods + 1,
       missingFiles: acc.missingFiles + mod.missingFiles,
       missingLines: acc.missingLines + mod.missingLines,
       withoutLocalisation: acc.withoutLocalisation + (mod.localisationFiles === 0 ? 1 : 0),
-      otherSpelling: acc.otherSpelling + (mod.otherSpelling ? 1 : 0)
+      otherSpelling: acc.otherSpelling + (mod.otherSpelling ? 1 : 0),
+      coveredKeys: acc.coveredKeys + sumLanguages(mod.coveredKeys),
+      englishKeys: acc.englishKeys + sumLanguages(mod.englishKeys),
+      keptKeys: acc.keptKeys + sumLanguages(mod.keptKeys),
+      shadowedKeys: acc.shadowedKeys + sumLanguages(mod.shadowedKeys)
     }),
-    { mods: 0, missingFiles: 0, missingLines: 0, withoutLocalisation: 0, otherSpelling: 0 }
+    {
+      mods: 0,
+      missingFiles: 0,
+      missingLines: 0,
+      withoutLocalisation: 0,
+      otherSpelling: 0,
+      coveredKeys: 0,
+      englishKeys: 0,
+      keptKeys: 0,
+      shadowedKeys: 0
+    }
   )
 
   // Mods needing work first, the rest keeps the list readable
-  const sorted = [...results].sort(
+  const sorted = [...scanned].sort(
     (a, b) => b.missingFiles - a.missingFiles || a.name.localeCompare(b.name)
   )
 
-  return { mods: sorted, totals }
+  return {
+    mods: sorted,
+    totals,
+    selfCopy,
+    generatedMod: generated && summariseGeneratedMod(generated, scanned),
+    keyStates: detail ? results.flatMap((result) => result.keyStates) : undefined
+  }
+}
+
+/**
+ * What the generated mod contributes, and what in it belongs to nothing any more
+ * @param generated - The generated mod read back from disk
+ * @param scanned - The scanned mods
+ * @returns The summary shown next to the scan totals
+ */
+const summariseGeneratedMod = (
+  generated: GeneratedMod,
+  scanned: ScannedMod[]
+): NonNullable<ScanOutput['generatedMod']> => {
+  const english = scanned.reduce((sum, mod) => sum + sumLanguages(mod.englishKeys), 0)
+  const kept = scanned.reduce((sum, mod) => sum + sumLanguages(mod.keptKeys), 0)
+  const shadowed = scanned.reduce((sum, mod) => sum + sumLanguages(mod.shadowedKeys), 0)
+
+  // A namespace matching no scanned mod comes from a mod that was renamed or unsubscribed
+  const known = new Set<string>()
+  for (const mod of scanned) known.add(getModNamespace({ id: mod.id, path: mod.path }, mod.name))
+
+  let total = 0
+  const orphanNamespaces: string[] = []
+  for (const [namespace, languages] of generated.byNamespace) {
+    if (namespace !== '' && !known.has(namespace)) {
+      orphanNamespaces.push(namespace)
+      continue
+    }
+    for (const keys of languages.values()) total += keys.size
+  }
+
+  return {
+    path: generated.path,
+    translated: total - english - kept - shadowed,
+    english,
+    kept,
+    shadowed,
+    orphanNamespaces
+  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -989,26 +1426,25 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
     })
   }
 
-  const { path: rootPath, game, mode, modName, documentsPath, userDataPath, selectedMods } = request
+  const { path: rootPath, game, mode, modName, userDataPath, selectedMods } = request
   const translateKey = GAMES[game].translateKey
 
   let translationMod: TranslationMod | undefined
   let gameModsDir = ''
+  const target = resolveGeneratedMod(request)
   if (mode === ConvertMode.CREATE_TRANSLATION_MOD) {
-    if (!documentsPath) throw new Error('Documents folder could not be resolved')
-    gameModsDir = path.join(documentsPath, 'Paradox Interactive', GAMES[game].userFolder, 'mod')
-
-    const name = modName?.trim() || DEFAULT_MOD_NAME
+    if (!target) throw new Error('Documents folder could not be resolved')
+    gameModsDir = target.modsDir
     translationMod = {
-      name,
-      folder: sanitizeFolderName(name, 48) || DEFAULT_MOD_FOLDER,
-      path: '',
+      name: modName?.trim() || DEFAULT_MOD_NAME,
+      folder: target.folder,
+      path: target.path,
       // Replaced once the source mods have been read
       supportedVersion: '*'
     }
-    translationMod.path = path.join(gameModsDir, translationMod.folder)
   }
 
+  const startedAt = Date.now()
   addLog(ConversionLogMessage.STARTING)
   workerPort.postMessage({
     type: ConversionStatusType.STATUS,
@@ -1016,12 +1452,19 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
   })
 
   const discovered = await discoverMods(rootPath, translateKey)
+  // A copy of our own mod among the scanned ones would vouch for its own English leftovers
+  const { mods: sources, selfCopy } = dropOurOwnMod(discovered.mods, target?.folder)
+  if (selfCopy) addLog(ConversionLogMessage.SELF_COPY, { path: selfCopy })
   // Built from every discovered mod: a localisation mod the user did not tick still counts
-  const coverage = await buildCoverage(discovered.mods, translateKey, request.sourceLanguage)
+  const coverage = await buildCoverage(sources, translateKey, request.sourceLanguage)
+  // What an earlier run already translated is not paid for twice; what it left in English is
+  const generated = translationMod
+    ? await readGeneratedMod(translationMod.path, translateKey)
+    : undefined
   // The user ticked the mods to handle in the scan list, an empty selection means everything
   const mods = selectedMods?.length
-    ? discovered.mods.filter((mod) => selectedMods.includes(mod.id))
-    : discovered.mods
+    ? sources.filter((mod) => selectedMods.includes(mod.id))
+    : sources
   addLog(discovered.single ? ConversionLogMessage.SINGLE_MOD : ConversionLogMessage.MODS_FOUND, {
     count: mods.length
   })
@@ -1032,7 +1475,9 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
 
   if (request.translate?.enabled) {
     if (!userDataPath) throw new Error('Translation memory folder could not be resolved')
-    memory = new TranslationMemory(path.join(userDataPath, 'translation-memory'))
+    // Loaded up front rather than lazily by the engine: planning happens first and needs it
+    // to tell a refused string from one the backend answered with the source text
+    memory = await loadMemory(userDataPath, request.targetLanguages)
     // The renderer knows nothing about what the game is about, the worker does
     const config = { ...request.translate, domain: GAMES[game].domain }
 
@@ -1083,28 +1528,34 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
   const concurrency = engine ? 2 : MOD_CONCURRENCY
 
   let done = 0
-  const results = await mapWithConcurrency(mods, concurrency, async (mod) => {
-    const result = await processMod(
+  const outcomes = await mapWithConcurrency(mods, concurrency, async (mod) => {
+    const outcome = await processMod(
       mod,
       request,
-      translateKey,
+      {
+        translateKey,
+        packed: Boolean(translationMod),
+        coverage: coverage.get(mod.id),
+        generated,
+        memory
+      },
       translationMod,
       engine,
-      languageNames,
-      coverage.get(mod.id)
+      languageNames
     )
     done++
-    lastProgress = { current: done, total: mods.length, modName: result.name }
+    lastProgress = { current: done, total: mods.length, modName: outcome.result.name }
     workerPort.postMessage({
       type: ConversionStatusType.PROGRESS,
       ...lastProgress,
       translation: engine?.getCounters()
     })
-    return result
+    return outcome
   })
 
   await memory?.flush()
 
+  const results = outcomes.map((outcome) => outcome.result)
   const totals = results.reduce(
     (acc, mod) => ({
       mods: acc.mods + 1,
@@ -1112,9 +1563,10 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
       created: acc.created + mod.createdCount,
       skipped: acc.skipped + mod.skippedCount,
       failed: acc.failed + mod.failedCount,
+      pruned: acc.pruned + mod.prunedCount,
       errors: acc.errors + mod.errors.length
     }),
-    { mods: 0, modsWithFiles: 0, created: 0, skipped: 0, failed: 0, errors: 0 }
+    { mods: 0, modsWithFiles: 0, created: 0, skipped: 0, failed: 0, pruned: 0, errors: 0 }
   )
 
   addLog(ConversionLogMessage.SUMMARY, {
@@ -1140,6 +1592,21 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
     addLog(ConversionLogMessage.MOD_CREATED, { name: translationMod.name })
   }
 
+  // A count of failures says nothing about what to fix, the key by key list does
+  const reportPath = userDataPath
+    ? await writeRunReport(path.join(userDataPath, 'reports'), {
+        startedAt,
+        finishedAt: Date.now(),
+        request,
+        totals,
+        counters: engine?.getCounters(),
+        refusals: engine?.getRefusals(),
+        mods: results,
+        untranslated: outcomes.flatMap((outcome) => outcome.untranslated),
+        translationMod
+      })
+    : undefined
+
   addLog(ConversionLogMessage.DONE)
 
   // Mods that produced something first, then the ones that need attention
@@ -1152,6 +1619,7 @@ const launchTranslation = async (request: Request, workerPort: any): Promise<Con
 
   return {
     mods: sortedMods,
+    reportPath,
     translationMod,
     translation: engine?.getCounters(),
     cancelled: cancellation.requested,
@@ -1170,5 +1638,9 @@ const run = async (request: Request, workerPort: any): Promise<ScanOutput | Conv
   request.action === WorkerAction.SCAN
     ? launchScan(request, workerPort)
     : launchTranslation(request, workerPort)
+
+// Both are driven straight by the CLI, which needs the key level detail a worker message
+// could not carry and has no worker to speak through
+export { launchScan, launchTranslation }
 
 export default run

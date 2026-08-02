@@ -43,7 +43,8 @@
     "modCreated": "Translation mod \"{{name}}\" written",
     "translating": "Translating with {{provider}} / {{model}}",
     "cancelled": "Stopped by user",
-    "glossary": "Glossary from the game: {{terms}} terms, {{strings}} known strings"
+    "glossary": "Glossary from the game: {{terms}} terms, {{strings}} known strings",
+    "selfCopy": "A copy of the generated mod was found in the scanned folder and left out: {{path}}"
   },
   "status": {
     "waiting": "Waiting",
@@ -97,6 +98,11 @@
   "SummaryDetails": "{{skipped}} file(s) already existing, {{failed}} failure(s)",
   "FilesCount": "{{count}} file(s)",
   "ErrorsCount": "{{count}} error(s)",
+  "RefusedCount": "{{count}} refused",
+  "RefusedHint": "An earlier run wrote these keys in the source language. The next run tries them again and overwrites them.",
+  "SelfCopyFound": "A copy of the generated mod sits in the scanned folder and was left out of the scan: {{path}} — left in, it would count as somebody else's translation and vouch for its own English.",
+  "GeneratedModSummary": "Generated mod: {{translated}} keys translated, {{english}} still in the source language, {{shadowed}} hiding a translation somebody else supplies (the next run drops those).",
+  "RunReportHint": "Every key left in the source language, with the reason it was refused, was written to a report (a .csv sits next to it):",
   "MoreFiles": "+ {{count}} more file(s)",
   "Errors": "Errors",
   "NothingToCreate": "Nothing to create, every target file already exists.",

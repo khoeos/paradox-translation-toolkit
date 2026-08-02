@@ -1,0 +1,13 @@
+{
+  "path": "D:/SteamLibrary/steamapps/workshop/content/1158310",
+  "game": "ck3",
+  "from": "en",
+  "to": "ru",
+  "mod-name": "Missing Translations",
+  "game-path": "D:/SteamLibrary/steamapps/common/Crusader Kings III",
+  "provider": "rapidapi",
+  "base-url": "https://translateai.p.rapidapi.com/google/translate/json",
+  "batch": 150,
+  "concurrency": 2,
+  "limit": 40
+}

@@ -4,3 +4,5 @@ out
 .DS_Store
 *.log*
 input
+# Local CLI settings, it may hold an api key
+ptt.config.json

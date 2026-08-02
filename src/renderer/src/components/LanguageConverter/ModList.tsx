@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ScannedMod, TranslateProvider } from '@global/types'
+import { ScannedMod, ScanOutput, TranslateProvider } from '@global/types'
 import { Card, CardContent } from '@renderer/components/ui/Card'
 import { Button } from '@renderer/components/ui/Button'
 import { Input } from '@renderer/components/ui/Input'
@@ -54,6 +54,10 @@ const formatCoverage = (mod: ScannedMod): string =>
     })
     .join('  ')
 
+/** Sum a per language count, the list shows one number per mod */
+const sumLanguages = (counts: Record<string, number>): number =>
+  Object.values(counts ?? {}).reduce((sum, count) => sum + count, 0)
+
 interface Props {
   mods: ScannedMod[]
   selected: string[]
@@ -65,6 +69,8 @@ interface Props {
   translateKey: string
   /** Which backend will do the work, the estimate depends on it entirely */
   provider: string
+  /** What the scan found about our own generated mod */
+  notes: Pick<ScanOutput, 'selfCopy' | 'generatedMod'>
 }
 
 export default function ModList({
@@ -74,7 +80,8 @@ export default function ModList({
   onToggle,
   withEstimate,
   translateKey,
-  provider
+  provider,
+  notes
 }: Props): JSX.Element {
   const { t } = useTranslation()
   const [filter, setFilter] = useState('')
@@ -156,6 +163,26 @@ export default function ModList({
           </p>
         )}
 
+        {notes.selfCopy && (
+          <p
+            className={
+              'mb-2 px-3 py-2 text-sm rounded border border-amber-500/60 bg-amber-950/30 text-amber-200'
+            }
+          >
+            {t('SelfCopyFound', { path: notes.selfCopy })}
+          </p>
+        )}
+
+        {notes.generatedMod && (
+          <p className={'mb-2 text-xs text-gray-300/80'}>
+            {t('GeneratedModSummary', {
+              translated: notes.generatedMod.translated,
+              english: notes.generatedMod.english,
+              shadowed: notes.generatedMod.shadowed
+            })}
+          </p>
+        )}
+
         <p className={'mb-2 text-xs text-gray-300/80'}>{t('CoverageHint')}</p>
 
         <ScrollArea className={'h-56 border rounded border-gray-700 bg-gray-900/60'}>
@@ -193,6 +220,14 @@ export default function ModList({
                   {mod.errors.length > 0 && (
                     <span className={'text-red-400 shrink-0'}>
                       {t('ErrorsCount', { count: mod.errors.length })}
+                    </span>
+                  )}
+                  {sumLanguages(mod.englishKeys) > 0 && (
+                    <span
+                      className={'text-red-400/90 shrink-0 tabular-nums'}
+                      title={t('RefusedHint')}
+                    >
+                      {t('RefusedCount', { count: sumLanguages(mod.englishKeys) })}
                     </span>
                   )}
                   <span

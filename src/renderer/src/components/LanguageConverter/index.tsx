@@ -107,6 +107,7 @@ export default function LanguageConverter(): JSX.Element {
         // The scan feeds the picker, there is nothing to show in the modal
         const scan = statusUpdate.output as ScanOutput
         setScannedMods(scan.mods)
+        setScanNotes({ selfCopy: scan.selfCopy, generatedMod: scan.generatedMod })
         setSelectedMods(scan.mods.filter((mod) => mod.missingFiles > 0).map((mod) => mod.id))
         setModalOpen(false)
         setConversionStatus(ConversionStatus.WAITING)
@@ -188,6 +189,7 @@ export default function LanguageConverter(): JSX.Element {
     deepCheck,
     translate,
     scannedMods,
+    scanNotes,
     selectedMods,
     setGame,
     setPath,
@@ -198,6 +200,7 @@ export default function LanguageConverter(): JSX.Element {
     setCheckFiles,
     setDeepCheck,
     setScannedMods,
+    setScanNotes,
     setSelectedMods,
     toggleSelectedMod
   } = useOptionsStore()
@@ -554,6 +557,7 @@ export default function LanguageConverter(): JSX.Element {
             withEstimate={translate.enabled}
             translateKey={GAMES[game].translateKey}
             provider={translate.provider}
+            notes={scanNotes}
           />
         )}
         <Dialog open={modalOpen}>
@@ -649,6 +653,20 @@ export default function LanguageConverter(): JSX.Element {
                       {output.translationMod.path}
                     </p>
                     <p className={'text-gray-400'}>{t('TranslationModLoadOrder')}</p>
+                  </>
+                )}
+                {output.reportPath && (
+                  <>
+                    <p className={'mt-2 text-gray-400'}>{t('RunReportHint')}</p>
+                    <p
+                      className={'text-amber-500 truncate cursor-pointer hover:underline'}
+                      title={output.reportPath}
+                      onClick={() =>
+                        window.electron.ipcRenderer.send(IpcKey.OPEN_FOLDER, output.reportPath)
+                      }
+                    >
+                      {output.reportPath}
+                    </p>
                   </>
                 )}
               </div>

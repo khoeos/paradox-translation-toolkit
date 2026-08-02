@@ -43,7 +43,8 @@
     "modCreated": "已写入翻译 Mod「{{name}}」",
     "translating": "正在通过 {{provider}} / {{model}} 翻译",
     "cancelled": "已被用户停止",
-    "glossary": "来自游戏的术语库：{{terms}} 个术语，{{strings}} 条已知文本"
+    "glossary": "来自游戏的术语库：{{terms}} 个术语，{{strings}} 条已知文本",
+    "selfCopy": "在扫描目录中发现生成 Mod 的副本，已将其排除：{{path}}"
   },
   "status": {
     "waiting": "等待中",
@@ -97,6 +98,11 @@
   "SummaryDetails": "{{skipped}} 个文件已存在，{{failed}} 个失败",
   "FilesCount": "{{count}} 个文件",
   "ErrorsCount": "{{count}} 个错误",
+  "RefusedCount": "{{count}} 条被拒绝",
+  "RefusedHint": "先前的运行把这些键写成了源语言。下一次运行会重新尝试并覆盖它们。",
+  "SelfCopyFound": "扫描目录中存在生成 Mod 的副本，已将其排除在扫描之外：{{path}} —— 若保留，它会被当作他人的翻译，并为自己的英文原文背书。",
+  "GeneratedModSummary": "生成 Mod：{{translated}} 个键已翻译，{{english}} 个仍为源语言，{{shadowed}} 个遮挡了他人提供的翻译（下次运行会移除这些）。",
+  "RunReportHint": "所有仍为源语言的键及其被拒绝的原因已写入报告（同目录下还有一个 .csv）：",
   "MoreFiles": "另有 {{count}} 个文件",
   "Errors": "错误",
   "NothingToCreate": "无需创建，所有目标文件均已存在。",
