@@ -100,7 +100,7 @@ The only Electron-aware package. Three sub-bundles built by `electron-vite`:
 
 | Layer            | Choice                                                                              |
 | ---------------- | ----------------------------------------------------------------------------------- |
-| Runtime          | Electron 41, Node 24 LTS, pnpm 10                                                   |
+| Runtime          | Electron 41, Node 24 LTS, pnpm 11                                                   |
 | Build / bundling | electron-vite 5, Vite 7, Turbo 2                                                    |
 | UI framework     | React 19, Tailwind CSS v4, shadcn/ui (radix-ui umbrella)                            |
 | Routing          | TanStack Router (hash history, code-based routes)                                   |

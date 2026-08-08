@@ -1,7 +1,7 @@
 # Database (placeholder)
 
 Reserved for SQLite + Prisma when scan caching, edit history, or saved
-"projects" are added (planned PR10+).
+"projects" are added.
 
 Approach:
 

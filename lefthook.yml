@@ -22,7 +22,7 @@ pre-push:
   parallel: true
   commands:
     oxlint:
-      run: pnpm lint check --no-errors-on-unmatched --files-ignore-unknown=true .
+      run: pnpm turbo lint
     typecheck:
       run: pnpm turbo typecheck
     test:

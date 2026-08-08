@@ -24,7 +24,7 @@ Thanks for your interest in contributing to Paradox Translation Toolkit! This do
 ## Requirements
 
 - **Node** ≥ 24 (see `.nvmrc`)
-- **pnpm** ≥ 10 (declared via the `packageManager` field)
+- **pnpm** ≥ 11 (declared via the `packageManager` field)
 
 ### Recommended IDE setup
 
@@ -35,7 +35,7 @@ Thanks for your interest in contributing to Paradox Translation Toolkit! This do
 ## Quick start
 
 ```bash
-corepack enable                 # if you don't have pnpm 10 globally, this enables the bundled version
+corepack enable                 # if you don't have pnpm 11 globally, this enables the pinned version
 pnpm install                    # install everything
 pnpm lefthook install           # set up git hooks (lint, test, commit message validation)
 pnpm dev                        # turbo run dev - launches the desktop app + the @ptt/ui watcher
@@ -73,23 +73,36 @@ The PR template will guide you through the checklist.
 
 ### Commits
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/), enforced by commitlint via Lefthook.
+We follow [Conventional Commits](https://www.conventionalcommits.org/), enforced by commitlint via Lefthook (see `commitlint.config.js`).
 
 Common types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`.
+
+The scope is optional, but when present it must be one of the four allowed values - package names are **not** valid scopes:
+
+| Scope  | Use for                                          |
+| ------ | ------------------------------------------------ |
+| `app`  | anything in `apps/`, `packages/`, `games/`       |
+| `ci`   | workflows, lefthook, commitlint, release tooling |
+| `deps` | dependency bumps                                 |
+| `docs` | documentation files                              |
 
 Examples:
 
 ```
-feat(parser-core): support BOM detection in YAML files
-fix(desktop): prevent crash when mod folder is missing
+feat(app): support BOM detection in YAML files
+fix(app): prevent crash when mod folder is missing
+chore(deps): bump electron to 40
+ci: run the i18n extract check on pull requests
 docs: clarify the override-subdir behavior
 ```
 
+Say which package you touched in the commit body or the subject text, not in the scope.
+
 ### Git hooks (Lefthook)
 
-- `pre-commit` - lint + typecheck + test (test only on `main` / `develop`)
+- `pre-commit` - `oxlint --fix` on staged files + typecheck, plus tests on `main` / `develop`
 - `commit-msg` - commitlint
-- `pre-push` - runs everything
+- `pre-push` - lint + typecheck + test across the whole monorepo
 
 ### Code style
 
