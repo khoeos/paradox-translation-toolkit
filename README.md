@@ -49,50 +49,11 @@
 - Generate files directly in the mod folder or in a custom folder
 - View all the missing files, and acess it directly
 - Working with multiple paradox games
+- Extract all translation in a new mod
+- Machine translation (ollama, RapidApi, OpenAi compatible API)
 
 ⚠️ **The tool is in active development, the new version is quite recent and based on the first one but without an extensive testing in every games and every cases, you may encounter some errors, [you can check the V1 for a more stable version](https://github.com/khoeos/Paradox-mod-language-converter/releases/tag/1.0.0) but there is also some known error that are fixed in the last vesion (you have to make a choice 🤡)**
 
-## What this fork adds
-
-This fork grew out of running the toolkit over a subscribed collection of **300+ mods** rather
-than a handful, where a percentage is not an answer: you need to know which mods, which files
-and which keys.
-
-**Scanning a whole collection.** Point the tool at a workshop content folder instead of a
-single mod. Every mod is scanned separately, so one unreadable mod never stops the run, and
-the result is a list you tick to choose what to convert.
-
-**Coverage measured key by key, not file by file.** A mod's declared `supported_version` says
-nothing about whether its translation is complete — measured, a mod declaring an older version
-was complete while a current-looking one was not. Only comparing the keys answers it. Separate
-localisation mods count too: they are matched to the mods they patch through `dependencies` in
-`descriptor.mod`, and, for the many that declare none, by key overlap.
-
-**Nothing is overwritten.** Missing keys go into a file of their own beside an existing
-translation (`<name>_ptt_missing_l_<lang>.yml`), never into it.
-
-**One generated mod, and it is accounted for.** All the missing strings can be collected into
-a single mod under `Documents\Paradox Interactive\<game>\mod`. On the next run that mod is read
-back and counted, so a re-scan shows what is genuinely left instead of reporting everything as
-missing again. Crucially, a key it holds in the source language counts as **still missing**: a
-run that ran out of quota or lost its backend does not get to vouch for its own English.
-
-**Optional machine translation**, through a local Ollama server, any OpenAI-compatible endpoint,
-or a RapidAPI translation hub. Translations are remembered on disk between runs, and the base
-game's own localisation is used as a glossary so canonical game terms match what players expect.
-Markup (`$VAR$`, `[Scope|E]`, `£icon£`, `#bold`) is verified on the way back and a string that
-lost a token is refused rather than written broken.
-
-**Reports that name the keys.** Every conversion writes a JSON and CSV report listing each key
-left in the source language with the reason it was refused. A developer CLI (see below) answers
-the same question without launching the window.
-
-### Coming soon
-
-- Retry the strings rejected for broken markup, by masking the markup before sending
-- Import an external glossary alongside the one built from the game
-- A provider whose request and response shape is configurable, not tied to one vendor
-- Manage translation files (missing keys, side by side view, etc)
 
 ## How to use
 
