@@ -2,6 +2,7 @@
 
 Thanks for your interest in contributing to Paradox Translation Toolkit! This document covers how to get set up and the conventions we follow. For deeper material, head to:
 
+- [AI/LLM Policy](./ai-policy.md) - If you want to use AI to contribute, read this first.
 - [Project architecture](./docs/architecture.md) - how the monorepo is laid out and why
 - [Building installers](./docs/building.md) - per-OS build instructions
 - [Testing](./docs/testing.md) - how the test suite is organised

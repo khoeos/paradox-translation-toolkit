@@ -129,6 +129,8 @@ As a translation tool, it needs to be translated! You can find the translation f
 
 More info on the code and how to contribute in the [CONTRIBUTING.md](./CONTRIBUTING.md) file.
 
+Important notes about the use of AI in the development of this project in the [Ai Policy](./ai-policy.md) file.
+
 ---
 
 ## Useful links
