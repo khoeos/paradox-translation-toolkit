@@ -7,16 +7,36 @@
   },
   "converter": {
     "convert": "转换翻译",
+    "convertSelection_other": "转换 {{count}} 个模组",
     "intro": "转换器会将源语言的本地化文件复制到目标语言中,以避免 Mod 显示原始翻译标签。",
     "mode": "模式",
     "modes": {
       "addToCurrent": "添加到当前 Mod",
       "addToCurrentHint": "在每个 Mod 文件夹内写入缺失的文件",
+      "createTranslationMod": "单一翻译模组",
+      "createTranslationModHint": "将所有缺失的键收集到游戏文件夹下的单个模组中",
       "extractToFolder": "提取到文件夹",
       "extractToFolderHint": "将缺失的文件写入单独的输出文件夹"
     },
     "modFolder": "Mod 文件夹",
     "modFolderPlaceholder": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\…",
+    "modList": {
+      "coveredBy": "由 {{names}} 覆盖",
+      "coveredKeys_other": "已覆盖 {{count}} 个",
+      "englishKeys_other": "上一次运行留下 {{count}} 个未翻译的键",
+      "errors_other": "{{count}} 个读取错误",
+      "missing": "缺失 {{files}} 个文件，{{keys}} 个键",
+      "noLocalisation": "无本地化",
+      "nothingMissing": "没有缺失",
+      "otherSpelling": "游戏选错了？",
+      "selectMissing": "选择缺失项",
+      "selectNone": "全部取消",
+      "sourceKeys_other": "{{count}} 个源键",
+      "title_other": "已扫描 {{count}} 个模组",
+      "toggle": "包含 {{name}}"
+    },
+    "modNameHint": "生成的模组在游戏启动器中显示的名称。",
+    "modNamePlaceholder": "缺失的翻译",
     "noGameSelected": "在上方选择一个游戏以开始转换本地化文件。",
     "noLanguagesPickGame": "请先选择一个游戏。",
     "outputFolder": "输出文件夹",
@@ -24,7 +44,9 @@
     "overwriteHint": "即使目标文件已存在,也强制使用源文件重新生成。",
     "overwriteLabel": "覆盖已存在的文件",
     "pickGame": "选择一个游戏",
+    "rescan": "重新扫描",
     "runError": "无法启动转换:{{message}}",
+    "scan": "扫描整个集合",
     "sourceLanguage": "源语言",
     "sourceLanguageDefault": "英语 (默认)",
     "starting": "正在启动…",
@@ -62,6 +84,14 @@
   },
   "modal": {
     "cancelJob": "取消任务",
+    "conversionSummary": {
+      "created_other": "已创建 {{count}} 个文件",
+      "failed_other": "{{count}} 个文件写入失败",
+      "openMod": "打开翻译模组",
+      "openReport": "打开运行报告",
+      "pruned_other": "已删除 {{count}} 个生成文件，不再需要",
+      "skipped_other": "{{count}} 个文件保持原样，已存在翻译"
+    },
     "doneToast": "转换完成 - 已创建 {{count}} 个文件",
     "doneToast_other": "转换完成 - 已创建 {{count}} 个文件",
     "errorToast": "转换失败:{{message}}",
@@ -70,25 +100,44 @@
     "filesPerLang": "{{lang}} - 已创建 {{count}} 个文件",
     "filesPerLang_other": "{{lang}} - 已创建 {{count}} 个文件",
     "log": {
+      "cancelled": "已在当前模组后停止",
       "conversionFinished": "转换完成",
       "errorPrefix": "错误:{{message}}",
       "filesScanned_other": "已扫描 {{count}} 个文件",
       "missingFiles_other": "缺少 {{count}} 个文件",
+      "modsScanned_other": "已扫描 {{count}} 个模组",
       "sourceFiles_other": "源语言中有 {{count}} 个文件",
       "startingScanning": "开始扫描文件"
     },
+    "modProgress": "第 {{processed}} / {{total}} 个模组：{{name}}",
     "noFilesNeeded": "所有目标语言已有全部文件,无需操作。",
     "openPathError": "无法打开路径:{{message}}",
     "overwrittenPerLang": "{{lang}} - 已覆盖 {{count}} 个文件",
     "overwrittenPerLang_other": "{{lang}} - 已覆盖 {{count}} 个文件",
+    "scanSummary": {
+      "estimate": "需翻译 {{lines}} 行，大约 {{duration}}",
+      "generated": "此前的运行提供了 {{translated}} 条翻译，{{english}} 条仍为源语言，{{orphans}} 个孤立文件夹",
+      "missing": "需创建 {{files}} 个文件，已覆盖 {{keys}} 个键",
+      "mods_other": "已扫描 {{count}} 个模组",
+      "otherSpelling_other": "{{count}} 个模组使用了另一种拼写：是否选错了游戏？",
+      "selfCopy": "在此处发现了生成模组的副本，已从扫描中排除。",
+      "withoutLocalisation_other": "{{count}} 个模组没有此游戏的本地化文件"
+    },
+    "scanToast_other": "整个集合缺失 {{count}} 个文件",
     "status": {
+      "": "进行中…",
       "applying": "创建文件中…",
       "cancelled": "已取消",
       "done": "完成",
       "error": "错误",
-      "scanning": "扫描文件中…"
-    }
+      "processing-mods": "正在处理模组…",
+      "scan-finished": "扫描完成",
+      "scanning": "扫描文件中…",
+      "translating": "正在翻译…"
+    },
+    "translationCounters": "已翻译 {{translated}}，免费 {{cached}}，保留原样 {{failed}}"
   },
+  "modal.status.": "",
   "settings": {
     "allowedFolders": {
       "empty": "尚未授权自定义文件夹。",
@@ -118,6 +167,30 @@
       "system": "跟随系统"
     },
     "title": "设置"
+  },
+  "translate": {
+    "apiKey": "API 密钥",
+    "apiKeyHint": "绝不写入磁盘，也不写入报告。每次会话需重新输入。",
+    "baseUrl": "接口地址",
+    "batchSize": "每次请求的字符串数",
+    "browse": "浏览",
+    "clearMemory": "清除记忆",
+    "concurrency": "并发请求数",
+    "gamePath": "游戏安装文件夹",
+    "gamePathHint": "游戏自带的本地化文件是最好的术语表。",
+    "gamePathPlaceholder": "可选，可改善用词",
+    "hint": "可选。不启用时，缺失的键将以源语言复制。",
+    "memoryCleared": "翻译记忆已清除",
+    "model": "模型",
+    "providers": {
+      "ollama": "Ollama",
+      "openai": "兼容 OpenAI",
+      "rapidapi": "RapidAPI"
+    },
+    "test": "测试服务",
+    "testFailed": "服务失败：{{message}}",
+    "testOk": "服务返回：{{text}}",
+    "title": "机器翻译"
   },
   "updater": {
     "autoCheckHint": "应用启动几秒后自动查找新版本。",

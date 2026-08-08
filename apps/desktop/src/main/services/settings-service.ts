@@ -3,7 +3,12 @@ import { z } from 'zod'
 
 import { getAllGameIds } from '@ptt/game-registry'
 import { DEFAULT_UI_LANGUAGE, VALID_UI_LANGUAGES, type UiLanguage } from '@ptt/i18n'
-import { LanguageCodeSchema, type ConvertMode, type LanguageCode } from '@ptt/shared-types'
+import {
+  ConvertModeSchema,
+  LanguageCodeSchema,
+  type ConvertMode,
+  type LanguageCode
+} from '@ptt/shared-types'
 
 import { log } from '../log.js'
 
@@ -58,7 +63,7 @@ const SettingsSchemaZod = z.object({
   defaultSourceLanguage: LanguageCodeSchema,
   sourceLanguage: z.partialRecord(GameIdSchema, LanguageCodeSchema),
   targetLanguages: z.partialRecord(GameIdSchema, z.array(LanguageCodeSchema)),
-  mode: z.enum(['add-to-current', 'extract-to-folder']),
+  mode: ConvertModeSchema,
   overwrite: z.boolean(),
   themeOverride: z.enum(['system', 'light', 'dark']),
   uiLanguage: z.enum(VALID_UI_LANGUAGES),

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
+import { apply } from '../src/apply.js'
 import { diff } from '../src/diff.js'
+import { posixContains } from '../src/path.js'
 import { plan } from '../src/plan.js'
 import { scan } from '../src/scan.js'
 import { localeFile, stellarisDef } from './fixtures.js'
@@ -9,6 +11,12 @@ import { MemoryFs } from './memory-fs.js'
 async function setup(files: Record<string, string>) {
   const fs = new MemoryFs(files)
   const scanResult = await scan('workshop', stellarisDef, fs)
+  return { fs, scanResult }
+}
+
+async function setupAbsolute(files: Record<string, string>) {
+  const fs = new MemoryFs(files)
+  const scanResult = await scan('/Users/x/workshop', stellarisDef, fs)
   return { fs, scanResult }
 }
 
@@ -119,6 +127,60 @@ describe('plan - extract-to-folder mode', () => {
       gameDef: stellarisDef
     })
     expect(result.actions).toHaveLength(2)
+  })
+})
+
+describe('plan - absolute mod roots', () => {
+  it('writes into the mod folder, not the process cwd', async () => {
+    const { scanResult } = await setupAbsolute({
+      '/Users/x/workshop/mod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const diffPlan = diff(scanResult, 'en', ['fr'])
+    const result = plan(diffPlan, { mode: 'add-to-current', gameDef: stellarisDef })
+    expect(result.actions[0]?.targetPath).toBe(
+      '/Users/x/workshop/mod/localisation/french/foo_l_french.yml'
+    )
+  })
+
+  it('keeps sandboxRoot absolute so the containment check compares like with like', async () => {
+    const { scanResult } = await setupAbsolute({
+      '/Users/x/workshop/mod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const diffPlan = diff(scanResult, 'en', ['fr'])
+    const result = plan(diffPlan, { mode: 'add-to-current', gameDef: stellarisDef })
+    const action = result.actions[0]
+    expect(action?.sandboxRoot).toBe('/Users/x/workshop/mod')
+    expect(posixContains(action?.sandboxRoot ?? '', action?.targetPath ?? '')).toBe(true)
+  })
+
+  it('extracts an absolute mod root under outputDir by basename', async () => {
+    const { scanResult } = await setupAbsolute({
+      '/Users/x/workshop/mymod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const diffPlan = diff(scanResult, 'en', ['fr'])
+    const result = plan(diffPlan, {
+      mode: 'extract-to-folder',
+      outputDir: '/output',
+      gameDef: stellarisDef
+    })
+    expect(result.actions[0]?.targetPath).toBe('/output/mymod/localisation/french/foo_l_french.yml')
+    expect(result.actions[0]?.sandboxRoot).toBe('/output')
+  })
+
+  it('applies the plan to the absolute target path', async () => {
+    const { fs, scanResult } = await setupAbsolute({
+      '/Users/x/workshop/mod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const diffPlan = diff(scanResult, 'en', ['fr'])
+    const result = plan(diffPlan, { mode: 'add-to-current', gameDef: stellarisDef })
+    const report = await apply(result, fs)
+
+    expect(report.failed).toEqual({})
+    expect(report.created.fr).toEqual([
+      '/Users/x/workshop/mod/localisation/french/foo_l_french.yml'
+    ])
+    // Nothing landed at the cwd-relative twin of the target.
+    expect([...fs.snapshot().keys()].some(p => !p.startsWith('/'))).toBe(false)
   })
 })
 

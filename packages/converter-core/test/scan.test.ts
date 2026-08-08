@@ -130,3 +130,77 @@ describe('scan', () => {
     expect(keys[0]).toBe('localisation/{LANG}/foo_l_{LANG}.yml')
   })
 })
+
+describe('scan - nested localisation folders', () => {
+  it('anchors on the deepest localisation folder', async () => {
+    // Some mods ship a second localisation folder below the first one. The path below the
+    // deepest one is what identifies the file, so the shallowest must not win.
+    const fs = new MemoryFs({
+      'mod/localisation/extra/localisation/foo_l_english.yml': localeFile('english')
+    })
+    const result = await scan('mod', stellarisDef, fs)
+    expect(result.files).toHaveLength(1)
+    expect(result.files[0]?.modRoot).toBe('mod/localisation/extra')
+    expect(result.files[0]?.relativePath).toBe('localisation/foo_l_english.yml')
+  })
+
+  it('still anchors on the only localisation folder when there is one', async () => {
+    const fs = new MemoryFs({
+      'mod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const result = await scan('mod', stellarisDef, fs)
+    expect(result.files[0]?.modRoot).toBe('mod')
+    expect(result.files[0]?.relativePath).toBe('localisation/english/foo_l_english.yml')
+  })
+})
+
+describe('scan - absolute roots', () => {
+  // The renderer's folder dialog hands over an absolute path, so this is the real-world case
+  // on macOS and Linux. Rebuilding modRoot by joining segments used to drop the leading
+  // separator, which sent every generated file to the process cwd.
+  it('keeps modRoot absolute', async () => {
+    const fs = new MemoryFs({
+      '/Users/x/mod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const result = await scan('/Users/x', stellarisDef, fs)
+    expect(result.files).toHaveLength(1)
+    expect(result.files[0]?.modRoot).toBe('/Users/x/mod')
+    expect(result.files[0]?.absolutePath).toBe(
+      '/Users/x/mod/localisation/english/foo_l_english.yml'
+    )
+  })
+
+  it('keeps relativePath relative to the localisation folder', async () => {
+    const fs = new MemoryFs({
+      '/Users/x/mod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const result = await scan('/Users/x', stellarisDef, fs)
+    expect(result.files[0]?.relativePath).toBe('localisation/english/foo_l_english.yml')
+  })
+
+  it('keeps modRoot absolute when anchoring on a nested localisation folder', async () => {
+    const fs = new MemoryFs({
+      '/Users/x/mod/localisation/extra/localisation/foo_l_english.yml': localeFile('english')
+    })
+    const result = await scan('/Users/x', stellarisDef, fs)
+    expect(result.files[0]?.modRoot).toBe('/Users/x/mod/localisation/extra')
+    expect(result.files[0]?.relativePath).toBe('localisation/foo_l_english.yml')
+  })
+
+  it('keeps a Windows drive root intact', async () => {
+    const fs = new MemoryFs({
+      'C:/Users/x/mod/localisation/english/foo_l_english.yml': localeFile('english')
+    })
+    const result = await scan('C:/Users/x', stellarisDef, fs)
+    expect(result.files[0]?.modRoot).toBe('C:/Users/x/mod')
+  })
+
+  it('keeps distinct absolute mod roots distinct', async () => {
+    const fs = new MemoryFs({
+      '/Users/x/mod1/localisation/english/a_l_english.yml': localeFile('english'),
+      '/Users/x/mod2/localisation/english/b_l_english.yml': localeFile('english')
+    })
+    const result = await scan('/Users/x', stellarisDef, fs)
+    expect(result.files.map(f => f.modRoot).toSorted()).toEqual(['/Users/x/mod1', '/Users/x/mod2'])
+  })
+})

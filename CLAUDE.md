@@ -1,7 +1,7 @@
 # Paradox Translation Toolkit
 
-Turbo + pnpm monorepo : Electron app (`apps/desktop`) + FS-agnostic cores
-(`packages/`) + one package per supported Paradox game (`games/`).
+Turbo + pnpm monorepo : Electron app (`apps/desktop`) + developer CLI (`apps/cli`) +
+FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games/`).
 
 ## Read docs/ first, by task
 
@@ -17,23 +17,39 @@ Turbo + pnpm monorepo : Electron app (`apps/desktop`) + FS-agnostic cores
 
 ## Invariants (violable silently : watch these)
 
-- `packages/parser-core` and `packages/converter-core` are FS-agnostic : no
-  `node:fs`, no Electron imports. `converter-core` reaches the FS only through the
-  injected `FsLike` (`src/types.ts`, in-memory fake at `test/memory-fs.ts`) ;
-  `parser-core` is pure text and has no FS notion at all.
-- Only `apps/desktop` may touch Electron and the real filesystem.
+- `packages/parser-core`, `packages/converter-core`, `packages/translate-core` and
+  `packages/report-core` are FS-agnostic : no `node:fs`, no Electron imports. They reach
+  the FS only through the injected `FsLike` (`converter-core/src/types.ts`, in-memory fake
+  at `converter-core/test/memory-fs.ts`, exported as `@ptt/converter-core/test/memory-fs`) ;
+  `parser-core` is pure text and has no FS notion at all. `translate-core` reaches the
+  network only through an injected `FetchLike`.
+- Only `apps/desktop` may touch Electron. The real filesystem is reached through
+  `@ptt/fs-node`, whose single `nodeFs` is imported by `apps/desktop` and `apps/cli` ; no
+  other package imports `node:fs`.
 - The preload's only cross-package import is `@ptt/shared-types/ipc-channels`, the
   zod-free subexport (the other import is `electron` itself). Anything reachable
   from the preload import graph ships in the preload bundle.
+- The mod-level pipeline (`scanMods`, `runConvert`) lives in `converter-core` and takes a
+  `ProgressPort` : `apps/desktop`'s worker and `apps/cli` call the same functions, which is
+  what stops the two drifting. The translation engine reaches it as an injected
+  `TranslationEnginePort`, so `converter-core -> translate-core` stays absent.
+- The renderer value-imports only zod-free subexports : `@ptt/converter-core/progress` for
+  `JobEvent` / `isJobEvent`, `@ptt/translate-core/defaults` for the settings bounds. A value
+  import of a package root pulls zod and the whole pipeline into the renderer bundle (check
+  with `grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
 - `games/game-registry` array order = UI tab order (`builtInGames` ->
   `getGameSummaries()` -> `games.list` -> `GameTabs`, no sort on the path). A new
   game also needs its tab image wired in `GameTabs.tsx`.
 - parser-core round-trip guarantee : parse -> mutate -> serialize must not
   introduce diff noise (BOM, CRLF/LF per locale, escapes preserved).
-- Coverage thresholds live in the two cores' `vitest.config.ts` (lines/functions/
-  statements 90 ; branches 85 parser-core, 80 converter-core). They are NOT a gate :
-  `test` is `vitest run` with no `--coverage`, so CI never evaluates them. Run
-  `pnpm --filter @ptt/parser-core exec vitest run --coverage` to check.
+- Coverage thresholds live in each core's `vitest.config.ts` (lines/functions/statements 90 ;
+  branches 85 parser-core, 80 elsewhere). They are NOT a gate : `test` is `vitest run` with
+  no `--coverage`, so CI never evaluates them. Run
+  `pnpm --filter @ptt/converter-core exec vitest run --coverage` to check.
+- `apps/desktop`'s vitest runs in `environment: 'node'`, so nothing that renders JSX is
+  tested. Keep renderer logic in stores and `lib/` modules where it can be
+  (`lib/estimate.ts` exists for that reason) ; see `docs/testing.md` for what a jsdom
+  project would need.
 
 ## Type assertions
 
@@ -82,17 +98,19 @@ Turbo + pnpm monorepo : Electron app (`apps/desktop`) + FS-agnostic cores
   `packages/i18n/src/locales/*.json`, only fill translated values ; CI runs
   `extract:check`. `useTranslation` comes from `react-i18next`, and outside
   components use `i18next.t` (as `renderer/src/store/jobs.ts` does).
-- Known byte-identical duplications : edit both copies when you touch either.
-  `JobEvent` (`main/services/converter-service.ts` + `renderer/src/store/jobs.ts`)
-  belongs in `@ptt/converter-core` ; `UpdaterStatus` + `UpdaterEvent`
-  (`main/services/updater-service.ts` + `renderer/src/store/updater.ts`) belong in
-  `@ptt/shared-types`. `isJobEvent` / `isUpdaterEvent` only check that `type` is a
-  string, never the variant, so a variant added on one side falls through the
-  `switch` in silence.
+- `JobEvent` and `isJobEvent` now live in `converter-core/src/progress.ts`, with a
+  `JOB_EVENT_TYPES` tuple the guard checks against : a variant one side emits and the other
+  does not handle is rejected rather than falling through a `switch`. One duplication is
+  left : `UpdaterStatus` + `UpdaterEvent` (`main/services/updater-service.ts` +
+  `renderer/src/store/updater.ts`) belong in `@ptt/shared-types`, and `isUpdaterEvent` still
+  only checks that `type` is a string.
 - Internal deps are always `workspace:*` ; third-party deps shared by 2+ packages
   belong in the `catalog:` block of `pnpm-workspace.yaml`. Three shared deps are
   still pinned literally and can drift : `lucide-react`, `@types/react` (already
   drifted), `@types/react-dom`.
+- `pnpm install` hits a private registry and can hang for minutes ; `pnpm install --offline`
+  resolves everything already in the store instantly and is enough after adding a
+  `workspace:*` dep or a catalog entry that is already in the lockfile.
 
 ## Boundaries and file placement
 

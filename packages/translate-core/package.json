@@ -1,0 +1,30 @@
+{
+  "name": "@ptt/translate-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./defaults": "./src/defaults.ts"
+  },
+  "scripts": {
+    "lint": "oxlint src test",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rimraf dist .turbo coverage"
+  },
+  "dependencies": {
+    "@ptt/converter-core": "workspace:*",
+    "@ptt/parser-core": "workspace:*",
+    "@ptt/shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "rimraf": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -95,6 +95,24 @@ describe('language coverage invariant', () => {
   })
 })
 
+describe('generated translation mod metadata', () => {
+  it('every registered game declares the Documents folder holding user mods', () => {
+    for (const game of getAllGames()) {
+      expect(game.userFolder, `${game.id} has no userFolder`).not.toBe('')
+      // A leading or trailing space silently breaks the path the launcher reads.
+      expect(game.userFolder, `${game.id} userFolder is padded`).toBe(game.userFolder.trim())
+    }
+  })
+
+  it('every registered game describes itself for the translator', () => {
+    for (const game of getAllGames()) {
+      expect(game.domain, `${game.id} has no domain`).not.toBe('')
+      // Short enough and it carries no context, which is the whole point of the field.
+      expect(game.domain.length, `${game.id} domain is too terse`).toBeGreaterThan(40)
+    }
+  })
+})
+
 describe('extensibility', () => {
   it('allows adding a new game via spread without registry changes', () => {
     // This is the contract: a downstream user can wrap the registry and add

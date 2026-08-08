@@ -10,11 +10,11 @@ For build commands and per-OS installer flows, see [building.md](./building.md).
 
 The repo is a **pnpm + Turbo monorepo** with three top-level groups:
 
-- `apps/` - runnable applications (currently just the desktop app)
+- `apps/` - runnable applications (the desktop app and a developer CLI)
 - `packages/` - reusable, FS-agnostic libraries
 - `games/` - per-game plugins, all conforming to a common `GameDefinition` interface
 
-The desktop app is **the only consumer of Electron and the file system**. The core libraries (`parser-core`, `converter-core`, the game plugins) are pure Node/TS and depend on no Electron APIs. This is what makes them unit-testable and what allows new games to be added without touching the core.
+The desktop app is **the only consumer of Electron**. The real file system is reached through `@ptt/fs-node`, whose single `nodeFs` is imported by the two apps and nothing else; the core libraries (`parser-core`, `converter-core`, `translate-core`, `report-core`, the game plugins) receive it as an injected `FsLike`. `translate-core` reaches the network the same way, through an injected `FetchLike`. This is what makes all of them unit-testable without a disk or a server, and what lets the CLI run exactly the same pipeline as the app.
 
 ---
 
@@ -23,11 +23,15 @@ The desktop app is **the only consumer of Electron and the file system**. The co
 ```
 paradox-translation-toolkit/
 ├── apps/
-│   └── desktop/                  # Electron + React app (@ptt/desktop)
+│   ├── desktop/                  # Electron + React app (@ptt/desktop)
+│   └── cli/                      # Headless front end, same pipeline (@ptt/cli)
 ├── packages/
 │   ├── shared-types/             # IPC contracts, DTOs, Zod schemas (@ptt/shared-types)
-│   ├── parser-core/              # Generic Paradox locale parser/serializer (@ptt/parser-core)
-│   ├── converter-core/           # FS-agnostic scan/diff/plan/apply pipeline (@ptt/converter-core)
+│   ├── parser-core/              # Paradox locale parser/serializer + markup grammar (@ptt/parser-core)
+│   ├── converter-core/           # FS-agnostic pipeline, file-level and key-level (@ptt/converter-core)
+│   ├── translate-core/           # Translation engine, providers, memory, glossary (@ptt/translate-core)
+│   ├── report-core/              # JSON + CSV run reports (@ptt/report-core)
+│   ├── fs-node/                  # The single production FsLike (@ptt/fs-node)
 │   ├── ui/                       # shadcn/ui primitives + Tailwind globals (@ptt/ui)
 │   └── i18n/                     # i18next setup + locale JSON files (@ptt/i18n)
 ├── games/
@@ -78,6 +82,23 @@ The long term goal is to scope any future game-specific logic to these packages,
 
 **Adding a new game is a new package + one line in the registry**, nothing in `parser-core` or `converter-core` changes. This is the architectural invariant we test for.
 
+### `@ptt/translate-core`
+
+Optional machine translation, contributed by [PR #4](https://github.com/khoeos/paradox-translation-toolkit/pull/4).
+
+- `TranslationEngine` - batching, in-flight deduplication across mods, recursive batch splitting on failure, a circuit breaker after three consecutive single-string failures, and a mandatory markup check on every answer. A translation that lost a `$VARIABLE$` is refused, never written.
+- Three providers behind one `Provider` interface: Ollama, any OpenAI-compatible endpoint, and a RapidAPI hub. All take an injected `FetchLike`.
+- `TranslationMemory` - one JSON per language, written through tmp + rename, scoped per game and per provider+model by the caller.
+- `buildGlossary` / `loadGlossary` - the wording read from the game's own localisation, which a model cannot guess.
+
+### `@ptt/report-core`
+
+The JSON and CSV reports of a run, key by key. Consumed by both apps. CSV fields starting with a formula character are neutralised: the source, key and mod-name columns come from third-party mod content.
+
+### `@ptt/fs-node`
+
+The one production `FsLike`, wrapping `node:fs/promises`. Imported by `apps/desktop` and `apps/cli`; no package imports it.
+
 ### `@ptt/ui`
 
 shadcn/ui primitives, Tailwind v4 setup, the global stylesheet. Naming convention: kebab-case files (`button.tsx`, `dialog.tsx`). The desktop app composes these into PascalCase app-specific components (`Header.tsx`).
@@ -85,6 +106,12 @@ shadcn/ui primitives, Tailwind v4 setup, the global stylesheet. Naming conventio
 ### `@ptt/i18n`
 
 i18next configuration and the locale JSON files. See [ui-language.md](./ui-language.md) for adding a language.
+
+### `@ptt/cli`
+
+A headless front end to the same pipeline, contributed by [PR #4](https://github.com/khoeos/paradox-translation-toolkit/pull/4). Six commands: `scan`, `audit`, `convert`, `provider`, `memory`, `reports`. It calls the same `scanMods` and `runConvert` the desktop worker calls, through the same `ProgressPort`, which is what keeps the two from drifting into doing different things. `audit` is its reason to exist: it says which keys are still untranslated and why, mod by mod.
+
+Build it with `pnpm --filter @ptt/cli build`, then run `apps/cli/bin/ptt.mjs`. Flags may live in a `ptt.config.json` in the working directory; see `apps/cli/ptt.config.example.json`.
 
 ### `@ptt/desktop`
 
@@ -162,11 +189,14 @@ Uploading is disabled - attach the dump file to a GitHub issue manually.
 
 ## Invariants worth preserving
 
-- **Core packages stay FS-agnostic.** `parser-core` and `converter-core` must not import `node:fs` or any Electron API. Anything FS-related goes through the injected `FsLike`.
+- **Core packages stay FS-agnostic.** `parser-core`, `converter-core`, `translate-core` and `report-core` must not import `node:fs` or any Electron API. Anything FS-related goes through the injected `FsLike`, and anything network-related through the injected `FetchLike`. Only `apps/*` import `@ptt/fs-node`.
+- **The worker and the CLI consume the same contract.** `scanMods` and `runConvert` live in `converter-core` and take a `ProgressPort`; the desktop worker posts to a `MessagePort` and the CLI renders a ticker. A behaviour added to one is a behaviour added to both, by construction rather than by discipline.
+- **The renderer value-imports only zod-free subexports.** `@ptt/converter-core/progress` for the job-event protocol and `@ptt/translate-core/defaults` for the settings bounds. A value import of a package root pulls zod and the whole pipeline into the renderer bundle.
 - **Adding a game is additive.** New `@ptt/game-<id>` package + one entry in `game-registry`. Touching `parser-core` or `converter-core` for game-specific logic is a smell.
-- **`@ptt/shared-types` owns cross-boundary types.** Don't redefine IPC payloads inline in `apps/desktop`.
+- **`@ptt/shared-types` owns cross-boundary value domains.** `ConvertMode` and `LanguageCode` are derived from `as const` tuples next to their zod schemas, so the union and the validator cannot drift. Don't redefine them inline in `apps/desktop`.
+- **Cancellation is cooperative.** A run is never killed: the worker checks a flag between units of work and acknowledges a `cancel` message, and only a 5-second timeout falls back to a kill. A kill mid-flush used to leave a truncated translation memory.
 - **The sandboxed preload only imports zod-free modules.** Concretely: import IPC channel constants from `@ptt/shared-types/ipc-channels`, never from the package root. Anything reachable from the preload's import graph gets bundled into the CJS output, and the preload is meant to stay tiny.
 - **All user input is validated at the IPC boundary** with Zod schemas from `@ptt/shared-types`. The bridge ([`apps/desktop/src/main/ipc/bridge.ts`](../apps/desktop/src/main/ipc/bridge.ts)) rejects malformed envelopes before any procedure runs.
 - **`shell.openPath` goes through the path policy** ([`apps/desktop/src/main/services/path-policy.ts`](../apps/desktop/src/main/services/path-policy.ts)). The policy is multi-layer: directory check → critical-folder blocklist → trusted sources (registry / Paradox-typical paths / persisted user-allowed) → interactive bypass modal. See [known-issues.md](./known-issues.md#folder-authorisation-prompts).
 - **i18n keys come from `@ptt/i18n` only.** No literal strings in renderer components for user-visible text. Plural variants must be filled for every CLDR category present in the locale, otherwise lookups return empty.
-- **Long-running tRPC procedures are explicit.** A renderer-side watchdog rejects IPC requests that don't reply within 120 s. Procedures whose work outlives that window (currently `converter.scan`, `converter.run`) are listed in `LONG_RUNNING_PATHS` in [`ipc-link.ts`](../apps/desktop/src/renderer/src/lib/ipc-link.ts) and signal completion through job events instead.
+- **Long-running tRPC procedures are explicit.** A renderer-side watchdog rejects IPC requests that don't reply within 120 s. Procedures whose work outlives that window (currently `converter.scan`, `converter.run`, `converter.scanMods`, `converter.convert`) are listed in `LONG_RUNNING_PATHS` in [`ipc-link.ts`](../apps/desktop/src/renderer/src/lib/ipc-link.ts) and signal completion through job events instead.

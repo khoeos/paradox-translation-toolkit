@@ -19,7 +19,12 @@ export const eu5: GameDefinition = {
     ko: 'korean',
     tr: 'turkish'
   },
-  overrideSubdirs: ['replace']
+  overrideSubdirs: ['replace'],
+  // TODO(verify): not covered by PR #4, check against a real install before
+  // the generated translation mod is written (docs/wip/port-plan-pr4.md, section 7).
+  userFolder: 'Europa Universalis V',
+  domain:
+    'Europa Universalis V, a grand strategy game covering the late Middle Ages to the early modern era. Expect locations and provinces, population estates and social classes, control and administration, trade goods and markets, cabinet actions, characters and dynasties, religion and cultures.'
 }
 
 export default eu5

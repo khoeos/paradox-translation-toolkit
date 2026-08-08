@@ -206,6 +206,52 @@ describe('round-trip - multi-line values', () => {
   })
 })
 
+describe('serialize - value escaping', () => {
+  it('escapes a quote a caller just assigned', () => {
+    // The case translation creates: a provider answer carrying a bare quote. Written raw it
+    // would close the value early and the game would stop reading the file.
+    const file: LocaleFile = {
+      language: 'french',
+      entries: [{ key: 'KEY', version: 0, value: 'il a dit "oui"', rawLine: 2 }],
+      trailingComments: [],
+      bom: false
+    }
+    expect(serialize(file)).toContain(' KEY:0 "il a dit \\"oui\\""')
+  })
+
+  it('does not double-escape a value that came from the parser', () => {
+    const source = 'l_english:\n KEY:0 "he said \\"yes\\""\n'
+    const parsed = parse(source)
+    expect(parsed.ok).toBe(true)
+    expect(serialize(parsed.file)).toBe(source)
+  })
+
+  it('is idempotent under repeated serialize cycles', () => {
+    const source = 'l_english:\n KEY:0 "he said \\"yes\\""\n'
+    let current = parse(source).file
+    for (let i = 0; i < 5; i++) {
+      const out = serialize(current)
+      expect(out).toBe(source)
+      current = parse(out).file
+    }
+  })
+
+  it('round-trips a mutated value through parse - assign - serialize - parse', () => {
+    const parsed = parse('l_english:\n KEY:0 "plain"\n')
+    const entry = parsed.file.entries[0]!
+    entry.value = 'traduit avec des "guillemets" et un $VAR$'
+    const reparsed = parse(serialize(parsed.file))
+    expect(reparsed.ok).toBe(true)
+    expect(reparsed.file.entries[0]!.value).toBe('traduit avec des \\"guillemets\\" et un $VAR$')
+  })
+
+  it('preserves an escaped backslash followed by a quote', () => {
+    const source = 'l_english:\n KEY:0 "path \\\\" \n'
+    const parsed = parse(source)
+    expect(serialize(parsed.file)).toContain('"path \\\\"')
+  })
+})
+
 describe('round-trip - fuzz on random inputs', () => {
   it('preserves AST under repeated parse/serialize cycles', () => {
     const samples = [

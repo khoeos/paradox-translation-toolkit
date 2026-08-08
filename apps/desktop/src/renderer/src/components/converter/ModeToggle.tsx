@@ -15,6 +15,11 @@ const MODES: ReadonlyArray<{ value: ConvertMode; labelKey: string; hintKey: stri
     value: 'extract-to-folder',
     labelKey: 'converter.modes.extractToFolder',
     hintKey: 'converter.modes.extractToFolderHint'
+  },
+  {
+    value: 'create-translation-mod',
+    labelKey: 'converter.modes.createTranslationMod',
+    hintKey: 'converter.modes.createTranslationModHint'
   }
 ]
 
@@ -24,7 +29,7 @@ export function ModeToggle() {
   const setMode = useConverterFormStore(s => s.setMode)
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-3 gap-2">
       {MODES.map(m => (
         <Button
           key={m.value}

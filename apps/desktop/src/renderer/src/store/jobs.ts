@@ -1,23 +1,29 @@
 import i18next from 'i18next'
 import { create } from 'zustand'
 
-import type { ApplyReport, ScanResult } from '@ptt/converter-core'
+// The progress protocol lives in converter-core: it used to be declared here and in
+// main/services/converter-service.ts byte for byte, with a guard loose enough that a variant
+// added on one side fell through this switch in silence (audit findings Q-3, Q-6).
+import type {
+  ApplyReport,
+  ConversionOutput,
+  JobEvent,
+  ScanOutput,
+  TranslationProgress
+} from '@ptt/converter-core'
 
-export type JobEvent =
-  | { type: 'scan-progress'; jobId: string; processed: number; total: number }
-  | { type: 'apply-progress'; jobId: string; processed: number; total: number }
-  | { type: 'scan-done'; jobId: string; result: ScanResult }
-  | {
-      type: 'plan-ready'
-      jobId: string
-      scannedCount: number
-      sourceCount: number
-      missingCount: number
-    }
-  | { type: 'done'; jobId: string; report: ApplyReport }
-  | { type: 'error'; jobId: string; message: string }
+export type { JobEvent }
 
-export type JobStatus = 'idle' | 'scanning' | 'applying' | 'done' | 'error' | 'cancelled'
+export type JobStatus =
+  | 'idle'
+  | 'scanning'
+  | 'processing-mods'
+  | 'translating'
+  | 'applying'
+  | 'scan-finished'
+  | 'done'
+  | 'error'
+  | 'cancelled'
 
 export interface JobState {
   jobId: string
@@ -28,7 +34,17 @@ export interface JobState {
   scanTotal: number
   applyProcessed: number
   applyTotal: number
+  /** Mods handled so far, for the mod-level pipeline. */
+  modsProcessed: number
+  modsTotal: number
+  /** Name of the mod being handled, so progress reads as more than a bar. */
+  currentMod: string | null
   report: ApplyReport | null
+  /** Result of a read-only scan over a whole collection. */
+  scanOutput: ScanOutput | null
+  /** Result of a conversion over a whole collection. */
+  conversion: ConversionOutput | null
+  translation: TranslationProgress | null
   errorMessage: string | null
 }
 
@@ -59,7 +75,13 @@ const blankJob = (jobId: string): JobState => ({
   scanTotal: 0,
   applyProcessed: 0,
   applyTotal: 0,
+  modsProcessed: 0,
+  modsTotal: 0,
+  currentMod: null,
   report: null,
+  scanOutput: null,
+  conversion: null,
+  translation: null,
   errorMessage: null
 })
 
@@ -141,12 +163,45 @@ export const useJobsStore = create<JobsState>((set, get) => ({
           updated.log.push({ ts: Date.now(), message: i18next.t('modal.log.conversionFinished') })
           break
         case 'error':
-          updated.status = event.message === 'Job cancelled by user' ? 'cancelled' : 'error'
+          updated.status = 'error'
           updated.errorMessage = event.message
           updated.log.push({
             ts: Date.now(),
             message: i18next.t('modal.log.errorPrefix', { message: event.message })
           })
+          break
+        case 'log':
+          updated.log.push({ ts: Date.now(), message: event.message })
+          break
+        case 'mod-progress':
+          updated.status = 'processing-mods'
+          updated.modsProcessed = event.processed
+          updated.modsTotal = event.total
+          updated.currentMod = event.modName
+          break
+        case 'translate-progress':
+          updated.status = 'translating'
+          updated.translation = event.counters
+          break
+        case 'mods-scanned':
+          updated.status = 'scan-finished'
+          updated.scanOutput = event.output
+          updated.log.push({
+            ts: Date.now(),
+            message: i18next.t('modal.log.modsScanned', { count: event.output.totals.mods })
+          })
+          break
+        case 'convert-done':
+          updated.status = 'done'
+          updated.conversion = event.output
+          updated.log.push({
+            ts: Date.now(),
+            message: i18next.t('modal.log.conversionFinished')
+          })
+          break
+        case 'cancelled':
+          updated.status = 'cancelled'
+          updated.log.push({ ts: Date.now(), message: i18next.t('modal.log.cancelled') })
           break
       }
 
@@ -179,8 +234,4 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   setActive: jobId => set({ activeJobId: jobId })
 }))
 
-export function isJobEvent(value: unknown): value is JobEvent {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as { type?: unknown; jobId?: unknown }
-  return typeof v.type === 'string' && typeof v.jobId === 'string'
-}
+export { isJobEvent } from '@ptt/converter-core/progress'

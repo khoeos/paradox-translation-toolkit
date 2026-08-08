@@ -12,6 +12,11 @@ export interface PlanOptions {
 
 export function plan(diffPlan: DiffPlan, opts: PlanOptions): CopyPlan {
   const { mode, outputDir, gameDef } = opts
+  if (mode === 'create-translation-mod') {
+    // That mode is key-level: it writes only the keys nobody covers, so it goes through
+    // `planMod` and `applyModJobs`, never through the file-level copy plan.
+    throw new Error('create-translation-mod is planned by planMod, not by plan')
+  }
   const sourceToken = gameDef.languageFileToken[diffPlan.sourceLanguage]
   if (!sourceToken) {
     throw new Error(`No file token defined for source language "${diffPlan.sourceLanguage}"`)
@@ -87,7 +92,18 @@ function assertUniqueModRootBasenames(diffPlan: DiffPlan): void {
   }
 }
 
-function rewriteLanguageInPath(relativePath: string, fromToken: string, toToken: string): string {
+/**
+ * Rewrite the language of a path below a localisation folder.
+ *
+ * A folder is renamed only when it *is* the language, never on a partial match, and the file
+ * name goes through `parseFilename` rather than a substring replace: a mod folder named
+ * `english_names_fix` must survive untouched.
+ */
+export function rewriteLanguageInPath(
+  relativePath: string,
+  fromToken: string,
+  toToken: string
+): string {
   return posixSplit(relativePath)
     .map(part => {
       if (part.toLowerCase() === fromToken) return toToken

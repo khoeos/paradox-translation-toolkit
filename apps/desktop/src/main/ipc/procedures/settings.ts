@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { getAllGameIds } from '@ptt/game-registry'
 import { VALID_UI_LANGUAGES } from '@ptt/i18n'
-import { LanguageCodeSchema } from '@ptt/shared-types'
+import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared-types'
 
 import { publicProcedure, router } from '../trpc.js'
 
@@ -17,7 +17,7 @@ const SettingsPatchSchema = z
     defaultSourceLanguage: LanguageCodeSchema,
     sourceLanguage: z.partialRecord(GameIdSchema, LanguageCodeSchema),
     targetLanguages: z.partialRecord(GameIdSchema, z.array(LanguageCodeSchema)),
-    mode: z.enum(['add-to-current', 'extract-to-folder']),
+    mode: ConvertModeSchema,
     overwrite: z.boolean(),
     themeOverride: z.enum(['system', 'light', 'dark']),
     uiLanguage: z.enum(VALID_UI_LANGUAGES),

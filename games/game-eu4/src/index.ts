@@ -12,7 +12,10 @@ export const eu4: GameDefinition = {
     de: 'german',
     es: 'spanish'
   },
-  overrideSubdirs: ['replace']
+  overrideSubdirs: ['replace'],
+  userFolder: 'Europa Universalis IV',
+  domain:
+    'Europa Universalis IV, an early modern grand strategy game covering 1444 to 1821. Expect provinces and states, casus belli and truces, monarch power, idea groups, estates, trade nodes, colonisation, religion and rebels.'
 }
 
 export default eu4

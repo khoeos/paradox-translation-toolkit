@@ -3,10 +3,7 @@ import type { GameContextRef } from '../src/index.js'
 const BOM = '﻿'
 
 export const stellarisDef: GameContextRef = {
-  id: 'stellaris',
-  displayName: 'Stellaris',
   localisationDirName: 'localisation',
-  layout: 'both',
   languageFileToken: {
     en: 'english',
     fr: 'french',
@@ -24,8 +21,6 @@ export const stellarisDef: GameContextRef = {
 
 export const ck3Def: GameContextRef = {
   ...stellarisDef,
-  id: 'ck3',
-  displayName: 'Crusader Kings III',
   localisationDirName: 'localization',
   languageFileToken: {
     en: 'english',

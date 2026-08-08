@@ -1,8 +1,9 @@
 import { parseFilename } from '@ptt/parser-core'
 import type { LanguageCode } from '@ptt/shared-types'
 
-import { posixJoin, posixSplit } from './path.js'
+import { posixRejoin, posixSplit } from './path.js'
 import type { DiscoveredFile, FsLike, GameContextRef, ScanResult } from './types.js'
+import { walkFiles } from './walk.js'
 
 export async function scan(
   rootDir: string,
@@ -10,72 +11,48 @@ export async function scan(
   fs: FsLike
 ): Promise<ScanResult> {
   const files: DiscoveredFile[] = []
-  const diagnostics: string[] = []
 
   const tokenToLanguage = new Map<string, LanguageCode>()
   for (const [lc, token] of Object.entries(gameDef.languageFileToken)) {
     if (token !== undefined) tokenToLanguage.set(token, lc as LanguageCode)
   }
 
-  await walk(rootDir, gameDef, tokenToLanguage, fs, files, diagnostics)
+  const walked = await walkFiles(rootDir, fs, {
+    acceptFile: lowerName => lowerName.endsWith('.yml')
+  })
+  const diagnostics = walked.diagnostics
 
-  return { rootDir, files, diagnostics }
-}
-
-async function walk(
-  currentDir: string,
-  gameDef: GameContextRef,
-  tokenToLang: Map<string, LanguageCode>,
-  fs: FsLike,
-  out: DiscoveredFile[],
-  diags: string[]
-): Promise<void> {
-  let entries
-  try {
-    entries = await fs.readdir(currentDir)
-  } catch (err) {
-    diags.push(`readdir failed for ${currentDir}: ${stringifyError(err)}`)
-    return
-  }
-
-  for (const entry of entries) {
-    const fullPath = posixJoin(currentDir, entry.name)
-
-    if (entry.isSymlink) {
-      diags.push(`Skipped symlink (potential traversal): ${fullPath}`)
-      continue
-    }
-    if (entry.isDirectory) {
-      await walk(fullPath, gameDef, tokenToLang, fs, out, diags)
-      continue
-    }
-    if (!entry.isFile) continue
-    if (!entry.name.toLowerCase().endsWith('.yml')) continue
-
+  for (const fullPath of walked.files) {
     const segments = posixSplit(fullPath)
-    const locIdx = segments.findIndex(s => s === gameDef.localisationDirName)
+    // Deepest localisation folder wins: a mod can nest one inside another folder, and the
+    // path below it is what identifies the file.
+    const locIdx = segments.findLastIndex(s => s === gameDef.localisationDirName)
     if (locIdx === -1) continue
 
-    const parsed = parseFilename(entry.name)
+    const name = segments[segments.length - 1] ?? ''
+    const parsed = parseFilename(name)
     if (!parsed) {
-      diags.push(`Cannot parse filename: ${fullPath}`)
+      diagnostics.push(`Cannot parse filename: ${fullPath}`)
       continue
     }
 
-    const language = tokenToLang.get(parsed.language)
+    const language = tokenToLanguage.get(parsed.language)
     if (!language) {
-      diags.push(`Unknown language token "${parsed.language}" in ${fullPath}`)
+      diagnostics.push(`Unknown language token "${parsed.language}" in ${fullPath}`)
       continue
     }
 
-    const modRoot = segments.slice(0, locIdx).join('/')
+    // `modRoot` is rebuilt from the segments of an absolute path and everything downstream
+    // composes write targets on it, so it has to keep its root separator.
+    const modRoot = posixRejoin(fullPath, segments.slice(0, locIdx))
+    // `relativePath` starts at the localisation folder and is relative by design.
     const relativePath = segments.slice(locIdx).join('/')
     const isInOverrideDir = gameDef.overrideSubdirs.some(sub =>
       segments.slice(locIdx).includes(sub)
     )
     const canonicalKey = buildCanonicalKey(relativePath, parsed.language)
 
-    out.push({
+    files.push({
       absolutePath: fullPath,
       relativePath,
       modRoot,
@@ -85,6 +62,8 @@ async function walk(
       isInOverrideDir
     })
   }
+
+  return { rootDir, files, diagnostics }
 }
 
 function buildCanonicalKey(relativePath: string, languageToken: string): string {
@@ -98,9 +77,4 @@ function buildCanonicalKey(relativePath: string, languageToken: string): string 
       return part
     })
     .join('/')
-}
-
-function stringifyError(err: unknown): string {
-  if (err instanceof Error) return err.message
-  return String(err)
 }

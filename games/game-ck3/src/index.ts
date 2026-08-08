@@ -15,7 +15,10 @@ export const ck3: GameDefinition = {
     ko: 'korean',
     'zh-Hans': 'simp_chinese'
   },
-  overrideSubdirs: ['replace']
+  overrideSubdirs: ['replace'],
+  userFolder: 'Crusader Kings III',
+  domain:
+    'Crusader Kings III, a medieval feudal dynasty role playing game. Expect titles and vassals, character traits, casus belli and claims, dynasties and houses, culture and faith, men-at-arms and knights, schemes, stress and dread, council and court.'
 }
 
 export default ck3

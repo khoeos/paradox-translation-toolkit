@@ -2,10 +2,23 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": [
     "@changesets/changelog-github",
-    { "repo": "khoeos/paradox-translation-toolkit" }
+    {
+      "repo": "khoeos/paradox-translation-toolkit"
+    }
   ],
   "commit": false,
-  "fixed": [["@ptt/parser-core", "@ptt/converter-core", "@ptt/shared-types", "@ptt/ui", "@ptt/i18n"]],
+  "fixed": [
+    [
+      "@ptt/parser-core",
+      "@ptt/converter-core",
+      "@ptt/translate-core",
+      "@ptt/report-core",
+      "@ptt/fs-node",
+      "@ptt/shared-types",
+      "@ptt/ui",
+      "@ptt/i18n"
+    ]
+  ],
   "linked": [],
   "access": "restricted",
   "baseBranch": "main",

@@ -1,0 +1,33 @@
+{
+  "name": "@ptt/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ptt": "./bin/ptt.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "lint": "oxlint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rimraf dist .turbo coverage"
+  },
+  "dependencies": {
+    "@ptt/converter-core": "workspace:*",
+    "@ptt/fs-node": "workspace:*",
+    "@ptt/game-registry": "workspace:*",
+    "@ptt/parser-core": "workspace:*",
+    "@ptt/report-core": "workspace:*",
+    "@ptt/shared-types": "workspace:*",
+    "@ptt/translate-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
+    "esbuild": "catalog:",
+    "rimraf": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

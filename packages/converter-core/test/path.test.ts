@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  pathKey,
   posixBasename,
   posixContains,
   posixDirname,
+  posixIsAbsolute,
   posixJoin,
   posixNormalize,
   posixNormalizeStrict,
+  posixRejoin,
   posixSplit
 } from '../src/path.js'
 
@@ -33,6 +36,65 @@ describe('posixJoin', () => {
 
   it('returns empty for no parts', () => {
     expect(posixJoin()).toBe('')
+  })
+
+  it('keeps the root when the first part is only a separator', () => {
+    // '/' trims to the empty string, so the root has to be carried outside the segments.
+    expect(posixJoin('/', 'mod', 'foo.yml')).toBe('/mod/foo.yml')
+  })
+
+  it('keeps the root when a leading empty part precedes an absolute one', () => {
+    expect(posixJoin('', '/abs', 'rel')).toBe('/abs/rel')
+  })
+
+  it('composes an absolute mod root with a relative target', () => {
+    expect(posixJoin('/Users/x/mod', 'localisation/french/foo_l_french.yml')).toBe(
+      '/Users/x/mod/localisation/french/foo_l_french.yml'
+    )
+  })
+})
+
+describe('posixIsAbsolute', () => {
+  it('is true for a rooted POSIX path', () => {
+    expect(posixIsAbsolute('/Users/x/mod')).toBe(true)
+  })
+
+  it('is false for a relative path', () => {
+    expect(posixIsAbsolute('workshop/mod')).toBe(false)
+  })
+
+  it('is false for a Windows drive path, which carries no leading separator', () => {
+    expect(posixIsAbsolute('C:/Users/x/mod')).toBe(false)
+    expect(posixIsAbsolute('C:\\Users\\x\\mod')).toBe(false)
+  })
+
+  it('is true for a backslash-rooted path', () => {
+    expect(posixIsAbsolute('\\Users\\x')).toBe(true)
+  })
+})
+
+describe('posixRejoin', () => {
+  it('carries the root separator of an absolute source', () => {
+    const source = '/Users/x/mod/localisation/f_l_english.yml'
+    expect(posixRejoin(source, posixSplit(source).slice(0, 3))).toBe('/Users/x/mod')
+  })
+
+  it('leaves a relative source relative', () => {
+    const source = 'workshop/mod/localisation/f_l_english.yml'
+    expect(posixRejoin(source, posixSplit(source).slice(0, 2))).toBe('workshop/mod')
+  })
+
+  it('leaves a Windows drive path untouched', () => {
+    const source = 'C:/Users/x/mod/localisation/f_l_english.yml'
+    expect(posixRejoin(source, posixSplit(source).slice(0, 4))).toBe('C:/Users/x/mod')
+  })
+
+  it('returns the bare root when no segments are kept from an absolute source', () => {
+    expect(posixRejoin('/localisation/f_l_english.yml', [])).toBe('/')
+  })
+
+  it('returns empty when no segments are kept from a relative source', () => {
+    expect(posixRejoin('localisation/f_l_english.yml', [])).toBe('')
   })
 })
 
@@ -148,5 +210,33 @@ describe('posixContains', () => {
   it('handles absolute parents and children', () => {
     expect(posixContains('/output', '/output/mod/foo.yml')).toBe(true)
     expect(posixContains('/output', '/other/mod/foo.yml')).toBe(false)
+  })
+})
+
+describe('pathKey', () => {
+  it('normalises the separator', () => {
+    expect(pathKey('mod\\localisation\\foo_l_english.yml')).toBe(
+      'mod/localisation/foo_l_english.yml'
+    )
+  })
+
+  it('collapses repeated separators', () => {
+    expect(pathKey('mod//loc\\\\foo.yml')).toBe('mod/loc/foo.yml')
+  })
+
+  it('lowercases, so two spellings of the same file compare equal', () => {
+    expect(pathKey('Mod/Localisation/Foo_l_English.yml')).toBe(
+      pathKey('mod\\localisation\\foo_l_english.yml')
+    )
+  })
+
+  it('leaves . and .. alone', () => {
+    // Identity comparison of well-formed paths: resolving here would change what compares
+    // equal, and callers that need resolution have posixNormalize.
+    expect(pathKey('a/./b/../c')).toBe('a/./b/../c')
+  })
+
+  it('keeps a leading separator', () => {
+    expect(pathKey('/abs/path')).toBe('/abs/path')
   })
 })

@@ -1,15 +1,22 @@
 # Testing
 
-All tests run via `pnpm test`. Per-package coverage is enforced via Vitest thresholds where applicable (`parser-core` ≥ 90%, `converter-core` ≥ 90%).
+All tests run via `pnpm test`. Per-package coverage thresholds live in each package's `vitest.config.ts` (`parser-core`, `converter-core`, `translate-core`, `report-core`, `fs-node`: lines / functions / statements ≥ 90, branches ≥ 80-85). They are **not** a gate: `test` is `vitest run` with no `--coverage`, so CI never evaluates them. Check one with:
+
+```bash
+pnpm --filter @ptt/converter-core exec vitest run --coverage
+```
 
 ## What's covered
 
 - **`parser-core`**: BOM, escapes, color codes, comments, error recovery, multi-line values, line-ending preservation, body/comment ordering, full round-trip fuzz.
-- **`converter-core`**: scan with mixed layouts, diff against override subdirs, plan for both modes (incl. basename-collision refusal), idempotent apply, atomic write order (tmp → backup → rename), fake `FsLike`.
+- **`converter-core`**: scan with mixed layouts, diff against override subdirs, plan for both file-level modes (incl. basename-collision refusal), idempotent apply, atomic write order (tmp → backup → rename), fake `FsLike`. Then the mod-level pipeline: multi-mod discovery, descriptor reading, inter-mod coverage by declared dependency and by key overlap, the key-level diff and its six `KeyState` (including the `english` versus `kept` boundary, which only the translation memory can settle), generated-mod idempotence, namespace pruning and its guards, and the job-event guard.
+- **`translate-core`**: the engine's six guarantees against a table-driven provider (glossary and memory bypass, in-flight deduplication across mods, recursive batch splitting, the circuit breaker, the markup gate, refusal clearing), the three providers against a scripted `fetch`, atomic memory flush, and the glossary's term voting.
+- **`report-core`**: CSV quoting and formula neutralisation, the stored report shape, and its zod schema refusing a truncated or hand-edited report.
+- **`fs-node`**: the adapter against a real temporary directory, including a BOM + CRLF round trip. A fake here would test nothing.
+- **`@ptt/cli`**: argv parsing with its documented quirks, flag coercion, the config file, option building against the registry and the zod schemas, the per-platform userData mapping, mod filtering and terminal formatting.
 - **`game-*`**: smoke tests for each `GameDefinition`.
 - **`game-registry`**: extensibility test (adding a new game without touching core).
-- **`@ptt/desktop`**:
-  `path-policy.test.ts` covers the Paradox-pattern allowlist and the critical-folder blocklist for Win / macOS / Linux. OS-specific cases run only on the matching host (POSIX path semantics can't be faked on Win32 without mocking `node:path`).
+- **`@ptt/desktop`**: `path-policy.test.ts` covers the Paradox-pattern allowlist and the critical-folder blocklist for Win / macOS / Linux. OS-specific cases run only on the matching host (POSIX path semantics can't be faked on Win32 without mocking `node:path`). `generated-mod-paths.test.ts` covers where the generated mod lands per game. `store/converter-form.test.ts` covers scan invalidation, provider switching and the API key never reaching the persisted settings. `store/job-status-i18n.test.ts` asserts every `JobStatus` has a label, because the modal builds that key dynamically and the extractor cannot see it. `lib/estimate.test.ts` covers the duration estimate.
 - **`i18n`**: parity check: every non-plural English key must exist in every other locale.
 
 ## Running tests
@@ -35,12 +42,22 @@ Existing translations are never overwritten (see `packages/i18n/i18next.config.t
 
 ## What's missing
 
-There is **no E2E yet** for the desktop app or tests on real `.yml` files. Playwright + Electron is on the [roadmap](./roadmap.md). The renderer (hooks, stores, components) is also not unit-tested today; that should land before the editor work begins.
+There is **no E2E yet** for the desktop app. Playwright + Electron is on the [roadmap](./roadmap.md).
+
+**Renderer components are not tested.** `apps/desktop/vitest.config.ts` runs in `environment: 'node'`, so anything that renders JSX has nowhere to render. The stores, the hooks' pure helpers and the formatting logic are covered; `ModList`, `TranslateSettings`, `RunButton` and `ProgressModal` are not. Closing that needs a DOM environment and a rendering library, which are not installed:
+
+```bash
+pnpm add -D -w jsdom @testing-library/react @testing-library/jest-dom
+```
+
+Then give `apps/desktop` a second Vitest project entry with `environment: 'jsdom'` and an `include` of `src/renderer/**/*.test.tsx`, leaving the Node project for `src/main/**`. Until then, keep renderer logic in stores and `lib/` modules where it can be tested, which is why the duration estimate lives in `lib/estimate.ts` rather than inside the modal.
 
 ## Writing new tests
 
 - Use Vitest's `describe` / `it` style, matching the existing files in each package.
 - Tests live next to the code they cover. Most packages keep tests under `test/` ; the desktop app uses `*.test.ts` colocated with the source.
-- For anything FS-related in `converter-core`, use the in-memory `FsLike` fake (`packages/converter-core/test/memory-fs.ts`) rather than touching the real disk.
+- For anything FS-related, use the in-memory `FsLike` fake rather than touching the real disk. It is exported for other packages as `@ptt/converter-core/test/memory-fs`; `translate-core` and `report-core` both use it.
+- For anything network-related, pass a scripted `FetchLike` rather than mocking a global. `packages/translate-core/test/fake-fetch.ts` is the pattern.
+- `@ptt/fs-node` is the one exception: it is the seam to the real filesystem, so its tests use a real `mkdtemp` directory.
 - For new game support, add a smoke test in the new `@ptt/game-<id>` package mirroring the existing ones.
 - For platform-conditional tests (path policy, OS-specific behaviour), use Vitest's `describe.runIf(process.platform === '…')` rather than mocking `process.platform`. `node:path` semantics depend on the actual host OS and don't follow the mock.

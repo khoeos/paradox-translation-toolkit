@@ -3,6 +3,7 @@ import { converterRouter } from './procedures/converter.js'
 import { fsRouter } from './procedures/fs.js'
 import { gamesRouter } from './procedures/games.js'
 import { settingsRouter } from './procedures/settings.js'
+import { translateRouter } from './procedures/translate.js'
 import { updaterRouter } from './procedures/updater.js'
 import { router } from './trpc.js'
 
@@ -11,6 +12,7 @@ export const appRouter = router({
   games: gamesRouter,
   converter: converterRouter,
   settings: settingsRouter,
+  translate: translateRouter,
   fs: fsRouter,
   updater: updaterRouter
 })

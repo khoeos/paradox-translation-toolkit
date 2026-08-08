@@ -18,7 +18,10 @@ export const stellaris: GameDefinition = {
     ko: 'korean',
     ja: 'japanese'
   },
-  overrideSubdirs: ['replace']
+  overrideSubdirs: ['replace'],
+  userFolder: 'Stellaris',
+  domain:
+    'Stellaris, a science fiction grand strategy game set in space. Expect interstellar empires, species and pops, star systems and hyperlanes, megastructures, ascension perks, planetary districts, fleets and warfare, alien civilisations and anomalies.'
 }
 
 export default stellaris

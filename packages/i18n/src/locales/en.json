@@ -7,16 +7,42 @@
   },
   "converter": {
     "convert": "Convert translations",
+    "convertSelection_one": "CONVERT {{count}} MOD",
+    "convertSelection_other": "CONVERT {{count}} MODS",
     "intro": "The converter copies missing localisation files from a source language into target languages, so mods stop displaying raw translation tags.",
     "mode": "Mode",
     "modes": {
       "addToCurrent": "Add to current",
       "addToCurrentHint": "Write missing files inside each mod folder",
+      "createTranslationMod": "ONE TRANSLATION MOD",
+      "createTranslationModHint": "Gather every missing key into a single mod under your game folder",
       "extractToFolder": "Extract to folder",
       "extractToFolderHint": "Write missing files into a separate output folder"
     },
     "modFolder": "Mod folder",
     "modFolderPlaceholder": "C:\\Program Files (x86)\\Steam\\steamapps\\workshop\\content\\…",
+    "modList": {
+      "coveredBy": "Covered by {{names}}",
+      "coveredKeys_one": "{{count}} covered",
+      "coveredKeys_other": "{{count}} covered",
+      "englishKeys_one": "{{count}} key left in the source language by an earlier run",
+      "englishKeys_other": "{{count}} keys left in the source language by an earlier run",
+      "errors_one": "{{count}} read error",
+      "errors_other": "{{count}} read errors",
+      "missing": "{{files}} files, {{keys}} keys missing",
+      "noLocalisation": "No localisation",
+      "nothingMissing": "Nothing missing",
+      "otherSpelling": "Wrong game?",
+      "selectMissing": "Select what is missing",
+      "selectNone": "Select none",
+      "sourceKeys_one": "{{count}} source key",
+      "sourceKeys_other": "{{count}} source keys",
+      "title_one": "{{count}} mod scanned",
+      "title_other": "{{count}} mods scanned",
+      "toggle": "Include {{name}}"
+    },
+    "modNameHint": "Name shown in the game launcher for the generated mod.",
+    "modNamePlaceholder": "Missing Translations",
     "noGameSelected": "Pick a game above to start converting localisation files.",
     "noLanguagesPickGame": "Pick a game first.",
     "outputFolder": "Output folder",
@@ -24,7 +50,9 @@
     "overwriteHint": "Force re-create target files from the source, even if they already exist.",
     "overwriteLabel": "Overwrite existing files",
     "pickGame": "Pick a game",
+    "rescan": "Scan again",
     "runError": "Could not start the conversion: {{message}}",
+    "scan": "SCAN THE COLLECTION",
     "sourceLanguage": "Source language",
     "sourceLanguageDefault": "English (default)",
     "starting": "Starting…",
@@ -62,6 +90,18 @@
   },
   "modal": {
     "cancelJob": "Cancel job",
+    "conversionSummary": {
+      "created_one": "{{count}} file created",
+      "created_other": "{{count}} files created",
+      "failed_one": "{{count}} file could not be written",
+      "failed_other": "{{count}} files could not be written",
+      "openMod": "Open the translation mod",
+      "openReport": "Open the run report",
+      "pruned_one": "{{count}} generated file removed, nothing needs it any more",
+      "pruned_other": "{{count}} generated files removed, nothing needs them any more",
+      "skipped_one": "{{count}} file left alone, an existing translation was there",
+      "skipped_other": "{{count}} files left alone, an existing translation was there"
+    },
     "doneToast": "Conversion done - {{count}} files created",
     "doneToast_one": "Conversion done - {{count}} file created",
     "doneToast_other": "Conversion done - {{count}} files created",
@@ -72,29 +112,53 @@
     "filesPerLang_one": "{{lang}} - {{count}} file created",
     "filesPerLang_other": "{{lang}} - {{count}} files created",
     "log": {
+      "cancelled": "Stopped after the current mod",
       "conversionFinished": "Conversion finished",
       "errorPrefix": "Error: {{message}}",
       "filesScanned_one": "{{count}} file scanned",
       "filesScanned_other": "{{count}} files scanned",
       "missingFiles_one": "{{count}} file missing",
       "missingFiles_other": "{{count}} files missing",
+      "modsScanned_one": "{{count}} mod scanned",
+      "modsScanned_other": "{{count}} mods scanned",
       "sourceFiles_one": "{{count}} file from source language",
       "sourceFiles_other": "{{count}} files from source language",
       "startingScanning": "Starting scanning files"
     },
+    "modProgress": "Mod {{processed}} of {{total}}: {{name}}",
     "noFilesNeeded": "All target languages already have all files. Nothing to do.",
     "openPathError": "Could not open path: {{message}}",
     "overwrittenPerLang": "{{lang}} - {{count}} files overwritten",
     "overwrittenPerLang_one": "{{lang}} - {{count}} file overwritten",
     "overwrittenPerLang_other": "{{lang}} - {{count}} files overwritten",
+    "scanSummary": {
+      "estimate": "{{lines}} lines to translate, roughly {{duration}}",
+      "generated": "Earlier runs supply {{translated}} translations, {{english}} still in the source language, {{orphans}} orphan folders",
+      "missing": "{{files}} files to create, {{keys}} keys already covered",
+      "mods_one": "{{count}} mod scanned",
+      "mods_other": "{{count}} mods scanned",
+      "otherSpelling_one": "{{count}} mod uses the other spelling: wrong game selected?",
+      "otherSpelling_other": "{{count}} mods use the other spelling: wrong game selected?",
+      "selfCopy": "A copy of the generated mod was found here and left out of the scan.",
+      "withoutLocalisation_one": "{{count}} mod holds no localisation for this game",
+      "withoutLocalisation_other": "{{count}} mods hold no localisation for this game"
+    },
+    "scanToast_one": "{{count}} file missing across the collection",
+    "scanToast_other": "{{count}} files missing across the collection",
     "status": {
+      "": "Working…",
       "applying": "Creating files…",
       "cancelled": "Cancelled",
       "done": "Done",
       "error": "Error",
-      "scanning": "Scanning files…"
-    }
+      "processing-mods": "Processing mods…",
+      "scan-finished": "Scan finished",
+      "scanning": "Scanning files…",
+      "translating": "Translating…"
+    },
+    "translationCounters": "{{translated}} translated, {{cached}} free, {{failed}} left alone"
   },
+  "modal.status.": "",
   "settings": {
     "allowedFolders": {
       "empty": "No custom folders allowed yet.",
@@ -124,6 +188,30 @@
       "system": "System"
     },
     "title": "Settings"
+  },
+  "translate": {
+    "apiKey": "API key",
+    "apiKeyHint": "Never saved to disk and never written to a report. Retyped each session.",
+    "baseUrl": "Endpoint",
+    "batchSize": "Strings per request",
+    "browse": "Browse",
+    "clearMemory": "Clear the memory",
+    "concurrency": "Requests at once",
+    "gamePath": "Game installation folder",
+    "gamePathHint": "The game's own localisation is the best glossary there is.",
+    "gamePathPlaceholder": "Optional, improves wording",
+    "hint": "Optional. Without it, missing keys are copied in the source language.",
+    "memoryCleared": "Translation memory cleared",
+    "model": "Model",
+    "providers": {
+      "ollama": "Ollama",
+      "openai": "OpenAI-compatible",
+      "rapidapi": "RapidAPI"
+    },
+    "test": "Test the provider",
+    "testFailed": "Backend failed: {{message}}",
+    "testOk": "Backend answered: {{text}}",
+    "title": "MACHINE TRANSLATION"
   },
   "updater": {
     "autoCheckHint": "Automatically look for new versions a few seconds after the app starts.",

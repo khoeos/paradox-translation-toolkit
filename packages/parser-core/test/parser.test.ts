@@ -144,6 +144,16 @@ describe('parse - value content', () => {
     expect(result.file.entries[0]?.value).toBe('')
   })
 
+  it('stops the value at the first unescaped quote, not the last one on the line', () => {
+    // Regression for finding S-6 of the PR #4 audit: a line-based regexp ending on the last
+    // quote of the line swallowed the trailing comment into the value, so `a" # see "b` was
+    // handed to the translator and written back to disk.
+    const result = parse(`l_english:\n KEY:0 "a" # see "b"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.value).toBe('a')
+    expect(result.file.entries[0]?.comment).toBe('# see "b"')
+  })
+
   it('reports unterminated string', () => {
     const result = parse(`l_english:\n KEY:0 "unterminated\n`)
     expect(result.diagnostics.some(d => d.code === 'unterminated-string')).toBe(true)

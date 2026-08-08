@@ -2,14 +2,17 @@ import { createRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { Card, CardContent } from '@ptt/ui/components/card'
+import { Input } from '@ptt/ui/components/input'
 import { Label } from '@ptt/ui/components/label'
 import { Switch } from '@ptt/ui/components/switch'
 
 import { ModeToggle } from '@renderer/components/converter/ModeToggle'
+import { ModList } from '@renderer/components/converter/ModList'
 import { ProgressModal } from '@renderer/components/converter/ProgressModal'
 import { RunButton } from '@renderer/components/converter/RunButton'
 import { SourceLanguage } from '@renderer/components/converter/SourceLanguage'
 import { TargetLanguages } from '@renderer/components/converter/TargetLanguages'
+import { TranslateSettings } from '@renderer/components/converter/TranslateSettings'
 import { FolderInput } from '@renderer/components/FolderInput'
 import { GameTabs } from '@renderer/components/GameTabs'
 import { useConverterFormStore } from '@renderer/store/converter-form'
@@ -26,6 +29,8 @@ function ConverterPage() {
   const overwrite = useConverterFormStore(s => s.overwrite)
   const setOverwrite = useConverterFormStore(s => s.setOverwrite)
   const selectedGameId = useConverterFormStore(s => s.selectedGameId)
+  const modName = useConverterFormStore(s => s.modName)
+  const setModName = useConverterFormStore(s => s.setModName)
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -56,7 +61,19 @@ function ConverterPage() {
                       className={outputFolder === '' ? 'border-destructive/60 mt-2' : 'mt-2'}
                     />
                   ) : null}
+                  {mode === 'create-translation-mod' ? (
+                    <div className="mt-2 space-y-1">
+                      <Input
+                        value={modName}
+                        onChange={event => setModName(event.target.value)}
+                        placeholder={t('converter.modNamePlaceholder')}
+                      />
+                      <p className="text-xs text-muted-foreground">{t('converter.modNameHint')}</p>
+                    </div>
+                  ) : null}
                 </div>
+                <TranslateSettings />
+                <ModList />
                 <div className="flex items-center justify-between gap-4 pt-1">
                   <div className="flex flex-col">
                     <Label htmlFor="overwrite-toggle">{t('converter.overwriteLabel')}</Label>

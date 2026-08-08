@@ -93,6 +93,53 @@ hand-crafted multi-paragraph dialogue), but the line endings inside the
 value are preserved verbatim, and Paradox games may handle this
 inconsistently. Use `\n` escapes inside a single-line value when in doubt.
 
+### Inter-mod coverage is matched on key names only
+
+A localisation mod is credited with covering another mod when it declares a
+dependency on it, or, failing that, when at least half of the keys it
+translates also exist in that mod's source language. The overlap is measured
+on key **names**, never on values, so two unrelated mods that happen to share
+a naming convention can be read as one patching the other. A false positive
+suppresses the generation of keys by leaning on a translation that is not
+actually there.
+
+**Workaround:** the scan lists who covers what (`covered by` in the mod list,
+the `Mods whose translation our generated mod hides` section in `ptt scan`).
+An implausible entry there is the signal.
+
+### The glossary takes the first official rendering it finds
+
+Whole source strings the base game already translates bypass the translation
+backend entirely, which is almost always right: the official wording is what
+players expect. But unlike the short-term glossary, there is no majority vote
+and no length filter on those whole-string matches, so an official rendering
+of a string used in a different context wins anyway.
+
+Short terms injected into the prompt _are_ voted on, keeping the most common
+rendering across the whole game.
+
+### Translation retries have no backoff
+
+A failed batch is retried immediately, then split in half, then retried again.
+A `429 Too Many Requests` is therefore replayed at once and the `Retry-After`
+header is ignored. The retry count is bounded, so this cannot loop, but it is
+more aggressive than a hosted service would like. The circuit breaker stops
+everything after three consecutive single-string failures.
+
+### A literal `{0}` in a source string breaks the RapidAPI provider
+
+That provider cannot be told to leave markup alone, so every markup token is
+replaced by a numbered placeholder before sending and put back afterwards. A
+source value that already contains `{0}` collides with the scheme, the
+placeholders no longer line up, and the string is refused. It fails closed:
+the value stays in the source language, never half-translated.
+
+### The glossary cache is invalidated by path only
+
+A glossary built from a game installation is cached and reused as long as the
+game path is identical. Patching the game at the same path serves a stale term
+until the cache is cleared. Delete `<userData>/glossary` to force a rebuild.
+
 ## UI
 
 ### Folder authorisation prompts

@@ -1,0 +1,14 @@
+{
+  "path": "D:/SteamLibrary/steamapps/workshop/content/1158310",
+  "game": "ck3",
+  "from": "en",
+  "to": "ru",
+  "mod-name": "Missing Translations",
+  "limit": 40,
+  "translate": false,
+  "provider": "ollama",
+  "base-url": "http://localhost:11434",
+  "model": "qwen2.5:7b",
+  "batch": 20,
+  "concurrency": 2
+}

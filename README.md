@@ -54,7 +54,10 @@ The easiest way to manage your missing translation files for Paradox games (and 
 ## Main functionalities
 
 - Generate missing localisation files for any language
-- Generate files directly in the mod folder or in a custom folder
+- Generate files directly in the mod folder, in a custom folder, or gathered into a single translation mod
+- Scan a whole mod collection and compare **key by key**, so a separate localisation mod already covering a key is never overwritten
+- Optionally machine-translate the missing values through Ollama, any OpenAI-compatible endpoint or a RapidAPI hub, with the markup checked on every answer
+- Remember what was translated, so a stopped run resumes and a repeated string is free
 - Working with multiple paradox games
 
 ## Supported games

@@ -18,7 +18,10 @@ export const hoi4: GameDefinition = {
     ja: 'japanese',
     ko: 'korean'
   },
-  overrideSubdirs: ['replace']
+  overrideSubdirs: ['replace'],
+  userFolder: 'Hearts of Iron IV',
+  domain:
+    'Hearts of Iron IV, a Second World War grand strategy game. Expect divisions and templates, national focus trees, national spirits, equipment and production, generals and field marshals, doctrines, supply, resistance and compliance.'
 }
 
 export default hoi4

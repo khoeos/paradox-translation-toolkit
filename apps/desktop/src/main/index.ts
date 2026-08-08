@@ -9,6 +9,7 @@ import { createConverterService } from './services/converter-service.js'
 import { configureDialogService } from './services/dialog-service.js'
 import { OpenableRegistry } from './services/openable-registry.js'
 import { SettingsService } from './services/settings-service.js'
+import { createTranslateService } from './services/translate-service.js'
 import { UpdaterService } from './services/updater-service.js'
 import { createMainWindow } from './window.js'
 
@@ -58,14 +59,16 @@ void app.whenReady().then(() => {
 
   const openable = new OpenableRegistry()
   const settings = new SettingsService()
-  const converter = createConverterService(openable)
+  const userDataPath = app.getPath('userData')
+  const converter = createConverterService(openable, userDataPath, app.getPath('documents'))
   const updater = new UpdaterService()
+  const translate = createTranslateService(userDataPath)
   configureDialogService({ settings, openable })
   createMainWindow()
 
   setupTrpcIpcBridge({
     router: appRouter,
-    ctx: createContext({ converter, settings, updater, openable })
+    ctx: createContext({ converter, settings, updater, translate, openable })
   })
 
   const settingsSnapshot = settings.getAll()
