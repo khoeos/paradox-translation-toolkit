@@ -1,0 +1,334 @@
+import { TranslateConfig } from '../../global/types'
+import { TranslationMemory } from './memory'
+import { collectHints, Glossary } from './glossary'
+import { createProvider, Provider } from './providers'
+import { extractTokens, tokensMatch } from './yml'
+
+/**
+ * Name the markup the translator lost or invented, a bare "markup" tells nobody what to fix
+ * @param source - The source string
+ * @param translated - What came back
+ * @returns A short description of the difference
+ */
+const describeTokenLoss = (source: string, translated: string): string => {
+  const before = extractTokens(source)
+  const after = extractTokens(translated)
+  const lost = before.filter((token) => !after.includes(token))
+  const added = after.filter((token) => !before.includes(token))
+  const parts: string[] = []
+  if (lost.length > 0) parts.push(`lost ${lost.join(' ')}`)
+  if (added.length > 0) parts.push(`added ${added.join(' ')}`)
+  // Same tokens on both sides but a different count: one of them was duplicated
+  return parts.join(', ') || `token count ${before.length} became ${after.length}`
+}
+
+/** Single strings failing in a row before the backend is declared unreachable */
+const BACKEND_DOWN_AFTER = 3
+
+/**
+ * Refusals are kept string by string so a run can be read back key by key. A collection
+ * wide run can refuse tens of thousands of strings, and holding them all would cost more
+ * memory than the translations themselves.
+ */
+const MAX_REMEMBERED_REFUSALS = 50000
+
+export interface TranslationCounters {
+  /** Strings answered by the backend */
+  translated: number
+  /** Strings served by the memory, they cost nothing */
+  cached: number
+  /** Strings kept in the source language because the backend failed or broke the markup */
+  failed: number
+}
+
+/** Why a string was left in the source language */
+export type RefusalReason =
+  /** The translation lost or invented a markup token, writing it would break the string */
+  | 'markup'
+  /** The backend answered nothing for this slot */
+  | 'empty'
+  /** The call itself failed, down to a batch of one */
+  | 'backend'
+
+export interface Refusal {
+  /** The source string, which is what identifies it across mods */
+  value: string
+  reason: RefusalReason
+  /** Backend message, when there was one */
+  detail?: string
+}
+
+/**
+ * Turns a pile of source strings into translations.
+ *
+ * Everything expensive is guarded here: the memory answers repeats for free, batches are
+ * split rather than dropped when a call fails, and a translation that lost a markup token
+ * is refused so a broken string never reaches a localisation file.
+ */
+export class TranslationEngine {
+  private readonly provider: Provider
+  private readonly counters: TranslationCounters = { translated: 0, cached: 0, failed: 0 }
+  private running = 0
+  private readonly queue: (() => void)[] = []
+  /** Strings another mod is already translating, so the same text is never sent twice */
+  private readonly inflight = new Map<string, { done: Promise<void>; release: () => void }>()
+  /** Single strings that failed in a row, a dead backend must not be retried forever */
+  private consecutiveFailures = 0
+  private backendDown = false
+  /** Strings left in the source language, by source string so a later success can clear one */
+  private readonly refusals = new Map<string, Refusal>()
+  /** Refusals dropped once the cap was reached, so the report can say the list is partial */
+  private droppedRefusals = 0
+
+  constructor(
+    private readonly config: TranslateConfig,
+    private readonly memory: TranslationMemory,
+    private readonly signal: AbortSignal | undefined,
+    private readonly onProgress: (counters: TranslationCounters) => void,
+    private readonly glossary?: Glossary
+  ) {
+    this.provider = createProvider(config)
+  }
+
+  getCounters(): TranslationCounters {
+    return { ...this.counters }
+  }
+
+  /** Every string that stayed in the source language, and why */
+  getRefusals(): { list: Refusal[]; dropped: number } {
+    return { list: [...this.refusals.values()], dropped: this.droppedRefusals }
+  }
+
+  /**
+   * Why one string was left alone
+   * @param value - The source string
+   * @returns The refusal, or undefined when this string never failed
+   */
+  refusalFor(value: string): Refusal | undefined {
+    return this.refusals.get(value)
+  }
+
+  /**
+   * Record a string the run could not translate
+   * @param value - The source string
+   * @param reason - What went wrong
+   * @param detail - The backend message, when there was one
+   */
+  private refuse(value: string, reason: RefusalReason, detail?: string): void {
+    this.counters.failed++
+    if (this.refusals.size >= MAX_REMEMBERED_REFUSALS && !this.refusals.has(value)) {
+      this.droppedRefusals++
+      return
+    }
+    this.refusals.set(value, { value, reason, detail })
+  }
+
+  /** Backends are the bottleneck, never hit them with more calls than asked for */
+  private async acquire(): Promise<() => void> {
+    if (this.running >= this.config.concurrency) {
+      await new Promise<void>((resolve) => this.queue.push(resolve))
+    }
+    this.running++
+    return () => {
+      this.running--
+      this.queue.shift()?.()
+    }
+  }
+
+  /**
+   * Translate one batch, splitting it instead of losing it when the backend misbehaves
+   * @param batch - The source strings
+   * @param languageKey - The game language key, used by the memory
+   * @param languageName - The language in English, used in the prompt
+   * @param results - Collects the translations
+   */
+  private async runBatch(
+    batch: string[],
+    languageKey: string,
+    languageName: string,
+    results: Map<string, string>
+  ): Promise<void> {
+    // Stopping must be felt at once, not after the whole language finished
+    if (this.signal?.aborted) throw new TranslationFailure('cancelled')
+
+    // Once the backend is gone, every further call would only burn a timeout
+    if (this.backendDown) {
+      for (const value of batch) this.refuse(value, 'backend', 'backend already declared down')
+      this.onProgress(this.getCounters())
+      throw new TranslationFailure('translation backend is down')
+    }
+
+    let answer: string[] | undefined
+    let lastError: Error | undefined
+
+    for (let attempt = 0; attempt < this.config.retries && !answer; attempt++) {
+      const release = await this.acquire()
+      try {
+        // Only the terms this batch actually uses, the glossary holds a hundred thousand
+        const hints = this.glossary ? collectHints(this.glossary, batch) : undefined
+        answer = await this.provider.translate(batch, languageName, hints, this.signal)
+      } catch (error) {
+        lastError = error as Error
+      } finally {
+        release()
+      }
+    }
+
+    if (!answer) {
+      // A smaller batch often survives a timeout or a truncated answer
+      if (batch.length > 1) {
+        const middle = Math.ceil(batch.length / 2)
+        // Both halves must be attempted: giving up on the first would leave the
+        // strings of the second neither translated nor counted
+        const halves = await Promise.allSettled([
+          this.runBatch(batch.slice(0, middle), languageKey, languageName, results),
+          this.runBatch(batch.slice(middle), languageKey, languageName, results)
+        ])
+        if (halves.every((half) => half.status === 'rejected')) {
+          throw new TranslationFailure(lastError?.message ?? 'unknown error')
+        }
+        return
+      }
+
+      for (const value of batch) this.refuse(value, 'backend', lastError?.message)
+      if (this.signal?.aborted) throw new TranslationFailure('cancelled')
+      if (++this.consecutiveFailures >= BACKEND_DOWN_AFTER) this.backendDown = true
+      this.onProgress(this.getCounters())
+      throw new TranslationFailure(lastError?.message ?? 'unknown error')
+    }
+
+    this.consecutiveFailures = 0
+
+    for (const [index, source] of batch.entries()) {
+      const translated = answer[index]?.trim()
+      // A translation that dropped a $VARIABLE$ would break the string in game
+      if (!translated) {
+        this.refuse(source, 'empty')
+        continue
+      }
+      if (!tokensMatch(source, translated)) {
+        this.refuse(source, 'markup', describeTokenLoss(source, translated))
+        continue
+      }
+      results.set(source, translated)
+      this.counters.translated++
+      // The same string can fail for one mod and land for the next one, keep the last word
+      this.refusals.delete(source)
+      await this.memory.set(languageKey, source, translated)
+    }
+
+    this.onProgress(this.getCounters())
+  }
+
+  /**
+   * Translate a set of source strings
+   * @param values - The source strings, duplicates are fine
+   * @param languageKey - The game language key (russian, braz_por, ...)
+   * @param languageName - The language in English, for the prompt
+   * @returns Source to translation, missing entries must stay in the source language
+   */
+  async translate(
+    values: string[],
+    languageKey: string,
+    languageName: string
+  ): Promise<{ results: Map<string, string>; stats: TranslationCounters }> {
+    await this.memory.load(languageKey)
+    const before = this.getCounters()
+
+    const results = new Map<string, string>()
+    const todo: string[] = []
+    const waitFor: Promise<void>[] = []
+    const unique = [...new Set(values)]
+
+    // Claiming is synchronous, so two mods can never claim the same string
+    for (const value of unique) {
+      // The base game already says it officially: no model can do better and it costs nothing
+      const official = this.glossary?.exact.get(value)
+      if (official) {
+        results.set(value, official)
+        this.counters.cached++
+        continue
+      }
+
+      const known = this.memory.get(languageKey, value)
+      if (known) {
+        results.set(value, known)
+        this.counters.cached++
+        continue
+      }
+
+      const key = `${languageKey} ${value}`
+      const pending = this.inflight.get(key)
+      if (pending) {
+        waitFor.push(pending.done)
+        continue
+      }
+
+      let release = (): void => {}
+      const done = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      this.inflight.set(key, { done, release })
+      todo.push(value)
+    }
+
+    if (this.counters.cached > 0) this.onProgress(this.getCounters())
+
+    const errors: string[] = []
+    if (todo.length > 0) {
+      const batches: string[][] = []
+      for (let index = 0; index < todo.length; index += this.config.batchSize) {
+        batches.push(todo.slice(index, index + this.config.batchSize))
+      }
+
+      await Promise.all(
+        batches.map(async (batch) => {
+          if (this.signal?.aborted) return
+          try {
+            await this.runBatch(batch, languageKey, languageName, results)
+          } catch (error) {
+            // One dead batch leaves its strings in English, the run goes on
+            errors.push((error as Error).message)
+          }
+        })
+      )
+    }
+
+    // Release before waiting: two mods waiting on each other would otherwise never finish
+    for (const value of todo) {
+      const key = `${languageKey} ${value}`
+      this.inflight.get(key)?.release()
+      this.inflight.delete(key)
+    }
+
+    if (waitFor.length > 0) {
+      await Promise.all(waitFor)
+      for (const value of unique) {
+        if (results.has(value)) continue
+        const known = this.memory.get(languageKey, value)
+        if (known) {
+          results.set(value, known)
+          this.counters.cached++
+        }
+      }
+      this.onProgress(this.getCounters())
+    }
+
+    if (errors.length > 0 && results.size === 0) {
+      throw new Error(`Translation backend unreachable: ${errors[0]}`)
+    }
+
+    const after = this.getCounters()
+    return {
+      results,
+      stats: {
+        translated: after.translated - before.translated,
+        cached: after.cached - before.cached,
+        failed: after.failed - before.failed
+      }
+    }
+  }
+}
+
+/** A batch that could not be translated even one string at a time */
+class TranslationFailure extends Error {}

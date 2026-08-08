@@ -13,6 +13,8 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "ptt:build": "esbuild src/cli/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=out/cli/index.cjs --log-level=warning",
+    "ptt": "node scripts/ptt.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev -w",
     "build": "npm run typecheck && electron-vite build",
