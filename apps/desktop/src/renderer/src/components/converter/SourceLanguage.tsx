@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
 
-import type { LanguageCode } from '@ptt/shared'
 import {
   Select,
   SelectContent,
@@ -25,7 +24,11 @@ export function SourceLanguage() {
   return (
     <Select
       value={sourceLanguage}
-      onValueChange={value => setSourceLanguage(value as LanguageCode)}
+      onValueChange={value => {
+        // Base UI widens the callback value to `LanguageCode | null`; the select
+        // is never cleared, but the null has to be ruled out rather than cast away.
+        if (value !== null) setSourceLanguage(value)
+      }}
     >
       <SelectTrigger className="w-full" size="default">
         <SelectValue />

@@ -40,7 +40,7 @@ function UiLanguageSelect() {
       <SelectTrigger size="sm" className="h-full!" aria-label="UI language">
         <SelectValue />
       </SelectTrigger>
-      <SelectContent position="popper" align="end">
+      <SelectContent alignItemWithTrigger={false} align="end">
         {UI_LANGUAGES.map(lang => (
           <SelectItem key={lang.code} value={lang.code}>
             {lang.label}

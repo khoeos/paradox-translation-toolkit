@@ -14,7 +14,7 @@
     "modes": {
       "addToCurrent": "Add to current",
       "addToCurrentHint": "Write missing files inside each mod folder",
-      "createTranslationMod": "ONE TRANSLATION MOD",
+      "createTranslationMod": "Create translation mod",
       "createTranslationModHint": "Gather every missing key into a single mod under your game folder",
       "extractToFolder": "Extract to folder",
       "extractToFolderHint": "Write missing files into a separate output folder"

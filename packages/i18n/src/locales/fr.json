@@ -15,7 +15,7 @@
     "modes": {
       "addToCurrent": "Ajouter au mod",
       "addToCurrentHint": "Écrit les fichiers manquants dans le dossier de chaque mod",
-      "createTranslationMod": "UN MOD DE TRADUCTION",
+      "createTranslationMod": "Mod de traduction",
       "createTranslationModHint": "Regrouper toutes les clés manquantes dans un seul mod, sous le dossier du jeu",
       "extractToFolder": "Extraire dans un dossier",
       "extractToFolderHint": "Écrit les fichiers manquants dans un dossier dédié"

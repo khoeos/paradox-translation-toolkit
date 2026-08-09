@@ -80,7 +80,7 @@ function FilesByLanguageSection({ kind, files, onPick }: FilesByLanguageSectionP
   return (
     <div className="border rounded bg-muted/30">
       <div className="px-3 py-3 text-sm font-semibold">{t(keys.title)}</div>
-      <Accordion type="multiple" className="border-none">
+      <Accordion multiple className="border-none">
         {entries.map(([lang, langFiles]) => (
           <AccordionItem key={`${kind}-${lang}`} value={`${kind}-${lang}`}>
             <AccordionTrigger>
@@ -129,13 +129,22 @@ export function ProgressModal() {
   const hasResults = Object.keys(created).length > 0 || Object.keys(overwritten).length > 0
 
   return (
-    <Dialog open={true} onOpenChange={open => !open && handleClose()}>
-      <DialogContent
-        closable={!isRunning}
-        onPointerDownOutside={e => isRunning && e.preventDefault()}
-        onEscapeKeyDown={e => isRunning && e.preventDefault()}
-        className="max-w-4xl!"
-      >
+    <Dialog
+      open={true}
+      onOpenChange={(open, eventDetails) => {
+        if (open) return
+        // Base UI has no onPointerDownOutside / onEscapeKeyDown: a dismissal is
+        // refused by cancelling the open change that carries its reason.
+        const dismissed =
+          eventDetails.reason === 'outside-press' || eventDetails.reason === 'escape-key'
+        if (isRunning && dismissed) {
+          eventDetails.cancel()
+          return
+        }
+        handleClose()
+      }}
+    >
+      <DialogContent closable={!isRunning} className="max-w-4xl!">
         <DialogHeader>
           <DialogTitle>{t(`modal.status.${job.status}`)}</DialogTitle>
         </DialogHeader>
