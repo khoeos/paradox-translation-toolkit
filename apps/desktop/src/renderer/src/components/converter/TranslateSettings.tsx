@@ -5,7 +5,7 @@ import {
   PROVIDER_DEFAULTS,
   TRANSLATE_LIMITS,
   TRANSLATE_PROVIDERS
-} from '@ptt/translate-core/defaults'
+} from '@ptt/translate/defaults'
 import { Button } from '@ptt/ui/components/button'
 import { Input } from '@ptt/ui/components/input'
 import { Label } from '@ptt/ui/components/label'

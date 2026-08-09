@@ -15,13 +15,13 @@
     "clean": "rimraf dist .turbo coverage"
   },
   "dependencies": {
-    "@ptt/converter-core": "workspace:*",
+    "@ptt/converter": "workspace:*",
     "@ptt/fs-node": "workspace:*",
     "@ptt/game-registry": "workspace:*",
-    "@ptt/parser-core": "workspace:*",
-    "@ptt/report-core": "workspace:*",
-    "@ptt/shared-types": "workspace:*",
-    "@ptt/translate-core": "workspace:*"
+    "@ptt/parser": "workspace:*",
+    "@ptt/report": "workspace:*",
+    "@ptt/shared": "workspace:*",
+    "@ptt/translate": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",

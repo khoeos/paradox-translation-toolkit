@@ -3,7 +3,7 @@ import { app, BrowserWindow, shell } from 'electron'
 import electronUpdater from 'electron-updater'
 import { join } from 'node:path'
 
-import { IPC_CHANNELS } from '@ptt/shared-types'
+import { IPC_CHANNELS } from '@ptt/shared'
 
 const { autoUpdater } = electronUpdater
 

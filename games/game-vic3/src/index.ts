@@ -1,4 +1,4 @@
-import type { GameDefinition } from '@ptt/shared-types'
+import type { GameDefinition } from '@ptt/shared'
 
 export const vic3: GameDefinition = {
   id: 'vic3',

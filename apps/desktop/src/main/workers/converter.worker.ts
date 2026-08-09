@@ -1,10 +1,10 @@
-import { apply, diff, plan, posixJoin, runConvert, scan, scanMods } from '@ptt/converter-core'
-import type { Cancellation, JobEvent, ProgressPort, TranslationMod } from '@ptt/converter-core'
+import { apply, diff, plan, posixJoin, runConvert, scan, scanMods } from '@ptt/converter'
+import type { Cancellation, JobEvent, ProgressPort, TranslationMod } from '@ptt/converter'
 import { nodeFetch, nodeFs } from '@ptt/fs-node'
-import { buildRunReport, writeRunReport } from '@ptt/report-core'
-import type { ConvertMode, GameDefinition, LanguageCode } from '@ptt/shared-types'
-import type { TranslateConfig } from '@ptt/translate-core'
-import { createEngineForRun, openTranslationMemory } from '@ptt/translate-core'
+import { buildRunReport, writeRunReport } from '@ptt/report'
+import type { ConvertMode, GameDefinition, LanguageCode } from '@ptt/shared'
+import type { TranslateConfig } from '@ptt/translate'
+import { createEngineForRun, openTranslationMemory } from '@ptt/translate'
 
 interface ScanCommand {
   type: 'scan'

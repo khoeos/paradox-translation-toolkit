@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import type { LanguageCode } from '@ptt/shared-types'
+import type { LanguageCode } from '@ptt/shared'
 import {
   Select,
   SelectContent,

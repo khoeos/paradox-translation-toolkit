@@ -1,7 +1,13 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
-  "globalDependencies": ["tsconfig.base.json", "pnpm-workspace.yaml", "pnpm-lock.yaml"],
+  "globalDependencies": [
+    "tsconfig.base.json",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+    "vitest.shared.ts",
+    ".oxlintrc.json"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

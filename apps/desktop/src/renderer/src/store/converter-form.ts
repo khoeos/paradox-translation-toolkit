@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 
-import type { ScannedMod } from '@ptt/converter-core'
-import type { ConvertMode, LanguageCode } from '@ptt/shared-types'
-import type { TranslateConfig } from '@ptt/translate-core'
+import type { ScannedMod } from '@ptt/converter'
+import type { ConvertMode, LanguageCode } from '@ptt/shared'
+import type { TranslateConfig } from '@ptt/translate'
 import {
   TRANSLATE_DEFAULTS,
   isDefaultBaseUrl,
   PROVIDER_DEFAULTS
-} from '@ptt/translate-core/defaults'
+} from '@ptt/translate/defaults'
 
 interface GameFormSnapshot {
   modFolder: string

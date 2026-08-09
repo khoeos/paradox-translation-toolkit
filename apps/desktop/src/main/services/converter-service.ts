@@ -10,16 +10,16 @@ import type {
   JobEvent,
   ScanResult,
   TranslationMod
-} from '@ptt/converter-core'
-import { isJobEvent } from '@ptt/converter-core/progress'
+} from '@ptt/converter'
+import { isJobEvent } from '@ptt/converter/progress'
 import { getGame } from '@ptt/game-registry'
 import {
   IPC_CHANNELS,
   type ConvertMode,
   type GameDefinition,
   type LanguageCode
-} from '@ptt/shared-types'
-import type { TranslateConfig } from '@ptt/translate-core'
+} from '@ptt/shared'
+import type { TranslateConfig } from '@ptt/translate'
 
 import { log } from '../log.js'
 import { resolveGeneratedMod } from './generated-mod-paths.js'

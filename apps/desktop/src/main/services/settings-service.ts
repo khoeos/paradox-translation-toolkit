@@ -8,7 +8,7 @@ import {
   LanguageCodeSchema,
   type ConvertMode,
   type LanguageCode
-} from '@ptt/shared-types'
+} from '@ptt/shared'
 
 import { log } from '../log.js'
 

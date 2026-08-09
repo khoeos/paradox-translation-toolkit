@@ -6,7 +6,7 @@ pre-commit:
       run: pnpm exec oxlint --fix {staged_files}
       stage_fixed: true
     typecheck:
-      run: pnpm turbo typecheck
+      run: pnpm typecheck
     test:
       run: pnpm turbo test
       only:
@@ -22,8 +22,8 @@ pre-push:
   parallel: true
   commands:
     oxlint:
-      run: pnpm turbo lint
+      run: pnpm lint
     typecheck:
-      run: pnpm turbo typecheck
+      run: pnpm typecheck
     test:
       run: pnpm turbo test

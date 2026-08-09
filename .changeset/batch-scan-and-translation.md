@@ -1,8 +1,8 @@
 ---
 '@ptt/desktop': minor
-'@ptt/converter-core': minor
-'@ptt/parser-core': minor
-'@ptt/shared-types': minor
+'@ptt/converter': minor
+'@ptt/parser': minor
+'@ptt/shared': minor
 '@ptt/i18n': minor
 ---
 
@@ -34,6 +34,6 @@ What it changes for you:
   left half written.
 - **A key-by-key report** of every run, as JSON and as CSV.
 
-New packages: `@ptt/translate-core`, `@ptt/report-core`, `@ptt/fs-node`. New app: `@ptt/cli`, a
+New packages: `@ptt/translate`, `@ptt/report`, `@ptt/fs-node`. New app: `@ptt/cli`, a
 headless front end running the same pipeline, whose `audit` command lists which keys are still
 untranslated and why.

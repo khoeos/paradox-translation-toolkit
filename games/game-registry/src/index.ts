@@ -5,7 +5,7 @@ import { hoi4 } from '@ptt/game-hoi4'
 import { imperator } from '@ptt/game-imperator'
 import { stellaris } from '@ptt/game-stellaris'
 import { vic3 } from '@ptt/game-vic3'
-import type { GameDefinition, GameSummary, LanguageCode } from '@ptt/shared-types'
+import type { GameDefinition, GameSummary, LanguageCode } from '@ptt/shared'
 
 const builtInGames: readonly GameDefinition[] = [stellaris, eu4, eu5, hoi4, ck3, vic3, imperator]
 

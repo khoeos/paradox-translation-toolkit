@@ -9,10 +9,10 @@
     "@ptt/game-hoi4": "0.1.0",
     "@ptt/game-registry": "0.1.0",
     "@ptt/game-stellaris": "0.1.0",
-    "@ptt/converter-core": "0.1.0",
+    "@ptt/converter": "0.1.0",
     "@ptt/i18n": "0.1.0",
-    "@ptt/parser-core": "0.1.0",
-    "@ptt/shared-types": "0.1.0",
+    "@ptt/parser": "0.1.0",
+    "@ptt/shared": "0.1.0",
     "@ptt/ui": "0.1.0"
   },
   "changesets": []

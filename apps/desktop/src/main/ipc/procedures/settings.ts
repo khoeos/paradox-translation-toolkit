@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { getAllGameIds } from '@ptt/game-registry'
 import { VALID_UI_LANGUAGES } from '@ptt/i18n'
-import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared-types'
+import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared'
 
 import { publicProcedure, router } from '../trpc.js'
 

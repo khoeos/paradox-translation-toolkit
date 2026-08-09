@@ -22,7 +22,7 @@
     "@ptt/game-imperator": "workspace:*",
     "@ptt/game-stellaris": "workspace:*",
     "@ptt/game-vic3": "workspace:*",
-    "@ptt/shared-types": "workspace:*"
+    "@ptt/shared": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "catalog:",

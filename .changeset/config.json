@@ -7,18 +7,7 @@
     }
   ],
   "commit": false,
-  "fixed": [
-    [
-      "@ptt/parser-core",
-      "@ptt/converter-core",
-      "@ptt/translate-core",
-      "@ptt/report-core",
-      "@ptt/fs-node",
-      "@ptt/shared-types",
-      "@ptt/ui",
-      "@ptt/i18n"
-    ]
-  ],
+  "fixed": [["@ptt/*", "!@ptt/desktop", "!@ptt/cli", "!@ptt/game-*"]],
   "linked": [],
   "access": "restricted",
   "baseBranch": "main",

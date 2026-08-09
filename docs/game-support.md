@@ -1,6 +1,6 @@
 # Adding support for a new game
 
-A game is a self-contained workspace package: a single `GameDefinition` plus a smoke test. The core packages (`parser-core`, `converter-core`) stay untouched, that's the whole point of the per-game layout.
+A game is a self-contained workspace package: a single `GameDefinition` plus a smoke test. The core packages (`parser`, `converter`) stay untouched, that's the whole point of the per-game layout.
 
 ---
 
@@ -17,7 +17,7 @@ Then in `games/game-<id>/`:
 - **`test/smoke.test.ts`**: rename the import and update the asserted ID/displayName.
 
 ```ts
-import type { GameDefinition } from '@ptt/shared-types'
+import type { GameDefinition } from '@ptt/shared'
 
 export const myGame: GameDefinition = {
   id: 'my-game', // url-safe slug, used as map key in settings

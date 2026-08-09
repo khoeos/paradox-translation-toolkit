@@ -1,7 +1,7 @@
-import { posixDirname, posixJoin } from '@ptt/converter-core'
+import { posixDirname, posixJoin } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
-import { StoredRunReportSchema, writeKeyCsv } from '@ptt/report-core'
-import type { ParsedRunReport } from '@ptt/report-core'
+import { StoredRunReportSchema, writeKeyCsv } from '@ptt/report'
+import type { ParsedRunReport } from '@ptt/report'
 
 import type { Args } from '../args.js'
 import type { CliOptions } from '../options.js'

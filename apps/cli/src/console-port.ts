@@ -1,4 +1,4 @@
-import type { JobEvent, ProgressPort } from '@ptt/converter-core'
+import type { JobEvent, ProgressPort } from '@ptt/converter'
 
 import { clearTicker, dim, ticker } from './output.js'
 
@@ -8,7 +8,7 @@ import { clearTicker, dim, ticker } from './output.js'
  * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `consolePort`) by Artem Kondrashev. Its whole point
  * is that the CLI and the desktop worker consume the *same* contract, so the two cannot drift into
  * doing different things. The original typed it `any` with three eslint-disables; it is now the
- * `ProgressPort` interface that converter-core owns (audit finding Q-3).
+ * `ProgressPort` interface that converter owns (audit finding Q-3).
  */
 
 export interface ConsolePort extends ProgressPort {

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 import { getAllGameIds } from '@ptt/game-registry'
-import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared-types'
+import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared'
 
 import { publicProcedure, router } from '../trpc.js'
 import { TranslateConfigSchema, toTranslateConfig } from './translate.js'

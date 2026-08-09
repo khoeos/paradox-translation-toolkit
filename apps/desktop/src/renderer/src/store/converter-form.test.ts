@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { ScannedMod } from '@ptt/converter-core'
-import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS } from '@ptt/translate-core/defaults'
+import type { ScannedMod } from '@ptt/converter'
+import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS } from '@ptt/translate/defaults'
 
 import {
   canConvertSelection,

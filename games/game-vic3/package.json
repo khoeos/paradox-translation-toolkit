@@ -15,7 +15,7 @@
     "clean": "rimraf dist .turbo"
   },
   "dependencies": {
-    "@ptt/shared-types": "workspace:*"
+    "@ptt/shared": "workspace:*"
   },
   "devDependencies": {
     "rimraf": "catalog:",

@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import { IPC_CHANNELS } from '@ptt/shared-types/ipc-channels'
+import { IPC_CHANNELS } from '@ptt/shared/ipc-channels'
 
 function exposeElectronTRPC(): void {
   contextBridge.exposeInMainWorld('electronTRPC', {

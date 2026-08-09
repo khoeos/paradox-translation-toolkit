@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import type { ConvertMode } from '@ptt/shared-types'
+import type { ConvertMode } from '@ptt/shared'
 import { Button } from '@ptt/ui/components/button'
 
 import { useConverterFormStore } from '@renderer/store/converter-form'

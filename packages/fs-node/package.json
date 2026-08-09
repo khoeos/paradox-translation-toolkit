@@ -16,8 +16,7 @@
     "clean": "rimraf dist .turbo coverage"
   },
   "dependencies": {
-    "@ptt/converter-core": "workspace:*",
-    "@ptt/translate-core": "workspace:*"
+    "@ptt/shared": "workspace:*"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",

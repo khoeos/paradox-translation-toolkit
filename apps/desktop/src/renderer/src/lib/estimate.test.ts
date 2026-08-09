@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { PROVIDER_DEFAULTS } from '@ptt/translate-core/defaults'
+import { PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
 
 import { estimateDuration } from './estimate.js'
 

@@ -21,7 +21,7 @@ The repo uses **Changesets** to manage versions and changelogs, and **electron-u
 
 ## What gets versioned
 
-Only `@ptt/desktop` and the root `paradox-translation-toolkit` versions matter for distribution today. The library packages (`@ptt/parser-core`, `@ptt/converter-core`, etc.) are versioned by Changesets but never published to npm, their version field is just internal bookkeeping.
+Only `@ptt/desktop` and the root `paradox-translation-toolkit` versions matter for distribution today. The library packages (`@ptt/parser`, `@ptt/converter`, etc.) are versioned by Changesets but never published to npm, their version field is just internal bookkeeping.
 
 The git tag should match `@ptt/desktop`'s version: `v3.0.0`, `v3.1.0-beta.2`, etc. CI's `release.yml` triggers on tag push.
 

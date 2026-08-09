@@ -1,4 +1,4 @@
-import type { KeyReport, KeyState } from '@ptt/converter-core'
+import type { KeyReport, KeyState } from '@ptt/converter'
 
 import type { Args } from '../args.js'
 import { filterMods } from '../filter.js'

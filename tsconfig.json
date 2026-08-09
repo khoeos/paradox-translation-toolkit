@@ -1,0 +1,9 @@
+{
+  "//": "Root-level files belong to no workspace, so nothing typechecked them: `vitest.shared.ts` shipped with a `UserConfig` import that does not exist in vitest 4 and every check stayed green. `pnpm typecheck` runs this after the turbo graph.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["vitest.shared.ts", "commitlint.config.js"]
+}

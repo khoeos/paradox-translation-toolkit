@@ -1,4 +1,4 @@
-import { sumByLanguage } from '@ptt/converter-core'
+import { sumByLanguage } from '@ptt/converter'
 
 import { byIdAndName, filterMods } from '../filter.js'
 import type { CliOptions } from '../options.js'

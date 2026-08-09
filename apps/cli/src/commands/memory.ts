@@ -1,6 +1,6 @@
-import { posixJoin } from '@ptt/converter-core'
+import { posixJoin } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
-import { clearMemoryFiles } from '@ptt/translate-core'
+import { clearMemoryFiles } from '@ptt/translate'
 
 import type { Args } from '../args.js'
 import type { CliOptions } from '../options.js'

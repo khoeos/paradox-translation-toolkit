@@ -8,7 +8,7 @@ import {
 import { BrowserWindow, ipcMain, type IpcMainEvent } from 'electron'
 import { z } from 'zod'
 
-import { IPC_CHANNELS } from '@ptt/shared-types'
+import { IPC_CHANNELS } from '@ptt/shared'
 
 import { log } from '../log.js'
 

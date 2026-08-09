@@ -1,10 +1,10 @@
 import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { ScannedMod } from '@ptt/converter-core'
-// The zod-free subexport, like `@ptt/converter-core/progress`: a value import of the package
+import type { ScannedMod } from '@ptt/converter'
+// The zod-free subexport, like `@ptt/converter/progress`: a value import of the package
 // root would pull zod and the whole pipeline into the renderer bundle.
-import { sumByLanguage } from '@ptt/converter-core/totals'
+import { sumByLanguage } from '@ptt/converter/totals'
 import { Badge } from '@ptt/ui/components/badge'
 import { Button } from '@ptt/ui/components/button'
 import { Checkbox } from '@ptt/ui/components/checkbox'

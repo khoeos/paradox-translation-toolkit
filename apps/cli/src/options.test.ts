@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ck3, stellaris } from '@ptt/game-registry'
-import { TRANSLATE_DEFAULTS } from '@ptt/translate-core'
+import { TRANSLATE_DEFAULTS } from '@ptt/translate'
 
 import { parseArgs } from './args.js'
 import { readConfig } from './config.js'

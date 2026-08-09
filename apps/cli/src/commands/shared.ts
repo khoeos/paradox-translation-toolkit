@@ -1,14 +1,14 @@
-import { posixDirname, resolveGeneratedMod, scanMods, sumByLanguage } from '@ptt/converter-core'
+import { posixDirname, resolveGeneratedMod, scanMods, sumByLanguage } from '@ptt/converter'
 import type {
   GeneratedModPaths,
   KeyReport,
   ScanOutput,
   ScannedMod
-} from '@ptt/converter-core'
+} from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
-import { writeKeyCsv } from '@ptt/report-core'
-import { openTranslationMemory } from '@ptt/translate-core'
-import type { TranslationMemory } from '@ptt/translate-core'
+import { writeKeyCsv } from '@ptt/report'
+import { openTranslationMemory } from '@ptt/translate'
+import type { TranslationMemory } from '@ptt/translate'
 
 import { consolePort } from '../console-port.js'
 import type { CliOptions } from '../options.js'

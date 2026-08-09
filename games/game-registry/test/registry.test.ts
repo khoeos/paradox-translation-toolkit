@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { LANGUAGE_CODES } from '@ptt/shared-types'
+import { LANGUAGE_CODES } from '@ptt/shared'
 
 import {
   ck3,
@@ -85,7 +85,7 @@ describe('getAllGameIds', () => {
 })
 
 describe('language coverage invariant', () => {
-  it('every registered game uses only LanguageCodes from shared-types', () => {
+  it('every registered game uses only LanguageCodes from shared', () => {
     const known = new Set<string>(LANGUAGE_CODES)
     for (const game of getAllGames()) {
       const declared = Object.keys(game.languageFileToken)

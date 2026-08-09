@@ -1,7 +1,7 @@
 import i18next from 'i18next'
 import { create } from 'zustand'
 
-// The progress protocol lives in converter-core: it used to be declared here and in
+// The progress protocol lives in converter: it used to be declared here and in
 // main/services/converter-service.ts byte for byte, with a guard loose enough that a variant
 // added on one side fell through this switch in silence (audit findings Q-3, Q-6).
 import type {
@@ -10,7 +10,7 @@ import type {
   JobEvent,
   ScanOutput,
   TranslationProgress
-} from '@ptt/converter-core'
+} from '@ptt/converter'
 
 export type { JobEvent }
 
@@ -234,4 +234,4 @@ export const useJobsStore = create<JobsState>((set, get) => ({
   setActive: jobId => set({ activeJobId: jobId })
 }))
 
-export { isJobEvent } from '@ptt/converter-core/progress'
+export { isJobEvent } from '@ptt/converter/progress'

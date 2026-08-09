@@ -1,6 +1,6 @@
 import { getAllGameIds } from '@ptt/game-registry'
-import { LANGUAGE_CODES } from '@ptt/shared-types'
-import { TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt/translate-core'
+import { LANGUAGE_CODES } from '@ptt/shared'
+import { TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
 import { DEFAULT_CONFIG_FILE } from './config.js'
 import { bold, cyan } from './output.js'

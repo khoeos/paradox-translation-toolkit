@@ -49,7 +49,7 @@ pnpm format                     # oxfmt
 Filtered runs:
 
 ```bash
-pnpm --filter @ptt/parser-core test
+pnpm --filter @ptt/parser test
 pnpm --filter @ptt/desktop dev
 ```
 

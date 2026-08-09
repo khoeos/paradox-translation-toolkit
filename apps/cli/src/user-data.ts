@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 
-import { posixJoin } from '@ptt/converter-core'
+import { posixJoin } from '@ptt/converter'
 
 /**
  * The folders Electron resolves through `app.getPath`, resolved here by hand.

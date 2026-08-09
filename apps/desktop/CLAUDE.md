@@ -9,17 +9,17 @@ specific to this app.
 - The only allowed renderer/main crossing is
   `import type { AppRouter } from '@main/ipc/trpc-router'` ; everything else goes
   over tRPC. A value import compiles and bundles with no warning, so keep
-  `@ptt/shared-types` and `@ptt/converter-core` as `import type` in the renderer or
+  `@ptt/shared` and `@ptt/converter` as `import type` in the renderer or
   zod and the whole pipeline land in the renderer bundle.
 - The `scan` / `diff` / `plan` / `apply` pipeline may only be called from
   `main/workers/converter.worker.ts`, a UtilityProcess with its own
   `rollupOptions.input` entry in `electron.vite.config.ts` (a second worker without
-  that entry is never built). `main/services/*` import converter-core types only :
+  that entry is never built). `main/services/*` import converter types only :
   calling `scan()` from `converter-service.ts` compiles and puts multi-second work
   back on the main thread. `main/services/node-fs.ts` is the only production `FsLike`.
 - New tRPC procedure : file under `main/ipc/procedures/<domain>.ts`, router
   registered in `main/ipc/trpc-router.ts`, `.input()` zod schema inline in that same
-  file (procedure schemas do not belong in `@ptt/shared-types`), body a one-line
+  file (procedure schemas do not belong in `@ptt/shared`), body a one-line
   delegation to a `ctx.*` service (12 of 15 are exactly that). If the work can
   outlive 120 s, add the path to `LONG_RUNNING_PATHS` in `renderer/src/lib/ipc-link.ts`
   and report completion through job events. zod stays main-process only.

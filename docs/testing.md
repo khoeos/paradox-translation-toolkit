@@ -1,17 +1,17 @@
 # Testing
 
-All tests run via `pnpm test`. Per-package coverage thresholds live in each package's `vitest.config.ts` (`parser-core`, `converter-core`, `translate-core`, `report-core`, `fs-node`: lines / functions / statements ≥ 90, branches ≥ 80-85). They are **not** a gate: `test` is `vitest run` with no `--coverage`, so CI never evaluates them. Check one with:
+All tests run via `pnpm test`. Coverage thresholds live once, in `vitest.shared.ts` at the repo root (lines / functions / statements ≥ 90, branches ≥ 80, or 85 for `parser`); each library's `vitest.config.ts` is a two-line call to `libraryVitestConfig()`. They are **not** a gate: `test` is `vitest run` with no `--coverage`, so CI never evaluates them. Check one with:
 
 ```bash
-pnpm --filter @ptt/converter-core exec vitest run --coverage
+pnpm --filter @ptt/converter exec vitest run --coverage
 ```
 
 ## What's covered
 
-- **`parser-core`**: BOM, escapes, color codes, comments, error recovery, multi-line values, line-ending preservation, body/comment ordering, full round-trip fuzz.
-- **`converter-core`**: scan with mixed layouts, diff against override subdirs, plan for both file-level modes (incl. basename-collision refusal), idempotent apply, atomic write order (tmp → backup → rename), fake `FsLike`. Then the mod-level pipeline: multi-mod discovery, descriptor reading, inter-mod coverage by declared dependency and by key overlap, the key-level diff and its six `KeyState` (including the `english` versus `kept` boundary, which only the translation memory can settle), generated-mod idempotence, namespace pruning and its guards, and the job-event guard.
-- **`translate-core`**: the engine's six guarantees against a table-driven provider (glossary and memory bypass, in-flight deduplication across mods, recursive batch splitting, the circuit breaker, the markup gate, refusal clearing), the three providers against a scripted `fetch`, atomic memory flush, and the glossary's term voting.
-- **`report-core`**: CSV quoting and formula neutralisation, the stored report shape, and its zod schema refusing a truncated or hand-edited report.
+- **`parser`**: BOM, escapes, color codes, comments, error recovery, multi-line values, line-ending preservation, body/comment ordering, full round-trip fuzz.
+- **`converter`**: scan with mixed layouts, diff against override subdirs, plan for both file-level modes (incl. basename-collision refusal), idempotent apply, atomic write order (tmp → backup → rename), fake `FsLike`. Then the mod-level pipeline: multi-mod discovery, descriptor reading, inter-mod coverage by declared dependency and by key overlap, the key-level diff and its six `KeyState` (including the `english` versus `kept` boundary, which only the translation memory can settle), generated-mod idempotence, namespace pruning and its guards, and the job-event guard.
+- **`translate`**: the engine's six guarantees against a table-driven provider (glossary and memory bypass, in-flight deduplication across mods, recursive batch splitting, the circuit breaker, the markup gate, refusal clearing), the three providers against a scripted `fetch`, atomic memory flush, and the glossary's term voting.
+- **`report`**: CSV quoting and formula neutralisation, the stored report shape, and its zod schema refusing a truncated or hand-edited report.
 - **`fs-node`**: the adapter against a real temporary directory, including a BOM + CRLF round trip. A fake here would test nothing.
 - **`@ptt/cli`**: argv parsing with its documented quirks, flag coercion, the config file, option building against the registry and the zod schemas, the per-platform userData mapping, mod filtering and terminal formatting.
 - **`game-*`**: smoke tests for each `GameDefinition`.
@@ -23,9 +23,9 @@ pnpm --filter @ptt/converter-core exec vitest run --coverage
 
 ```bash
 pnpm test                                          # all packages
-pnpm --filter @ptt/parser-core test                # single package
-pnpm --filter @ptt/parser-core test -- --watch     # watch mode
-pnpm --filter @ptt/parser-core test -- --coverage  # with coverage report
+pnpm --filter @ptt/parser test                     # single package
+pnpm --filter @ptt/parser test -- --watch          # watch mode
+pnpm --filter @ptt/parser test -- --coverage       # with coverage report
 ```
 
 ## i18n extraction gate
@@ -56,8 +56,8 @@ Then give `apps/desktop` a second Vitest project entry with `environment: 'jsdom
 
 - Use Vitest's `describe` / `it` style, matching the existing files in each package.
 - Tests live next to the code they cover. Most packages keep tests under `test/` ; the desktop app uses `*.test.ts` colocated with the source.
-- For anything FS-related, use the in-memory `FsLike` fake rather than touching the real disk. It is exported for other packages as `@ptt/converter-core/test/memory-fs`; `translate-core` and `report-core` both use it.
-- For anything network-related, pass a scripted `FetchLike` rather than mocking a global. `packages/translate-core/test/fake-fetch.ts` is the pattern.
+- For anything FS-related, use the in-memory `FsLike` fake rather than touching the real disk. It is exported for other packages as `@ptt/converter/test/memory-fs`; `translate` and `report` both use it.
+- For anything network-related, pass a scripted `FetchLike` rather than mocking a global. `packages/translate/test/fake-fetch.ts` is the pattern.
 - `@ptt/fs-node` is the one exception: it is the seam to the real filesystem, so its tests use a real `mkdtemp` directory.
 - For new game support, add a smoke test in the new `@ptt/game-<id>` package mirroring the existing ones.
 - For platform-conditional tests (path policy, OS-specific behaviour), use Vitest's `describe.runIf(process.platform === '…')` rather than mocking `process.platform`. `node:path` semantics depend on the actual host OS and don't follow the mock.

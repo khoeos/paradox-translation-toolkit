@@ -1,5 +1,5 @@
 import { nodeFetch } from '@ptt/fs-node'
-import { LANGUAGE_DISPLAY_NAMES, createProvider } from '@ptt/translate-core'
+import { LANGUAGE_DISPLAY_NAMES, createProvider } from '@ptt/translate'
 
 import type { Args } from '../args.js'
 import type { CliOptions } from '../options.js'

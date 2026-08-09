@@ -1,4 +1,4 @@
-import type { GameDefinition } from '@ptt/shared-types'
+import type { GameDefinition } from '@ptt/shared'
 
 export const ck3: GameDefinition = {
   id: 'ck3',

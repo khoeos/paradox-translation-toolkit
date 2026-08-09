@@ -14,7 +14,7 @@ The repo is a **pnpm + Turbo monorepo** with three top-level groups:
 - `packages/` - reusable, FS-agnostic libraries
 - `games/` - per-game plugins, all conforming to a common `GameDefinition` interface
 
-The desktop app is **the only consumer of Electron**. The real file system is reached through `@ptt/fs-node`, whose single `nodeFs` is imported by the two apps and nothing else; the core libraries (`parser-core`, `converter-core`, `translate-core`, `report-core`, the game plugins) receive it as an injected `FsLike`. `translate-core` reaches the network the same way, through an injected `FetchLike`. This is what makes all of them unit-testable without a disk or a server, and what lets the CLI run exactly the same pipeline as the app.
+The desktop app is **the only consumer of Electron**. The real file system is reached through `@ptt/fs-node`, whose single `nodeFs` is imported by the two apps and nothing else; the core libraries (`parser`, `converter`, `translate`, `report`, the game plugins) receive it as an injected `FsLike`. `translate` reaches the network the same way, through an injected `FetchLike`. This is what makes all of them unit-testable without a disk or a server, and what lets the CLI run exactly the same pipeline as the app.
 
 ---
 
@@ -26,11 +26,11 @@ paradox-translation-toolkit/
 │   ├── desktop/                  # Electron + React app (@ptt/desktop)
 │   └── cli/                      # Headless front end, same pipeline (@ptt/cli)
 ├── packages/
-│   ├── shared-types/             # IPC contracts, DTOs, Zod schemas (@ptt/shared-types)
-│   ├── parser-core/              # Paradox locale parser/serializer + markup grammar (@ptt/parser-core)
-│   ├── converter-core/           # FS-agnostic pipeline, file-level and key-level (@ptt/converter-core)
-│   ├── translate-core/           # Translation engine, providers, memory, glossary (@ptt/translate-core)
-│   ├── report-core/              # JSON + CSV run reports (@ptt/report-core)
+│   ├── shared/                   # IPC contracts, injected-port types, Zod schemas (@ptt/shared)
+│   ├── parser/                   # Paradox locale parser/serializer + markup grammar (@ptt/parser)
+│   ├── converter/                # FS-agnostic pipeline, file-level and key-level (@ptt/converter)
+│   ├── translate/                # Translation engine, providers, memory, glossary (@ptt/translate)
+│   ├── report/                   # JSON + CSV run reports (@ptt/report)
 │   ├── fs-node/                  # The single production FsLike (@ptt/fs-node)
 │   ├── ui/                       # shadcn/ui primitives + Tailwind globals (@ptt/ui)
 │   └── i18n/                     # i18next setup + locale JSON files (@ptt/i18n)
@@ -50,11 +50,11 @@ paradox-translation-toolkit/
 
 ## Package responsibilities
 
-### `@ptt/parser-core`
+### `@ptt/parser`
 
 Hand-written tokenizer + parser for Paradox `_l_<lang>.yml` files. Handles BOM, the `KEY:VERSION "value"` syntax, escapes, color codes, comments, multi-line values, and per-locale CRLF/LF line endings. Produces structured AST nodes (including an ordered `body[]` that preserves the original layout, interleaved comments and blank lines included), so a parse → mutate → serialize round-trip leaves zero diff noise on git-versioned mods. Diagnostics replace exceptions wherever possible: a malformed mod file should not crash the pipeline. Coverage threshold: ≥ 90%.
 
-### `@ptt/converter-core`
+### `@ptt/converter`
 
 The generation pipeline: **scan → diff → plan → apply**.
 
@@ -65,14 +65,14 @@ The generation pipeline: **scan → diff → plan → apply**.
 
 Because `FsLike` is injected, this package has zero Electron dependencies and is fully unit-tested with an in-memory fake.
 
-### `@ptt/shared-types`
+### `@ptt/shared`
 
 The contract surface between processes. tRPC procedure types, IPC DTOs, Zod schemas for runtime validation, and the canonical `IPC_CHANNELS` constants. Anything that crosses the main/renderer boundary or the desktop/core boundary is defined here.
 
 The package exports two entry points:
 
-- `@ptt/shared-types`: full surface (types + Zod schemas).
-- `@ptt/shared-types/ipc-channels`: channel constants only, **no zod**. The sandboxed preload imports from this sub-export to keep the bundle tiny: any module reachable from the preload's import graph gets bundled into the CJS output, and we don't want zod in there.
+- `@ptt/shared`: full surface (types + Zod schemas).
+- `@ptt/shared/ipc-channels`: channel constants only, **no zod**. The sandboxed preload imports from this sub-export to keep the bundle tiny: any module reachable from the preload's import graph gets bundled into the CJS output, and we don't want zod in there.
 
 ### `@ptt/game-<id>` and `@ptt/game-registry`
 
@@ -80,9 +80,9 @@ Each supported game is its own package exporting a `GameDefinition` (id, Steam a
 
 The long term goal is to scope any future game-specific logic to these packages, keeping the core packages generic and FS-agnostic.
 
-**Adding a new game is a new package + one line in the registry**, nothing in `parser-core` or `converter-core` changes. This is the architectural invariant we test for.
+**Adding a new game is a new package + one line in the registry**, nothing in `parser` or `converter` changes. This is the architectural invariant we test for.
 
-### `@ptt/translate-core`
+### `@ptt/translate`
 
 Optional machine translation, contributed by [PR #4](https://github.com/khoeos/paradox-translation-toolkit/pull/4).
 
@@ -91,7 +91,7 @@ Optional machine translation, contributed by [PR #4](https://github.com/khoeos/p
 - `TranslationMemory` - one JSON per language, written through tmp + rename, scoped per game and per provider+model by the caller.
 - `buildGlossary` / `loadGlossary` - the wording read from the game's own localisation, which a model cannot guess.
 
-### `@ptt/report-core`
+### `@ptt/report`
 
 The JSON and CSV reports of a run, key by key. Consumed by both apps. CSV fields starting with a formula character are neutralised: the source, key and mod-name columns come from third-party mod content.
 
@@ -171,11 +171,11 @@ Uploading is disabled - attach the dump file to a GitHub issue manually.
 1. Renderer collects user input (game, mod folder, target languages, mode)
 2. Calls a tRPC procedure exposed by the main process
 3. Main process resolves the `GameDefinition` from the registry
-4. `converter-core.scan` walks the mod folder via Node's `fs`
-5. `parser-core` parses each discovered file
-6. `converter-core.diff` produces missing-key lists per target language
-7. `converter-core.plan` emits the file-write plan (respecting in-place vs override-subdir mode)
-8. `converter-core.apply` executes the plan
+4. `converter.scan` walks the mod folder via Node's `fs`
+5. `parser` parses each discovered file
+6. `converter.diff` produces missing-key lists per target language
+7. `converter.plan` emits the file-write plan (respecting in-place vs override-subdir mode)
+8. `converter.apply` executes the plan
 9. Result returned to the renderer; UI shows what was written
 
 ### Auto-update on launch
@@ -189,14 +189,14 @@ Uploading is disabled - attach the dump file to a GitHub issue manually.
 
 ## Invariants worth preserving
 
-- **Core packages stay FS-agnostic.** `parser-core`, `converter-core`, `translate-core` and `report-core` must not import `node:fs` or any Electron API. Anything FS-related goes through the injected `FsLike`, and anything network-related through the injected `FetchLike`. Only `apps/*` import `@ptt/fs-node`.
-- **The worker and the CLI consume the same contract.** `scanMods` and `runConvert` live in `converter-core` and take a `ProgressPort`; the desktop worker posts to a `MessagePort` and the CLI renders a ticker. A behaviour added to one is a behaviour added to both, by construction rather than by discipline.
-- **The renderer value-imports only zod-free subexports.** `@ptt/converter-core/progress` for the job-event protocol and `@ptt/translate-core/defaults` for the settings bounds. A value import of a package root pulls zod and the whole pipeline into the renderer bundle.
-- **Adding a game is additive.** New `@ptt/game-<id>` package + one entry in `game-registry`. Touching `parser-core` or `converter-core` for game-specific logic is a smell.
-- **`@ptt/shared-types` owns cross-boundary value domains.** `ConvertMode` and `LanguageCode` are derived from `as const` tuples next to their zod schemas, so the union and the validator cannot drift. Don't redefine them inline in `apps/desktop`.
+- **Core packages stay FS-agnostic.** `parser`, `converter`, `translate` and `report` must not import `node:fs` or any Electron API. Anything FS-related goes through the injected `FsLike`, and anything network-related through the injected `FetchLike`. Only `apps/*` import `@ptt/fs-node`.
+- **The worker and the CLI consume the same contract.** `scanMods` and `runConvert` live in `converter` and take a `ProgressPort`; the desktop worker posts to a `MessagePort` and the CLI renders a ticker. A behaviour added to one is a behaviour added to both, by construction rather than by discipline.
+- **The renderer value-imports only zod-free subexports.** `@ptt/converter/progress` for the job-event protocol and `@ptt/translate/defaults` for the settings bounds. A value import of a package root pulls zod and the whole pipeline into the renderer bundle.
+- **Adding a game is additive.** New `@ptt/game-<id>` package + one entry in `game-registry`. Touching `parser` or `converter` for game-specific logic is a smell.
+- **`@ptt/shared` owns cross-boundary value domains.** `ConvertMode` and `LanguageCode` are derived from `as const` tuples next to their zod schemas, so the union and the validator cannot drift. Don't redefine them inline in `apps/desktop`.
 - **Cancellation is cooperative.** A run is never killed: the worker checks a flag between units of work and acknowledges a `cancel` message, and only a 5-second timeout falls back to a kill. A kill mid-flush used to leave a truncated translation memory.
-- **The sandboxed preload only imports zod-free modules.** Concretely: import IPC channel constants from `@ptt/shared-types/ipc-channels`, never from the package root. Anything reachable from the preload's import graph gets bundled into the CJS output, and the preload is meant to stay tiny.
-- **All user input is validated at the IPC boundary** with Zod schemas from `@ptt/shared-types`. The bridge ([`apps/desktop/src/main/ipc/bridge.ts`](../apps/desktop/src/main/ipc/bridge.ts)) rejects malformed envelopes before any procedure runs.
+- **The sandboxed preload only imports zod-free modules.** Concretely: import IPC channel constants from `@ptt/shared/ipc-channels`, never from the package root. Anything reachable from the preload's import graph gets bundled into the CJS output, and the preload is meant to stay tiny.
+- **All user input is validated at the IPC boundary** with Zod schemas from `@ptt/shared`. The bridge ([`apps/desktop/src/main/ipc/bridge.ts`](../apps/desktop/src/main/ipc/bridge.ts)) rejects malformed envelopes before any procedure runs.
 - **`shell.openPath` goes through the path policy** ([`apps/desktop/src/main/services/path-policy.ts`](../apps/desktop/src/main/services/path-policy.ts)). The policy is multi-layer: directory check → critical-folder blocklist → trusted sources (registry / Paradox-typical paths / persisted user-allowed) → interactive bypass modal. See [known-issues.md](./known-issues.md#folder-authorisation-prompts).
 - **i18n keys come from `@ptt/i18n` only.** No literal strings in renderer components for user-visible text. Plural variants must be filled for every CLDR category present in the locale, otherwise lookups return empty.
 - **Long-running tRPC procedures are explicit.** A renderer-side watchdog rejects IPC requests that don't reply within 120 s. Procedures whose work outlives that window (currently `converter.scan`, `converter.run`, `converter.scanMods`, `converter.convert`) are listed in `LONG_RUNNING_PATHS` in [`ipc-link.ts`](../apps/desktop/src/renderer/src/lib/ipc-link.ts) and signal completion through job events instead.

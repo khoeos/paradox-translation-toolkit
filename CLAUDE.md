@@ -7,7 +7,7 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
 
 - Architecture and responsibilities : `docs/architecture.md`, section
   "Invariants worth preserving" (canonical, with two stale bullets : cross-boundary
-  types are NOT all in `@ptt/shared-types`, see the duplications below)
+  types are NOT all in `@ptt/shared`, see the duplications below)
 - Add a game : `docs/game-support.md` (copy `games/game-stellaris`)
 - Add a UI language : `docs/ui-language.md` (CLDR plural variants trap)
 - Release, changesets, beta channel : `docs/publishing.md`
@@ -17,35 +17,53 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
 
 ## Invariants (violable silently : watch these)
 
-- `packages/parser-core`, `packages/converter-core`, `packages/translate-core` and
-  `packages/report-core` are FS-agnostic : no `node:fs`, no Electron imports. They reach
-  the FS only through the injected `FsLike` (`converter-core/src/types.ts`, in-memory fake
-  at `converter-core/test/memory-fs.ts`, exported as `@ptt/converter-core/test/memory-fs`) ;
-  `parser-core` is pure text and has no FS notion at all. `translate-core` reaches the
-  network only through an injected `FetchLike`.
+- `packages/parser`, `packages/converter`, `packages/translate` and
+  `packages/report` are FS-agnostic : no `node:fs`, no Electron imports. This is now
+  enforced rather than asserted, by `no-restricted-imports` in `.oxlintrc.json`
+  (`packages/**` and `games/**`, `packages/fs-node/**` excluded) plus `"types": []` on
+  every one of them. It used to be enforced in half the packages it was claimed of : a
+  `/// <reference types="node" />` in translate leaked node's globals through the import
+  graph and a probe importing `node:fs` compiled clean in translate and report. The
+  directive is now `/// <reference lib="dom" />` in `translate/src/http.ts`, which gives
+  that file the `AbortSignal` and `URL` VALUES it genuinely needs without re-admitting
+  `node:fs`, `process` and `Buffer`. It sits in the source, not in a tsconfig, on purpose :
+  these packages point `main` at `./src`, so every consumer typechecks their raw `.ts`
+  inside its own program, and the requirement has to travel with the file (that is why
+  `report` briefly needed `"types": ["node"]` for globals none of its own files use).
+  The lint rule is still what catches a bare `import 'crypto'` or an `import 'electron'`,
+  which no `types` setting can see.
+- They reach the FS only through the injected `FsLike`, and the network only through the
+  injected `FetchLike`. Both contracts live in `@ptt/shared` (`shared/src/ports.ts`), not
+  in whichever package needed them first ; in-memory FS fake at
+  `converter/test/memory-fs.ts`, exported as `@ptt/converter/test/memory-fs`.
+  `parser` is pure text and has no FS notion at all.
 - Only `apps/desktop` may touch Electron. The real filesystem is reached through
   `@ptt/fs-node`, whose single `nodeFs` is imported by `apps/desktop` and `apps/cli` ; no
   other package imports `node:fs`.
-- The preload's only cross-package import is `@ptt/shared-types/ipc-channels`, the
+- The preload's only cross-package import is `@ptt/shared/ipc-channels`, the
   zod-free subexport (the other import is `electron` itself). Anything reachable
   from the preload import graph ships in the preload bundle.
-- The mod-level pipeline (`scanMods`, `runConvert`) lives in `converter-core` and takes a
+- The mod-level pipeline (`scanMods`, `runConvert`) lives in `converter` and takes a
   `ProgressPort` : `apps/desktop`'s worker and `apps/cli` call the same functions, which is
   what stops the two drifting. The translation engine reaches it as an injected
-  `TranslationEnginePort`, so `converter-core -> translate-core` stays absent.
-- The renderer value-imports only zod-free subexports : `@ptt/converter-core/progress` for
-  `JobEvent` / `isJobEvent`, `@ptt/translate-core/defaults` for the settings bounds. A value
+  `TranslationEnginePort`, so `converter -> translate` stays absent.
+- The renderer value-imports only zod-free subexports : `@ptt/converter/progress` for
+  `JobEvent` / `isJobEvent`, `@ptt/translate/defaults` for the settings bounds. A value
   import of a package root pulls zod and the whole pipeline into the renderer bundle (check
   with `grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
 - `games/game-registry` array order = UI tab order (`builtInGames` ->
   `getGameSummaries()` -> `games.list` -> `GameTabs`, no sort on the path). A new
   game also needs its tab image wired in `GameTabs.tsx`.
-- parser-core round-trip guarantee : parse -> mutate -> serialize must not
+- parser round-trip guarantee : parse -> mutate -> serialize must not
   introduce diff noise (BOM, CRLF/LF per locale, escapes preserved).
-- Coverage thresholds live in each core's `vitest.config.ts` (lines/functions/statements 90 ;
-  branches 85 parser-core, 80 elsewhere). They are NOT a gate : `test` is `vitest run` with
-  no `--coverage`, so CI never evaluates them. Run
-  `pnpm --filter @ptt/converter-core exec vitest run --coverage` to check.
+- Coverage thresholds live once, in `vitest.shared.ts` at the root (lines/functions/statements
+  90 ; branches 85 parser, 80 elsewhere) ; each library's `vitest.config.ts` is a two-line call
+  to `libraryVitestConfig()`. They are NOT a gate : `test` is `vitest run` with no
+  `--coverage`, so CI never evaluates them. Run
+  `pnpm --filter @ptt/converter exec vitest run --coverage` to check. `converter` misses all
+  four today (statements 86.87, branches 77.87 against the 80 floor, functions 88.40, lines
+  89.07), because `run.ts` (`runConvert`, the orchestrator both front ends share, at 1.11%)
+  and `generated-mod-paths.ts` (0%) have no test file at all.
 - `apps/desktop`'s vitest runs in `environment: 'node'`, so nothing that renders JSX is
   tested. Keep renderer logic in stores and `lib/` modules where it can be
   (`lib/estimate.ts` exists for that reason) ; see `docs/testing.md` for what a jsdom
@@ -64,7 +82,7 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   assertion here but the replacement (`LANGUAGE_CODES`, `VALID_UI_LANGUAGES` are
   `as const` tuples so `z.enum()` can derive the union).
 - Legitimate and staying : key widening from `Object.entries()` / `Object.keys()`
-  over a `Partial<Record<K, V>>` (`converter-core/src/plan.ts`, `scan.ts`,
+  over a `Partial<Record<K, V>>` (`converter/src/plan.ts`, `scan.ts`,
   `game-registry/src/index.ts`) ; external types that are wrong or closed
   (electron-store `Store.set`, tRPC `_def._config`, `TRPCClientError.from`) ;
   `packages/ui` (vendored shadcn, never hand-edited) ; fixture traversal in tests.
@@ -73,7 +91,7 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   `main/ipc/bridge.ts`), but `main -> renderer` and `main -> worker` are not
   (`renderer/src/lib/ipc-link.ts`, `main/workers/converter.worker.ts` cast raw
   messages). Use zod there rather than adding a third cast. `LanguageCode` is the
-  most-asserted type and `LanguageCodeSchema` already exists in `@ptt/shared-types` :
+  most-asserted type and `LanguageCodeSchema` already exists in `@ptt/shared` :
   derive an `isLanguageCode` guard from it instead of `value as LanguageCode`.
 - Non-null `!` is fine in tests (`writes[0]!` is the direct cost of
   `noUncheckedIndexedAccess`), avoid it in `src`.
@@ -84,25 +102,25 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   with no consumer yet. Import `@ptt/ui/components/<kebab-name>` (no root `.`
   export) and `cn` from `@ptt/ui/lib/utils`. A missing primitive is installed
   (shadcn MCP in `.mcp.json`, or `pnpm dlx shadcn add`), never pasted.
-- Never hand-roll path strings : `@ptt/converter-core` exports `posixJoin`,
+- Never hand-roll path strings : `@ptt/converter` exports `posixJoin`,
   `posixDirname`, `posixBasename`, `posixSplit`, `posixNormalize`,
   `posixNormalizeStrict` (throws on `.` / `..`) and `posixContains` (sandbox
   containment). Two current bypasses are bugs to fix, not patterns to copy :
   `VirtualizedFileList.tsx` open-codes `posixDirname`, `main/services/path-policy.ts`
   re-creates `posixSplit` as `segmentsOf` next to the traversal guards.
-- All `_l_<lang>.yml` text goes through `@ptt/parser-core` (`parse` / `serialize`),
+- All `_l_<lang>.yml` text goes through `@ptt/parser` (`parse` / `serialize`),
   filenames through `parseFilename` / `buildFilename` ; the filename regex lives in
-  `parser-core/src/filename.ts` and nowhere else.
+  `parser/src/filename.ts` and nowhere else.
 - UI strings : write `t('section.key')` (plain dotted keys, no namespaces), then
   `pnpm --filter @ptt/i18n run extract`. Never invent a key directly in
   `packages/i18n/src/locales/*.json`, only fill translated values ; CI runs
   `extract:check`. `useTranslation` comes from `react-i18next`, and outside
   components use `i18next.t` (as `renderer/src/store/jobs.ts` does).
-- `JobEvent` and `isJobEvent` now live in `converter-core/src/progress.ts`, with a
+- `JobEvent` and `isJobEvent` now live in `converter/src/progress.ts`, with a
   `JOB_EVENT_TYPES` tuple the guard checks against : a variant one side emits and the other
   does not handle is rejected rather than falling through a `switch`. One duplication is
   left : `UpdaterStatus` + `UpdaterEvent` (`main/services/updater-service.ts` +
-  `renderer/src/store/updater.ts`) belong in `@ptt/shared-types`, and `isUpdaterEvent` still
+  `renderer/src/store/updater.ts`) belong in `@ptt/shared`, and `isUpdaterEvent` still
   only checks that `type` is a string.
 - Internal deps are always `workspace:*` ; third-party deps shared by 2+ packages
   belong in the `catalog:` block of `pnpm-workspace.yaml`. Three shared deps are
@@ -153,10 +171,13 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   re-pointed to `@renderer/*`. Cross-package, import a declared `exports` subpath.
 - Tests are always `*.test.ts` (no `.spec.`, no `__tests__/`) ; location is
   per-workspace : `packages/*` and `games/*` use a `test/` sibling of `src/`,
-  `apps/desktop` colocates as `src/**/*.test.ts`. Only 3 workspaces pin an `include`
-  (`apps/desktop`, parser-core, converter-core) : there, a test outside the glob is
-  never run and `pnpm test` stays green. Shared helpers must keep no `.test` segment
-  (`converter-core/test/memory-fs.ts`, `fixtures.ts`).
+  `apps/desktop` and `apps/cli` colocate as `src/**/*.test.ts`. Every workspace with a
+  `vitest.config.ts` pins an `include`, 7 of them : the five `packages/*` libraries through
+  `libraryVitestConfig()`'s `test/**/*.test.ts`, plus the two apps' `src/**/*.test.ts`.
+  There, a test outside the glob is never run and `pnpm test` stays green, so a colocated
+  `src/foo.test.ts` in a `packages/*` library is a file nothing executes. Only `games/*`
+  are unpinned, having no config. Shared helpers must keep no `.test` segment
+  (`converter/test/memory-fs.ts`, `fixtures.ts`).
 
 ## Gotchas
 

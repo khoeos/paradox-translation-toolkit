@@ -1,8 +1,8 @@
-import { runConvert } from '@ptt/converter-core'
-import type { Cancellation, ConversionOutput, TranslationMod } from '@ptt/converter-core'
+import { runConvert } from '@ptt/converter'
+import type { Cancellation, ConversionOutput, TranslationMod } from '@ptt/converter'
 import { nodeFetch, nodeFs } from '@ptt/fs-node'
-import { buildRunReport, writeRunReport } from '@ptt/report-core'
-import { createEngineForRun } from '@ptt/translate-core'
+import { buildRunReport, writeRunReport } from '@ptt/report'
+import { createEngineForRun } from '@ptt/translate'
 
 import { consolePort } from '../console-port.js'
 import type { CliOptions } from '../options.js'

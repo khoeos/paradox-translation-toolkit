@@ -1,4 +1,4 @@
-import type { GameDefinition } from '@ptt/shared-types'
+import type { GameDefinition } from '@ptt/shared'
 
 export const eu5: GameDefinition = {
   id: 'eu5',

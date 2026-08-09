@@ -1,13 +1,13 @@
-import { posixJoin } from '@ptt/converter-core'
+import { posixJoin } from '@ptt/converter'
 import { nodeFetch, nodeFs } from '@ptt/fs-node'
-import type { LanguageCode } from '@ptt/shared-types'
-import type { FetchLike, TranslateConfig } from '@ptt/translate-core'
+import type { LanguageCode } from '@ptt/shared'
+import type { FetchLike, TranslateConfig } from '@ptt/translate'
 import {
   LANGUAGE_DISPLAY_NAMES,
   TranslationMemory,
   clearMemoryFiles,
   createProvider
-} from '@ptt/translate-core'
+} from '@ptt/translate'
 
 import { log } from '../log.js'
 

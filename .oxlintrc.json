@@ -12,6 +12,78 @@
     "unicorn/require-module-specifiers": "off",
     "unicorn/require-post-message-target-origin": "off"
   },
+  "overrides": [
+    {
+      "files": ["packages/**/*.ts", "packages/**/*.tsx", "games/**/*.ts"],
+      "excludeFiles": ["packages/fs-node/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "node:*",
+                  "electron",
+                  "electron/*",
+                  "assert",
+                  "assert/strict",
+                  "async_hooks",
+                  "buffer",
+                  "child_process",
+                  "cluster",
+                  "console",
+                  "constants",
+                  "crypto",
+                  "dgram",
+                  "diagnostics_channel",
+                  "dns",
+                  "dns/promises",
+                  "domain",
+                  "events",
+                  "fs",
+                  "fs/promises",
+                  "http",
+                  "http2",
+                  "https",
+                  "inspector",
+                  "module",
+                  "net",
+                  "os",
+                  "path",
+                  "path/posix",
+                  "path/win32",
+                  "perf_hooks",
+                  "process",
+                  "punycode",
+                  "querystring",
+                  "readline",
+                  "readline/promises",
+                  "repl",
+                  "stream",
+                  "stream/promises",
+                  "stream/web",
+                  "string_decoder",
+                  "timers",
+                  "timers/promises",
+                  "tls",
+                  "trace_events",
+                  "tty",
+                  "url",
+                  "util",
+                  "v8",
+                  "vm",
+                  "worker_threads",
+                  "zlib"
+                ],
+                "message": "This package must stay platform-agnostic: take an injected FsLike or FetchLike (@ptt/shared), or put the code in @ptt/fs-node, the one workspace allowed to import node builtins. Only apps/desktop may import electron. The bare specifiers are listed alongside node:* because `import 'crypto'` resolves to the builtin just as `import 'node:crypto'` does, and neither the pattern nor the typechecker would otherwise see it."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
   "ignorePatterns": [
     "deprecated/**",
     "**/dist/**",

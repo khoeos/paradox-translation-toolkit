@@ -1,7 +1,6 @@
 import { promises as fs } from 'node:fs'
 
-import type { FsLike } from '@ptt/converter-core'
-import type { FetchLike } from '@ptt/translate-core'
+import type { FetchLike, FsLike } from '@ptt/shared'
 
 /**
  * The one production `FsLike`.
@@ -58,7 +57,7 @@ export const nodeFs: FsLike = {
  * Same story as `nodeFs`: the desktop worker, the desktop translate service and two CLI commands
  * each carried a byte-identical copy, so a timeout, a proxy or a header added for one of them
  * would have left the other three behind and made the same run behave differently depending on
- * which front end started it. `@ptt/translate-core` still never reaches for a global `fetch`.
+ * which front end started it. `@ptt/translate` still never reaches for a global `fetch`.
  */
 export const nodeFetch: FetchLike = async (url, init) => {
   const response = await fetch(url, init)

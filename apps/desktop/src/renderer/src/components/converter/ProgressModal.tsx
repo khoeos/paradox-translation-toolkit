@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import type { ConversionOutput, ScanOutput } from '@ptt/converter-core'
-import { PROVIDER_DEFAULTS } from '@ptt/translate-core/defaults'
+import type { ConversionOutput, ScanOutput } from '@ptt/converter'
+import { PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
 import {
   Accordion,
   AccordionContent,

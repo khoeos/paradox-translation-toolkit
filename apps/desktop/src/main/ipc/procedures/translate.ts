@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 import { getAllGameIds, getGame } from '@ptt/game-registry'
-import { LanguageCodeSchema } from '@ptt/shared-types'
-import type { TranslateConfig } from '@ptt/translate-core'
-import { TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate-core'
+import { LanguageCodeSchema } from '@ptt/shared'
+import type { TranslateConfig } from '@ptt/translate'
+import { TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
 import { publicProcedure, router } from '../trpc.js'
 

@@ -48,13 +48,13 @@ Full rewrite of the v2 codebase: new monorepo layout (per-game packages, FS-agno
 
 ## Architecture
 
-- **Per-game packages** - adding a new game is a new `@ptt/game-<id>` package + one line in the registry. No changes to `parser-core` / `converter-core` ever needed.
-- **FS-agnostic core** - `parser-core` and `converter-core` depend on no Electron or Node FS APIs. The desktop app injects a `FsLike` adapter; tests inject an in-memory fake.
-- **Single-source IPC channel constants** - defined in `@ptt/shared-types/ipc-channels`, imported by both main and the sandboxed preload (which intentionally never pulls zod into its bundle).
+- **Per-game packages** - adding a new game is a new `@ptt/game-<id>` package + one line in the registry. No changes to `parser` / `converter` ever needed.
+- **FS-agnostic core** - `parser` and `converter` depend on no Electron or Node FS APIs. The desktop app injects a `FsLike` adapter; tests inject an in-memory fake.
+- **Single-source IPC channel constants** - defined in `@ptt/shared/ipc-channels`, imported by both main and the sandboxed preload (which intentionally never pulls zod into its bundle).
 - **Auto-bumped versions & changelog** - Changesets workflow with `@changesets/changelog-github`.
 
 ## Tooling
 
-- **Vitest unit tests** across all packages: `parser-core` and `converter-core` enforce ≥ 90 % coverage. `path-policy` matrix tested on the active host OS. Game registry has an extensibility test asserting the per-game-package invariant.
+- **Vitest unit tests** across all packages: `parser` and `converter` enforce ≥ 90 % coverage. `path-policy` matrix tested on the active host OS. Game registry has an extensibility test asserting the per-game-package invariant.
 - **Lefthook** git hooks: pre-commit lint + typecheck, commit-msg conventional-commits validation, pre-push full lint/typecheck/test.
 - **GitHub Actions CI**: lint + typecheck + test on Windows + Linux for every PR; release builds on Windows + Linux + macOS for every `v*` tag.
