@@ -69,7 +69,7 @@
     "rimraf": "catalog:",
     "tailwindcss": "^4.3.3",
     "typescript": "catalog:",
-    "vite": "^7.1.0",
+    "vite": "^7.3.5",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "catalog:"
   }
