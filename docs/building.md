@@ -14,7 +14,7 @@ This guide covers building local installers for development and smoke testing. F
 ## Build commands
 
 ```bash
-pnpm --filter @ptt/desktop build:win      # NSIS installer + zip
+pnpm --filter @ptt/desktop build:win      # NSIS installer
 pnpm --filter @ptt/desktop build:linux    # AppImage + deb
 pnpm --filter @ptt/desktop build:mac      # zip + dmg (universal arm64/x64)
 pnpm --filter @ptt/desktop build:unpack   # unpacked app dir (for quick smoke testing)
@@ -42,7 +42,7 @@ Installers land in `apps/desktop/dist/`:
 
 | Target  | Files                                                     |
 | ------- | --------------------------------------------------------- |
-| Windows | `.exe` (NSIS installer), `.exe.blockmap`, portable `.zip` |
+| Windows | `.exe` (NSIS installer), `.exe.blockmap`                  |
 | Linux   | `.AppImage`, `.deb`                                       |
 | macOS   | `.dmg`, `.zip` (universal arm64/x64), blockmaps           |
 

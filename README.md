@@ -76,11 +76,11 @@ If you find an issue with a specific game, please [open an issue](https://github
 
 ## Download
 
-Get the latest installer or the standalone version from the [release page](https://github.com/khoeos/paradox-translation-toolkit/releases).
+Get the latest installer from the [release page](https://github.com/khoeos/paradox-translation-toolkit/releases).
 
 | Platform | Format                                    | Notes                                                                                               |
 | -------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Windows  | `.exe` (NSIS installer) / portable `.zip` | Primary target, fully tested. Auto-update (in progress).                                            |
+| Windows  | `.exe` (NSIS installer)                   | Primary target, fully tested. Auto-update (in progress).                                            |
 | Linux    | `.AppImage` / `.deb`                      | Unsigned. Manual update, the app notifies you, downloads happen from Releases.                      |
 | macOS    | `.dmg` / `.zip` (universal arm64/x64)     | Unsigned. Right-click → Open the first time. Manual update, the app notifies you, install yourself. |
 
