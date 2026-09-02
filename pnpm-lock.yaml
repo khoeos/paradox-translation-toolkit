@@ -10,7 +10,7 @@ catalogs:
       specifier: ^4.1.11
       version: 4.1.11
     esbuild:
-      specifier: ^0.28.2
+      specifier: ^0.28.1
       version: 0.28.2
     i18next:
       specifier: ^26.4.1
