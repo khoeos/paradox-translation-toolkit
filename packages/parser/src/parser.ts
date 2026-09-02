@@ -8,16 +8,17 @@ import type {
 } from './types.js'
 
 const BOM = '﻿'
-const HEADER_RE = /^l_([a-z_]+)\s*:\s*(\d+)?\s*(#.*)?$/i
+const HEADER_RE = /^l_([a-z_]+)\s*:\s*(?:\d+\s*)?(?:#.*)?$/i
 
-const SPACE = '[ \t\u00A0\u200B\uFEFF\u3000]'
+const SPACE_CHARS = ' \t\u00A0\u200B\uFEFF\u3000'
+const SPACE = `[${SPACE_CHARS}]`
+const KEY_EDGE = `[^:"#\r\n${SPACE_CHARS}]`
+const KEY = `${KEY_EDGE}(?:[^:"#\r\n]*${KEY_EDGE})?`
+const VERSION = `(?:(\\d+)${SPACE}*)?`
 
-const ENTRY_HEAD_RE = new RegExp(`^${SPACE}*([^:"#\r\n]+?)${SPACE}*:${SPACE}*(\\d*)${SPACE}*"`)
-const ENTRY_HEAD_NO_QUOTE_RE = new RegExp(
-  `^${SPACE}*([^:"#\r\n]+?)${SPACE}*:${SPACE}*(\\d*)${SPACE}*`
-)
+const ENTRY_HEAD_RE = new RegExp(`^${SPACE}*(${KEY})${SPACE}*:${SPACE}*${VERSION}"`)
+const ENTRY_HEAD_NO_QUOTE_RE = new RegExp(`^${SPACE}*(${KEY})${SPACE}*:${SPACE}*${VERSION}`)
 const INDENT_RE = new RegExp(`^${SPACE}*`)
-const KEY_TRIM_RE = new RegExp(`^${SPACE}+|${SPACE}+$`, 'g')
 
 interface EntryParseSuccess {
   ok: true
@@ -166,7 +167,7 @@ const headDiagnostic = (line: string, lineNum: number): Diagnostic => {
 const getEntryHeadKeyAt = (line: string, quoteIdx: number): string | null => {
   const head = ENTRY_HEAD_RE.exec(line)
   if (head === null || head[0].length !== quoteIdx + 1) return null
-  const key = (head[1] ?? '').replaceAll(KEY_TRIM_RE, '')
+  const key = head[1] ?? ''
   return key === '' ? null : key
 }
 
@@ -179,7 +180,7 @@ function parseEntryLines(
   const startLineNum = startIdx + 1
 
   const head = ENTRY_HEAD_RE.exec(startLine)
-  const key = head === null ? '' : (head[1] ?? '').replaceAll(KEY_TRIM_RE, '')
+  const key = head === null ? '' : (head[1] ?? '')
   if (head === null || key === '') {
     return { ok: false, diagnostic: headDiagnostic(startLine, startLineNum) }
   }

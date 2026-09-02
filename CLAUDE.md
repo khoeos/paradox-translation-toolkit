@@ -109,7 +109,7 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   `VirtualizedFileList.tsx` open-codes `posixDirname`, `main/services/path-policy.ts`
   re-creates `posixSplit` as `segmentsOf` next to the traversal guards.
 - All `_l_<lang>.yml` text goes through `@ptt/parser` (`parse` / `serialize`),
-  filenames through `parseFilename` / `buildFilename` ; the filename regex lives in
+  filenames through `parseFilename` / `buildFilename` ; the `_l_<lang>.yml` filename grammar lives in
   `parser/src/filename.ts` and nowhere else.
 - UI strings : write `t('section.key')` (plain dotted keys, no namespaces), then
   `pnpm --filter @ptt/i18n run extract`. Never invent a key directly in

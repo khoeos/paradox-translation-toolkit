@@ -58,6 +58,38 @@ describe('parseFilename', () => {
       language: 'english'
     })
   })
+
+  it('splits at the last marker when the base itself contains one', () => {
+    expect(parseFilename('mod_l_english_l_french.yml')).toEqual({
+      base: 'mod_l_english',
+      language: 'french'
+    })
+  })
+
+  it('falls back to an earlier marker when the last one has no language', () => {
+    expect(parseFilename('mod_l_eng_l_.yml')).toEqual({ base: 'mod', language: 'eng_l_' })
+  })
+
+  it('accepts an upper-case marker and extension', () => {
+    expect(parseFilename('MOD_L_ENGLISH.YML')).toEqual({ base: 'MOD', language: 'english' })
+  })
+
+  it('rejects a language holding a non-letter', () => {
+    expect(parseFilename('mod_l_eng-lish.yml')).toBeNull()
+    expect(parseFilename('mod_l_english2.yml')).toBeNull()
+  })
+
+  it('rejects an empty base or an empty language', () => {
+    expect(parseFilename('_l_english.yml')).toBeNull()
+    expect(parseFilename('mod_l_.yml')).toBeNull()
+  })
+
+  it('stays linear on a name repeating the marker', () => {
+    const name = `${'_l_a'.repeat(50_000)}.`
+    const start = Date.now()
+    expect(parseFilename(name)).toBeNull()
+    expect(Date.now() - start).toBeLessThan(500)
+  })
 })
 
 describe('buildFilename', () => {

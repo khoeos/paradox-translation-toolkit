@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, develop, wip/release]
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     strategy:

@@ -1,7 +1,5 @@
 import { isRecord } from './guards.js'
 
-const JSON_BLOCK_RE = /\{[\s\S]*\}|\[[\s\S]*\]/
-
 export interface ParsedAnswer {
   slots: Array<string | undefined>
   keyed: boolean
@@ -29,9 +27,9 @@ function parseJson(content: string): unknown {
   try {
     return JSON.parse(content)
   } catch {
-    const match = JSON_BLOCK_RE.exec(content)
-    if (!match) throw new Error('Model did not answer with JSON')
-    return JSON.parse(match[0])
+    const block = extractJsonBlock(content)
+    if (block === null) throw new Error('Model did not answer with JSON')
+    return JSON.parse(block)
   }
 }
 
@@ -50,4 +48,15 @@ function extractCollection(parsed: unknown): unknown[] | Record<string, unknown>
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
+}
+
+function extractJsonBlock(content: string): string | null {
+  const lastBrace = content.lastIndexOf('}')
+  const lastBracket = content.lastIndexOf(']')
+  for (let index = 0; index < content.length; index++) {
+    const char = content[index]
+    if (char === '{' && lastBrace > index) return content.slice(index, lastBrace + 1)
+    if (char === '[' && lastBracket > index) return content.slice(index, lastBracket + 1)
+  }
+  return null
 }

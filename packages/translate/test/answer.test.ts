@@ -28,8 +28,18 @@ describe('parseAnswer - shapes', () => {
     expect(parseAnswer(content, 1).slots).toEqual(['un'])
   })
 
+  it('skips an unclosed brace and digs the array out after it', () => {
+    expect(parseAnswer('note { see: ["un"] done', 1).slots).toEqual(['un'])
+  })
+
   it('throws when there is no JSON at all', () => {
     expect(() => parseAnswer('I cannot do that', 1)).toThrow(/did not answer with JSON/)
+  })
+
+  it('stays linear on a run of unclosed braces', () => {
+    const start = Date.now()
+    expect(() => parseAnswer('{'.repeat(50_000), 1)).toThrow(/did not answer with JSON/)
+    expect(Date.now() - start).toBeLessThan(500)
   })
 
   it('throws when the JSON holds no collection', () => {

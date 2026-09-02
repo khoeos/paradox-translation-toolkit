@@ -39,6 +39,17 @@ describe('TOKEN_PATTERN', () => {
     expect(extractTokens('text #bold')).toEqual([])
   })
 
+  it('starts a scope token at the innermost opening bracket', () => {
+    expect(extractTokens('[a [ROOT.GetName]')).toEqual(['[ROOT.GetName]'])
+  })
+
+  it('stays linear on a run of unclosed brackets', () => {
+    const value = `${'['.repeat(50_000)}\n[]`
+    const start = Date.now()
+    expect(extractTokens(value)).toEqual(['[]'])
+    expect(Date.now() - start).toBeLessThan(500)
+  })
+
   it('is reusable across calls despite being a global regexp', () => {
     const value = 'a $X$ b'
     expect(extractTokens(value)).toEqual(['$X$'])

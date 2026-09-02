@@ -10,6 +10,18 @@ describe('trimTrailingSlash', () => {
   it('leaves a clean URL alone', () => {
     expect(trimTrailingSlash('https://api.openai.com/v1')).toBe('https://api.openai.com/v1')
   })
+
+  it('empties a string made of slashes only', () => {
+    expect(trimTrailingSlash('///')).toBe('')
+    expect(trimTrailingSlash('')).toBe('')
+  })
+
+  it('stays linear on a long run of inner slashes', () => {
+    const url = `${'/'.repeat(50_000)}a/`
+    const start = Date.now()
+    expect(trimTrailingSlash(url)).toBe(`${'/'.repeat(50_000)}a`)
+    expect(Date.now() - start).toBeLessThan(500)
+  })
 })
 
 describe('withCancel', () => {

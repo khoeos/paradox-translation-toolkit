@@ -72,6 +72,29 @@ describe('parse - language header', () => {
     expect(result.file.language).toBe('english')
   })
 
+  it('accepts blanks around the header colon, version and comment', () => {
+    const result = parse(`l_english \t: \t 12 \t # c\n KEY:0 "value"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.language).toBe('english')
+  })
+
+  it('stays linear on a header line padded with blanks', () => {
+    const start = Date.now()
+    const result = parse(`l_english:${' '.repeat(50_000)}x\n`)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.some(d => d.code === 'no-header')).toBe(true)
+    expect(Date.now() - start).toBeLessThan(500)
+  })
+
+  it('stays linear on an entry line made of blanks', () => {
+    const blanks = ' '.repeat(2_000)
+    const start = Date.now()
+    const result = parse(`l_english:\n${blanks}\t${blanks}:${blanks}\n${blanks}k${blanks}\n`)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.map(d => d.code)).toEqual(['expected-key', 'expected-colon'])
+    expect(Date.now() - start).toBeLessThan(500)
+  })
+
   it('accepts a comment on the header line', () => {
     const result = parse(`l_english: # c\n KEY:0 "value"\n`)
     expect(result.ok).toBe(true)

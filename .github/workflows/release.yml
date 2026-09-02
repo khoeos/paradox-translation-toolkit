@@ -11,6 +11,8 @@ on:
         required: false
         type: string
 
+permissions: {}
+
 jobs:
   platforms:
     name: Resolve platforms

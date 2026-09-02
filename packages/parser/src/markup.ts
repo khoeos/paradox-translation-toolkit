@@ -1,5 +1,5 @@
 export const TOKEN_PATTERN =
-  /\$[^$\n]*\$|\[[^\]\n]*\]|£[^£\n]*£|£\w+|§.|@\w+!|#[a-zA-Z_;]+(?=\s)|#!|\\n|\\t/g
+  /\$[^$\n]*\$|\[[^[\]\n]*\]|£[^£\n]*£|£\w+|§.|@\w+!|#[a-zA-Z_;]+(?=\s)|#!|\\n|\\t/g
 
 const TOKEN_TEST = new RegExp(TOKEN_PATTERN.source)
 

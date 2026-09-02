@@ -42,5 +42,7 @@ export function checkBaseUrl(baseUrl: string, hasApiKey: boolean): BaseUrlCheck 
 }
 
 export function trimTrailingSlash(baseUrl: string): string {
-  return baseUrl.replace(/\/+$/, '')
+  let end = baseUrl.length
+  while (end > 0 && baseUrl[end - 1] === '/') end--
+  return baseUrl.slice(0, end)
 }
