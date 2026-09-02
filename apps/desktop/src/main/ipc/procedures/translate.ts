@@ -1,22 +1,14 @@
 import { z } from 'zod'
 
-import { getAllGameIds, getGame } from '@ptt/game-registry'
+import { getAllGameIds, getGame } from '@ptt/games'
 import { LanguageCodeSchema } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
 import { TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
 import { publicProcedure, router } from '../trpc.js'
 
-/**
- * Translation-side procedures.
- *
- * Ported from PR #4 (e21ee7a, the `TEST_PROVIDER` and `CLEAR_MEMORY` IPC channels) by
- * Artem Kondrashev.
- */
-
 const GameIdSchema = z.enum(getAllGameIds())
 
-/** The settings a run needs, minus the API key, which never leaves the renderer's memory. */
 export const TranslateConfigSchema = z.object({
   enabled: z.boolean(),
   provider: z.enum(TRANSLATE_PROVIDERS),
@@ -41,12 +33,6 @@ export const TranslateConfigSchema = z.object({
 
 export type TranslateConfigInput = z.infer<typeof TranslateConfigSchema>
 
-/**
- * The validated input as a `TranslateConfig`.
- *
- * zod renders an optional field as `T | undefined`, which `exactOptionalPropertyTypes` refuses to
- * assign to `field?: T`. Dropping the absent keys is the honest conversion.
- */
 export function toTranslateConfig(input: TranslateConfigInput): TranslateConfig {
   return {
     enabled: input.enabled,
@@ -64,7 +50,6 @@ export function toTranslateConfig(input: TranslateConfigInput): TranslateConfig 
 }
 
 export const translateRouter = router({
-  /** One round trip against the configured backend, so a misconfiguration is caught early. */
   testProvider: publicProcedure
     .input(
       z.object({
@@ -82,11 +67,9 @@ export const translateRouter = router({
       })
     }),
 
-  /** Forget every translation learnt so far, for one game or for all of them. */
   clearMemory: publicProcedure
     .input(z.object({ gameId: GameIdSchema.optional() }))
     .mutation(({ ctx, input }) => ctx.translate.clearMemory(input.gameId)),
 
-  /** Ask for the game installation folder: its own localisation is the best glossary there is. */
   pickGamePath: publicProcedure.mutation(({ ctx }) => ctx.dialog.pickFolder())
 })

@@ -3,15 +3,6 @@ import { chmod, mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-/**
- * Bundle the CLI once, rather than on every invocation.
- *
- * The original `scripts/ptt.mjs` rebuilt on each call: it existed to work around cmd.exe
- * re-escaping carets in arguments with spaces, by keeping everything in one node process. A real
- * `bin` entry plus a bundle built by `pnpm --filter @ptt/cli build` gets the same result without
- * paying esbuild every time. esbuild is a declared devDependency here rather than a transitive
- * resolution through vite, which the PR #4 audit flagged as an environment trap.
- */
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
 

@@ -1,15 +1,11 @@
-import { getAllGameIds } from '@ptt/game-registry'
+import { getAllGameIds } from '@ptt/games'
 import { LANGUAGE_CODES } from '@ptt/shared'
 import { TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
+import { STATE_ORDER } from './commands/audit.js'
 import { DEFAULT_CONFIG_FILE } from './config.js'
 import { bold, cyan } from './output.js'
 
-/**
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `HELP`) by Artem Kondrashev. The defaults quoted
- * here are read from the same constants the code uses, so the help cannot drift from the behaviour
- * the way the original's two copies of the defaults did (audit finding Q-5).
- */
 export function help(): string {
   return `
 ${bold('Paradox Translation Toolkit - developer CLI')}
@@ -44,11 +40,14 @@ ${bold('Common flags')}
   --config <file>       Read flags from this file instead of ${DEFAULT_CONFIG_FILE}
 
 ${bold('audit flags')}
-  --state <name>        own, patch, generated, kept, english, missing, or all
+  --state <name>        ${STATE_ORDER.join(', ')}, or all
                         (default english: the ones a retry could still fix)
 
 ${bold('convert flags')}
   --mode <name>         mod (default), add, extract
+  --content <name>      missing (default), complete, regenerate - what the written file
+                        holds; regenerate discards existing values, only reachable with
+                        --mode add
   --out <dir>           Destination for --mode extract
   --mods <a,b,c>        Only these mod folders
   --translate           Actually translate, instead of copying the source strings
@@ -72,6 +71,7 @@ ${bold('reports flags')}
 ${bold('Examples')}
   ptt scan --path "D:/SteamLibrary/steamapps/workshop/content/1158310"
   ptt audit --state english --limit 50 --csv refused.csv
+  ptt audit --state copy --csv v2-leftovers.csv
   ptt audit --mod "Muslim Enchantments" --state missing
   ptt convert --translate --provider rapidapi --batch 150
 `

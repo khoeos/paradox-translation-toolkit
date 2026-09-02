@@ -14,7 +14,6 @@ export interface AppContext {
   dialog: typeof dialogService
 }
 
-/** Built once at boot. */
 export function createContext(deps: {
   converter: ConverterService
   settings: SettingsService

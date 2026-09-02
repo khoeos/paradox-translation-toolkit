@@ -1,7 +1,10 @@
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import type { ConversionOutput, ScanOutput } from '@ptt/converter'
+import type { DiagnosticSeverity, ScanPhase, ScanRunningTotals } from '@ptt/converter/progress'
+import type { LanguageCode } from '@ptt/shared'
 import { PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
 import {
   Accordion,
@@ -12,41 +15,74 @@ import {
 import { Button } from '@ptt/ui/components/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@ptt/ui/components/dialog'
 import { Progress } from '@ptt/ui/components/progress'
+import { ScrollArea } from '@ptt/ui/components/scroll-area'
+import { cn } from '@ptt/ui/lib/utils'
 
 import { estimateDuration } from '@renderer/lib/estimate'
+import { getLogSeverityStyle } from '@renderer/lib/log-severity'
+import { formatElapsed, scanPhasePercent } from '@renderer/lib/scan-progress'
 import { trpc } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
-import type { JobState, JobStatus } from '@renderer/store/jobs'
+import type { JobState, JobStatus, LogEntry } from '@renderer/store/jobs'
 import { useJobsStore } from '@renderer/store/jobs'
 
 import { VirtualizedFileList } from './VirtualizedFileList'
 
-/** Statuses during which the modal must not be dismissed. */
-const RUNNING_STATUSES = new Set<JobStatus>([
-  'scanning',
-  'processing-mods',
-  'translating',
-  'applying'
-])
+const RUNNING_STATUSES = new Set<JobStatus>(['scanning', 'processing-mods', 'translating'])
 
-/** A bar with nothing to measure still has to move, so each phase has a floor. */
-const PHASE_FLOOR: Partial<Record<JobStatus, number>> = {
-  scanning: 25,
+const STATUS_FLOOR: Partial<Record<JobStatus, number>> = {
+  scanning: 2,
   'processing-mods': 50,
-  translating: 60,
-  applying: 75
+  translating: 60
+}
+
+const STICK_TO_BOTTOM_PX = 24
+
+const TICK_MS = 1000
+
+type Translate = ReturnType<typeof useTranslation>['t']
+
+function createdByLanguage(output: ConversionOutput): Partial<Record<LanguageCode, string[]>> {
+  const merged: Partial<Record<LanguageCode, string[]>> = {}
+  for (const mod of output.mods) {
+    for (const [languageRaw, files] of Object.entries(mod.created)) {
+      const language = languageRaw as LanguageCode
+      if (!files || files.length === 0) continue
+      merged[language] = [...(merged[language] ?? []), ...files]
+    }
+  }
+  return merged
 }
 
 function progressFor(job: JobState): number {
   if (job.status === 'done' || job.status === 'scan-finished') return 100
+  if (job.phase !== null && job.status !== 'translating') {
+    return scanPhasePercent(job.phase, job.phaseDone, job.phaseTotal)
+  }
   if (job.modsTotal > 0) return (job.modsProcessed / job.modsTotal) * 100
-  if (job.status === 'scanning' && job.scanTotal > 0) {
-    return (job.scanProcessed / job.scanTotal) * 100
+  return STATUS_FLOOR[job.status] ?? 0
+}
+
+function phaseLabel(t: Translate, phase: ScanPhase): string {
+  switch (phase) {
+    case 'reading-generated':
+      return t('modal.phase.readingGenerated')
+    case 'discovering':
+      return t('modal.phase.discovering')
+    case 'building-coverage':
+      return t('modal.phase.buildingCoverage')
+    case 'planning':
+      return t('modal.phase.planning')
   }
-  if (job.status === 'applying' && job.applyTotal > 0) {
-    return (job.applyProcessed / job.applyTotal) * 100
+}
+
+function severityLabel(t: Translate, severity: DiagnosticSeverity): string {
+  switch (severity) {
+    case 'warning':
+      return t('modal.log.severity.warning')
+    case 'error':
+      return t('modal.log.severity.error')
   }
-  return PHASE_FLOOR[job.status] ?? 0
 }
 
 const DURATION_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -58,33 +94,24 @@ const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   hour12: false
 })
 
-type FilesByLanguageKind = 'created' | 'overwritten'
-
-const SECTION_I18N: Record<FilesByLanguageKind, { title: string; perLang: string }> = {
-  created: { title: 'modal.filesCreated', perLang: 'modal.filesPerLang' },
-  overwritten: { title: 'modal.filesOverwritten', perLang: 'modal.overwrittenPerLang' }
-}
-
 interface FilesByLanguageSectionProps {
-  kind: FilesByLanguageKind
   files: Partial<Record<string, string[]>>
   onPick: (dir: string) => void
 }
 
-function FilesByLanguageSection({ kind, files, onPick }: FilesByLanguageSectionProps) {
+function FilesByLanguageSection({ files, onPick }: FilesByLanguageSectionProps) {
   const { t } = useTranslation()
   const entries = Object.entries(files)
   if (entries.length === 0) return null
-  const keys = SECTION_I18N[kind]
 
   return (
     <div className="border rounded bg-muted/30">
-      <div className="px-3 py-3 text-sm font-semibold">{t(keys.title)}</div>
+      <div className="px-3 py-3 text-sm font-semibold">{t('modal.filesCreated')}</div>
       <Accordion multiple className="border-none">
         {entries.map(([lang, langFiles]) => (
-          <AccordionItem key={`${kind}-${lang}`} value={`${kind}-${lang}`}>
+          <AccordionItem key={lang} value={lang}>
             <AccordionTrigger>
-              {t(keys.perLang, {
+              {t('modal.filesPerLang', {
                 lang: t(`languages.${lang}`),
                 count: langFiles?.length ?? 0
               })}
@@ -114,7 +141,6 @@ export function ProgressModal() {
   if (!job) return null
 
   const isRunning = RUNNING_STATUSES.has(job.status)
-  const progressValue = progressFor(job)
 
   const handleClose = (): void => {
     if (!isRunning) setActive(null)
@@ -124,17 +150,14 @@ export function ProgressModal() {
     cancelMutation.mutate({ jobId: job.jobId })
   }
 
-  const created = job.report?.created ?? {}
-  const overwritten = job.report?.overwritten ?? {}
-  const hasResults = Object.keys(created).length > 0 || Object.keys(overwritten).length > 0
+  const created = job.conversion ? createdByLanguage(job.conversion) : {}
+  const hasResults = Object.keys(created).length > 0
 
   return (
     <Dialog
       open={true}
       onOpenChange={(open, eventDetails) => {
         if (open) return
-        // Base UI has no onPointerDownOutside / onEscapeKeyDown: a dismissal is
-        // refused by cancelling the open change that carries its reason.
         const dismissed =
           eventDetails.reason === 'outside-press' || eventDetails.reason === 'escape-key'
         if (isRunning && dismissed) {
@@ -149,17 +172,9 @@ export function ProgressModal() {
           <DialogTitle>{t(`modal.status.${job.status}`)}</DialogTitle>
         </DialogHeader>
 
-        {isRunning ? <Progress value={progressValue} /> : null}
+        {isRunning ? <RunningProgress job={job} /> : null}
 
-        {job.modsTotal > 0 && isRunning ? (
-          <p className="text-sm text-muted-foreground">
-            {t('modal.modProgress', {
-              processed: job.modsProcessed,
-              total: job.modsTotal,
-              name: job.currentMod ?? ''
-            })}
-          </p>
-        ) : null}
+        {job.totals && !job.scanOutput ? <ScanTally totals={job.totals} /> : null}
 
         {job.translation ? (
           <p className="text-sm text-muted-foreground">
@@ -178,34 +193,14 @@ export function ProgressModal() {
         {job.errorMessage ? <p className="text-sm text-destructive">{job.errorMessage}</p> : null}
 
         {job.status === 'done' && hasResults ? (
-          <div className="space-y-3">
-            <FilesByLanguageSection
-              kind="created"
-              files={created}
-              onPick={dir => openPath.mutate({ path: dir })}
-            />
-            <FilesByLanguageSection
-              kind="overwritten"
-              files={overwritten}
-              onPick={dir => openPath.mutate({ path: dir })}
-            />
-          </div>
+          <FilesByLanguageSection files={created} onPick={dir => openPath.mutate({ path: dir })} />
         ) : null}
 
         {job.status === 'done' && !hasResults ? (
           <p className="text-sm text-muted-foreground">{t('modal.noFilesNeeded')}</p>
         ) : null}
 
-        <div className="border rounded bg-muted/30 max-h-32 overflow-auto p-2">
-          <code className="text-xs space-y-1 block">
-            {job.log.map((entry, i) => (
-              <div key={i} className="flex gap-3">
-                <span className="text-muted-foreground">{TIME_FORMATTER.format(entry.ts)}</span>
-                <span>{entry.message}</span>
-              </div>
-            ))}
-          </code>
-        </div>
+        <LogPanel entries={job.log} />
 
         <div className="flex justify-end gap-2">
           {isRunning ? (
@@ -221,17 +216,131 @@ export function ProgressModal() {
   )
 }
 
+interface RunningProgressProps {
+  job: JobState
+}
+
+function RunningProgress({ job }: RunningProgressProps) {
+  const { t } = useTranslation()
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), TICK_MS)
+    return () => clearInterval(id)
+  }, [])
+
+  const counted = job.phaseTotal !== null && job.phaseTotal > 0
+  const phase = job.phase
+  let activity: string | null = null
+  if (phase !== null) {
+    const counters = counted ? ` ${job.phaseDone ?? 0}/${job.phaseTotal}` : ''
+    const lastMod = job.currentMod ? ` - ${job.currentMod}` : ''
+    activity = `${phaseLabel(t, phase)}${counters}${lastMod}`
+  } else if (job.modsTotal > 0) {
+    activity = t('modal.modProgress', {
+      processed: job.modsProcessed,
+      total: job.modsTotal,
+      name: job.currentMod ?? ''
+    })
+  }
+
+  return (
+    <div className="space-y-2">
+      <Progress value={progressFor(job)} />
+      <div className="flex items-baseline justify-between gap-3 text-sm text-muted-foreground">
+        <span className="truncate">{activity}</span>
+        <span className="shrink-0 tabular-nums" title={t('modal.elapsed')}>
+          {formatElapsed(now - job.startedAt)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+interface ScanTallyProps {
+  totals: ScanRunningTotals
+}
+
+function ScanTally({ totals }: ScanTallyProps) {
+  const { t } = useTranslation()
+
+  return (
+    <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+      <span>{t('modal.tally.files', { count: totals.files })}</span>
+      <span>{t('modal.tally.toCreate', { count: totals.missingFiles })}</span>
+      <span>{t('modal.tally.lines', { count: totals.missingLines })}</span>
+      {totals.warnings > 0 ? (
+        <span className="text-amber-600 dark:text-amber-500">
+          {t('modal.tally.warnings', { count: totals.warnings })}
+        </span>
+      ) : null}
+      {totals.errors > 0 ? (
+        <span className="text-destructive">
+          {t('modal.tally.errors', { count: totals.errors })}
+        </span>
+      ) : null}
+    </p>
+  )
+}
+
+interface LogPanelProps {
+  entries: LogEntry[]
+}
+
+function LogPanel({ entries }: LogPanelProps) {
+  const { t } = useTranslation()
+  const contentRef = useRef<HTMLElement>(null)
+  const followRef = useRef(true)
+  const lineCount = entries.length
+
+  useEffect(() => {
+    const viewport = contentRef.current?.closest('[data-slot="scroll-area-viewport"]')
+    if (!(viewport instanceof HTMLElement)) return undefined
+    const handleScroll = (): void => {
+      followRef.current =
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= STICK_TO_BOTTOM_PX
+    }
+    viewport.addEventListener('scroll', handleScroll, { passive: true })
+    return () => viewport.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    if (!followRef.current) return
+    const viewport = contentRef.current?.closest('[data-slot="scroll-area-viewport"]')
+    if (viewport instanceof HTMLElement) viewport.scrollTop = viewport.scrollHeight
+  }, [lineCount])
+
+  return (
+    <ScrollArea className="h-56 rounded-md border bg-muted/30">
+      <code ref={contentRef} className="block space-y-1 p-2 text-xs">
+        {entries.map((entry, i) => {
+          const severityStyle = getLogSeverityStyle(entry.severity)
+          return (
+            <div key={i} className="flex gap-2">
+              <span className="shrink-0 text-muted-foreground">
+                {TIME_FORMATTER.format(entry.ts)}
+              </span>
+              <span aria-hidden="true" className={cn('w-3 shrink-0', severityStyle.className)}>
+                {severityStyle.marker}
+              </span>
+              <span className={cn('break-all', severityStyle.className)}>
+                {entry.severity ? (
+                  <span className="sr-only">{severityLabel(t, entry.severity)} </span>
+                ) : null}
+                {entry.message}
+              </span>
+            </div>
+          )
+        })}
+      </code>
+    </ScrollArea>
+  )
+}
+
 interface ScanSummaryProps {
   output: ScanOutput
 }
 
-/**
- * What a read-only scan found, and roughly how long translating it would take.
- *
- * Ported from PR #4 (e21ee7a) by Artem Kondrashev. The estimate divides the translatable lines by
- * a per-provider rate, which the original itself described as an order of magnitude: it is there
- * to tell minutes from hours, not to promise a finish time.
- */
 function ScanSummary({ output }: ScanSummaryProps) {
   const { t } = useTranslation()
   const provider = useConverterFormStore(s => s.translate.provider)
@@ -247,9 +356,6 @@ function ScanSummary({ output }: ScanSummaryProps) {
     <div className="space-y-1 rounded-md border p-3 text-sm">
       <p>{t('modal.scanSummary.mods', { count: totals.mods })}</p>
       <p>
-        {/* `coveredKeys` only: `englishKeys` are the ones an earlier run left in the source
-            language, so counting them as covered overstates the coverage by exactly the number
-            of strings that still need work. */}
         {t('modal.scanSummary.missing', {
           files: totals.missingFiles,
           keys: totals.coveredKeys
@@ -295,7 +401,16 @@ interface ConversionSummaryProps {
 
 function ConversionSummary({ output }: ConversionSummaryProps) {
   const { t } = useTranslation()
-  const openPath = trpc.fs.openPath.useMutation()
+  const openPath = trpc.fs.openPath.useMutation({
+    onError: err => {
+      toast.error(t('modal.openPathError', { message: err.message }))
+    }
+  })
+  const showItemInFolder = trpc.fs.showItemInFolder.useMutation({
+    onError: err => {
+      toast.error(t('modal.openPathError', { message: err.message }))
+    }
+  })
   const { totals } = output
 
   return (
@@ -331,7 +446,7 @@ function ConversionSummary({ output }: ConversionSummaryProps) {
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => openPath.mutate({ path: output.reportPath ?? '' })}
+          onClick={() => showItemInFolder.mutate({ path: output.reportPath ?? '' })}
         >
           {t('modal.conversionSummary.openReport')}
         </Button>

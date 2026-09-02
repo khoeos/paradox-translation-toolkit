@@ -33,7 +33,7 @@
 - [ ] Lint and typecheck pass (`pnpm lint`, `pnpm typecheck`)
 - [ ] I have added a changeset (`pnpm changeset`) describing the change, see [docs/publishing.md](../blob/main/docs/publishing.md)
 - [ ] I have updated the documentation if needed
-- [ ] (If new game) I added smoke tests in the new `@ptt/game-<id>` package
+- [ ] (If new game) I added a row to the table-driven test in `packages/games/test/games.test.ts`
 - [ ] (If new UI language) I added the locale file and registered it in `@ptt/i18n`
 
 ## Additional notes

@@ -1,22 +1,18 @@
 import { create } from 'zustand'
 
+import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
 import type { ScannedMod } from '@ptt/converter'
-import type { ConvertMode, LanguageCode } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
-import {
-  TRANSLATE_DEFAULTS,
-  isDefaultBaseUrl,
-  PROVIDER_DEFAULTS
-} from '@ptt/translate/defaults'
+import { TRANSLATE_DEFAULTS, isDefaultBaseUrl, PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
 
 interface GameFormSnapshot {
   modFolder: string
   outputFolder: string
   sourceLanguage: LanguageCode
   targetLanguages: LanguageCode[]
+  gamePath: string
 }
 
-/** The translation settings, minus the key, which is kept out of anything persisted. */
 export type PersistedTranslate = Omit<TranslateConfig, 'apiKey'>
 
 interface ConverterFormState {
@@ -26,19 +22,13 @@ interface ConverterFormState {
   sourceLanguage: LanguageCode
   targetLanguages: Set<LanguageCode>
   mode: ConvertMode
-  overwrite: boolean
-  /** Name of the generated translation mod, shown in the launcher. */
+  targetContent: TargetContent
   modName: string
 
-  /** Result of the last scan. Emptied whenever the scan would no longer describe the form. */
   scannedMods: ScannedMod[]
   selectedMods: Set<string>
 
   translate: PersistedTranslate
-  /**
-   * The API key, in memory only, never persisted and never in a report.
-   * It lives here rather than in `translate` so no accidental serialisation can carry it.
-   */
   apiKey: string
 
   setGame: (gameId: string) => void
@@ -47,7 +37,7 @@ interface ConverterFormState {
   setOutputFolder: (path: string) => void
   setMode: (mode: ConvertMode) => void
   setSourceLanguage: (lang: LanguageCode) => void
-  setOverwrite: (overwrite: boolean) => void
+  setTargetContent: (targetContent: TargetContent) => void
   toggleTargetLanguage: (lang: LanguageCode) => void
   setModName: (name: string) => void
   setScannedMods: (mods: ScannedMod[]) => void
@@ -59,10 +49,6 @@ interface ConverterFormState {
   reset: () => void
 }
 
-/**
- * Everything a scan result depends on. Changing any of it makes the result a lie, so the list
- * is dropped rather than left on screen describing a folder the user has moved on from.
- */
 function invalidateScan(): Pick<ConverterFormState, 'scannedMods' | 'selectedMods'> {
   return { scannedMods: [], selectedMods: new Set<string>() }
 }
@@ -74,7 +60,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   sourceLanguage: 'en',
   targetLanguages: new Set<LanguageCode>(),
   mode: 'add-to-current',
-  overwrite: false,
+  targetContent: 'missing-keys',
   modName: '',
   scannedMods: [],
   selectedMods: new Set<string>(),
@@ -83,14 +69,15 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
 
   setGame: gameId => set({ selectedGameId: gameId, ...invalidateScan() }),
   loadGame: (gameId, snapshot) =>
-    set({
+    set(state => ({
       selectedGameId: gameId,
       modFolder: snapshot.modFolder,
       outputFolder: snapshot.outputFolder,
       sourceLanguage: snapshot.sourceLanguage,
       targetLanguages: new Set(snapshot.targetLanguages),
+      translate: { ...state.translate, gamePath: snapshot.gamePath },
       ...invalidateScan()
-    }),
+    })),
   setModFolder: modFolder => set({ modFolder, ...invalidateScan() }),
   setOutputFolder: outputFolder => set({ outputFolder }),
   setMode: mode => set({ mode }),
@@ -100,7 +87,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       next.delete(lang)
       return { sourceLanguage: lang, targetLanguages: next, ...invalidateScan() }
     }),
-  setOverwrite: overwrite => set({ overwrite }),
+  setTargetContent: targetContent => set({ targetContent }),
   toggleTargetLanguage: lang =>
     set(state => {
       const next = new Set(state.targetLanguages)
@@ -112,7 +99,6 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   setScannedMods: mods =>
     set({
       scannedMods: mods,
-      // Everything with work to do is ticked: that is what the user came for.
       selectedMods: new Set(mods.filter(mod => mod.missingFiles > 0).map(mod => mod.id))
     }),
   toggleMod: id =>
@@ -127,7 +113,6 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   setTranslateProvider: provider =>
     set(state => {
       const defaults = PROVIDER_DEFAULTS[provider]
-      // A URL the user typed is never overwritten; a default left untouched is.
       const baseUrl = isDefaultBaseUrl(state.translate.baseUrl)
         ? defaults.baseUrl
         : state.translate.baseUrl
@@ -145,7 +130,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       sourceLanguage: 'en',
       targetLanguages: new Set<LanguageCode>(),
       mode: 'add-to-current',
-      overwrite: false,
+      targetContent: 'missing-keys',
       modName: '',
       translate: { ...TRANSLATE_DEFAULTS },
       apiKey: '',
@@ -165,14 +150,6 @@ export function canRun(state: ConverterFormState): boolean {
   return true
 }
 
-/** The generated translation mod is only reachable once a scan told us what is missing. */
-export function canConvertSelection(state: ConverterFormState): boolean {
-  if (!canRun(state)) return false
-  if (state.mode !== 'create-translation-mod') return true
-  return state.scannedMods.length > 0 && state.selectedMods.size > 0
-}
-
-/** The settings a run needs, with the in-memory key put back only for that call. */
 export function runTranslateConfig(state: ConverterFormState): TranslateConfig | undefined {
   if (!state.translate.enabled) return undefined
   return {

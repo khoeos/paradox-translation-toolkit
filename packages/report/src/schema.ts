@@ -1,18 +1,24 @@
 import { z } from 'zod'
 
-import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared'
+import type { KeyState } from '@ptt/converter'
+import {
+  ConvertModeSchema,
+  LanguageCodeSchema,
+  TargetContentSchema
+} from '@ptt/shared'
 import { TRANSLATE_PROVIDERS } from '@ptt/translate'
 
-/**
- * Validation of a report read back from disk.
- *
- * Audit finding Q-7: the CLI `reports` command did `JSON.parse` and then asserted the result into
- * `Record<...>` and `KeyReport[]`, so a hand-edited or truncated file crashed somewhere far from
- * where it was read. A file is a process boundary, so it goes through zod.
- *
- * The schema is deliberately tolerant where the shape may grow (unknown keys are kept, counters
- * are optional) and strict where a consumer would otherwise misread it.
- */
+const KEY_STATES = ['own', 'patch', 'generated', 'english', 'kept', 'missing'] as const
+
+const EVERY_KEY_STATE: Record<KeyState, true> = {
+  own: true,
+  patch: true,
+  generated: true,
+  english: true,
+  kept: true,
+  missing: true
+}
+void EVERY_KEY_STATE
 
 const CountersSchema = z.object({
   translated: z.number(),
@@ -27,7 +33,7 @@ const KeyReportSchema = z.object({
   key: z.string(),
   file: z.string(),
   source: z.string(),
-  state: z.enum(['own', 'patch', 'generated', 'english', 'kept', 'missing']),
+  state: z.enum(KEY_STATES),
   provider: z.string().optional(),
   reason: z.string().optional(),
   markupOnly: z.boolean().optional(),
@@ -53,6 +59,7 @@ export const StoredRunReportSchema = z.object({
     path: z.string(),
     game: z.string(),
     mode: ConvertModeSchema,
+    targetContent: TargetContentSchema.optional(),
     sourceLanguage: LanguageCodeSchema,
     targetLanguages: z.array(LanguageCodeSchema),
     selectedMods: z.union([z.number(), z.literal('all')]),

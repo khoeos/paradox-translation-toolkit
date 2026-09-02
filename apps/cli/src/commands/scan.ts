@@ -5,17 +5,11 @@ import type { CliOptions } from '../options.js'
 import { dim, num, red, section, table, yellow, green } from '../output.js'
 import { printHeader, printScanTotals, runScan, writeOutputs } from './shared.js'
 
-/**
- * What every mod is missing, the generated mod counted as coverage.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `commandScan`) by Artem Kondrashev.
- */
 export async function commandScan(options: CliOptions): Promise<void> {
   printHeader(options)
   const output = await runScan(options, false)
   printScanTotals(output)
 
-  // Filtered once: `scan` used to run the same filter again for the shadowing table below.
   const matching = filterMods(output.mods, options.modFilter, byIdAndName)
 
   const mods = matching
@@ -55,8 +49,6 @@ export async function commandScan(options: CliOptions): Promise<void> {
       ])
   )
 
-  // Shadowing is invisible in the list above, which is sorted by what is left to do, yet it is
-  // the one problem that makes the game worse than not running the tool at all.
   const shadowing = matching
     .filter(mod => sumByLanguage(mod.shadowedKeys) > 0)
     .toSorted((a, b) => sumByLanguage(b.shadowedKeys) - sumByLanguage(a.shadowedKeys))
@@ -82,8 +74,20 @@ export async function commandScan(options: CliOptions): Promise<void> {
   const broken = output.mods.filter(mod => mod.errors.length > 0)
   if (broken.length > 0) {
     section(`Mods that could not be read fully (${broken.length})`)
+    console.log(dim('  Their generated files are never pruned: keys we cannot see may be real.'))
     for (const mod of broken.slice(0, options.limit)) {
       console.log(`  ${red(mod.name)}  ${dim(mod.errors[0] ?? '')}`)
+    }
+  }
+
+  const shrugged = output.mods.filter(
+    mod => mod.errors.length === 0 && (mod.warnings?.length ?? 0) > 0
+  )
+  if (shrugged.length > 0) {
+    const lines = shrugged.reduce((sum, mod) => sum + (mod.warnings?.length ?? 0), 0)
+    section(`Mods holding lines the game skips (${shrugged.length}, ${lines} line(s))`)
+    for (const mod of shrugged.slice(0, options.limit)) {
+      console.log(`  ${yellow(mod.name)}  ${dim(mod.warnings?.[0] ?? '')}`)
     }
   }
 

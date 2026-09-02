@@ -4,11 +4,6 @@ import en from './locales/en.json' with { type: 'json' }
 import fr from './locales/fr.json' with { type: 'json' }
 import zh from './locales/zh.json' with { type: 'json' }
 
-/**
- * Source of truth for the UI languages we ship.
- * Declared as a literal tuple so consumers (e.g. `z.enum(...)`) can derive
- * a strict union from it at the type level.
- */
 export const VALID_UI_LANGUAGES = ['en', 'fr', 'zh'] as const
 
 export type UiLanguage = (typeof VALID_UI_LANGUAGES)[number]
@@ -32,9 +27,7 @@ export const resources = {
 } as const
 
 export interface InitOptions {
-  /** UI language to start in. Falls back to English if omitted. */
   lng?: UiLanguage
-  /** Optional override for the i18next instance, defaults to the global one. */
   instance?: i18n
 }
 
@@ -51,7 +44,6 @@ export function initI18n(opts: InitOptions = {}): i18n {
   return i
 }
 
-/** Map a `navigator.language`-style string to one of our UI languages. */
 export function detectBrowserLanguage(navigatorLanguage: string | undefined): UiLanguage {
   if (
     typeof navigatorLanguage === 'string' &&

@@ -36,8 +36,6 @@ export function createMainWindow(): BrowserWindow {
     win.show()
   })
 
-  // Filter protocols on outbound link clicks: only http(s)/mailto reach the OS
-  // shell. file:// and other schemes can launch arbitrary executables.
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {
       const parsed = new URL(url)
@@ -54,7 +52,6 @@ export function createMainWindow(): BrowserWindow {
     return { action: 'deny' }
   })
 
-  // Block top-level navigation away from the currently loaded URL.
   win.webContents.on('will-navigate', (event, url) => {
     if (url !== win.webContents.getURL()) {
       event.preventDefault()

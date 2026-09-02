@@ -1,7 +1,3 @@
-/**
- * Ported from PR #4 (e21ee7a, `src/main/translateFn/index.ts` `scanMod`) by Artem Kondrashev.
- */
-
 import type { LanguageCode } from '@ptt/shared'
 
 import { countTranslatableLines, pendingCount, planMod } from './key-plan.js'
@@ -12,14 +8,6 @@ export interface ScanModResult {
   keyStates: KeyReport[]
 }
 
-/**
- * Report what one mod is missing, creating nothing.
- * @param mod - The mod folder
- * @param options - How to plan, see `KeyPlanOptions`
- * @param fs - The injected filesystem
- * @param countLines - Estimate the translation workload, which costs a full read of the values
- * @returns The scan row for that mod, and its key states when they were asked for
- */
 export async function scanMod(
   mod: ModFolder,
   options: KeyPlanOptions,
@@ -36,7 +24,6 @@ export async function scanMod(
   const shadowedKeys: Partial<Record<LanguageCode, number>> = {}
   let missingFiles = 0
 
-  // Every requested language gets an entry, so "nothing missing" is stated rather than implied.
   for (const language of options.targetLanguages) {
     if (language === options.sourceLanguage) continue
     missing[language] = 0
@@ -49,8 +36,6 @@ export async function scanMod(
 
   for (const [languageRaw, jobs] of Object.entries(plan.jobs)) {
     const language = languageRaw as LanguageCode
-    // A file whose keys are all carried over from an earlier run is no work: it is rewritten
-    // unchanged and must not be reported as missing.
     const pending = (jobs ?? []).filter(job => pendingCount(job) > 0)
     missing[language] = pending.length
     missingKeys[language] = pending.reduce((sum, job) => sum + pendingCount(job), 0)
@@ -77,7 +62,8 @@ export async function scanMod(
       missingFiles,
       missingLines: countLines && missingFiles > 0 ? countTranslatableLines(plan.jobs) : 0,
       ...(plan.supportedVersion !== undefined && { supportedVersion: plan.supportedVersion }),
-      errors: plan.errors
+      errors: plan.errors,
+      warnings: plan.warnings
     }
   }
 }

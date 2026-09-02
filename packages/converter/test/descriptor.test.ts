@@ -39,7 +39,6 @@ describe('readDescriptor', () => {
   })
 
   it('prefers descriptor.mod over any other .mod file', async () => {
-    // descriptor.mod is the one the game reads; the launcher one can be stale.
     const fs = new MemoryFs({
       'mod/aaa.mod': 'name="Launcher Copy"',
       'mod/descriptor.mod': 'name="Real Name"'
@@ -115,7 +114,6 @@ describe('pickSupportedVersion', () => {
   })
 
   it('invents nothing when no mod declares a version', async () => {
-    // `*` is what the launcher reads as "any version".
     expect(pickSupportedVersion([{ createdCount: 3 }])).toBe('*')
     expect(pickSupportedVersion([])).toBe('*')
   })
@@ -146,7 +144,6 @@ describe('buildDescriptor', () => {
   })
 
   it('turns a quote in the name into an apostrophe', () => {
-    // A quote would end the field early and the launcher would read a broken descriptor.
     const content = buildDescriptor({ ...mod, name: 'Bob\'s "Best" Mods' }, false)
     expect(content).toContain(`name="Bob's 'Best' Mods"`)
   })

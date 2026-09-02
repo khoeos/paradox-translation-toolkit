@@ -38,14 +38,11 @@ export interface BridgeOptions<TRouter extends AnyRouter> {
   ctx: inferRouterContext<TRouter>
 }
 
-/** Listens on a single IPC channel and dispatches each message to the tRPC router. */
 export function setupTrpcIpcBridge<TRouter extends AnyRouter>(opts: BridgeOptions<TRouter>): void {
   ipcMain.on(IPC_CHANNELS.trpc, (event, raw: unknown) => {
     const parsed = RequestSchema.safeParse(raw)
     if (!parsed.success) {
       log.warn('[bridge] rejected malformed IPC envelope:', parsed.error.message)
-      // Try to recover the id so the renderer-side promise rejects cleanly
-      // instead of hanging forever waiting for a response.
       const id = extractRequestId(raw)
       if (id !== null) {
         const response: IpcErrorResponse = {

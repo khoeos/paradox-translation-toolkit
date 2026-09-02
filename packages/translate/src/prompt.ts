@@ -1,12 +1,5 @@
 import type { Hint } from './types.js'
 
-/**
- * The instructions every model backend gets. They all speak the same prompt.
- *
- * Ported verbatim from PR #4 (e21ee7a, `src/main/translate/providers.ts` `buildPrompt`) by
- * Artem Kondrashev. The wording is load-bearing: it was tuned against real models, and the
- * markup clause is what keeps a `$VARIABLE$` from coming back translated.
- */
 export function buildPrompt(
   texts: readonly string[],
   language: string,
@@ -42,13 +35,43 @@ ${JSON.stringify(indexed(texts), null, 1)}`
 }
 
 /**
- * The batch as an index-keyed object rather than a bare array.
- *
- * Audit finding S-4: with an array on both sides only the length was checked, so a model that
- * reordered its answer put the wrong translation on the wrong key. For prose with no markup
- * `tokensMatch` cannot catch it, so it was written to disk and remembered. Explicit keys make
- * a reorder harmless.
+ * JSON schema matching the answer shape `buildPrompt` asks for, one required string
+ * per input index. Sent as `response_format.json_schema` : OpenAI, LM Studio,
+ * llama.cpp and Ollama all accept it, whereas LM Studio rejects `json_object`.
+ * Strict mode caps an object at 5000 properties on OpenAI ; TRANSLATE_LIMITS.batchSize
+ * (200) keeps every batch well under it.
  */
+export interface AnswerSchema {
+  type: 'object'
+  properties: {
+    translations: {
+      type: 'object'
+      properties: Record<string, { type: 'string' }>
+      required: string[]
+      additionalProperties: false
+    }
+  }
+  required: ['translations']
+  additionalProperties: false
+}
+
+export function buildAnswerSchema(count: number): AnswerSchema {
+  const properties: Record<string, { type: 'string' }> = {}
+  const required: string[] = []
+  for (let index = 0; index < count; index++) {
+    properties[String(index)] = { type: 'string' }
+    required.push(String(index))
+  }
+  return {
+    type: 'object',
+    properties: {
+      translations: { type: 'object', properties, required, additionalProperties: false }
+    },
+    required: ['translations'],
+    additionalProperties: false
+  }
+}
+
 export function indexed(texts: readonly string[]): Record<string, string> {
   const out: Record<string, string> = {}
   texts.forEach((text, index) => {

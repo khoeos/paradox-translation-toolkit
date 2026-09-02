@@ -6,17 +6,10 @@ import { buildGlossary } from './glossary.js'
 import { isRecord } from './guards.js'
 import type { Glossary, Hint } from './types.js'
 
-/*
- * Ported from PR #4 (e21ee7a, `src/main/translate/glossary.ts` `loadGlossary`) by
- * Artem Kondrashev.
- */
-
-/** Where the glossary cache lives, so both front ends warm and read the same one. */
 export function glossaryCacheDir(userDataPath: string): string {
   return posixJoin(userDataPath, 'glossary')
 }
 
-/** What makes a cached glossary reusable: one game, one language pair. */
 export function glossaryCacheKey(
   gameId: string,
   sourceLanguage: LanguageCode,
@@ -25,21 +18,6 @@ export function glossaryCacheKey(
   return `${gameId}-${sourceLanguage}-${targetLanguage}`
 }
 
-/**
- * Load a cached glossary, or build and cache it.
- *
- * The cache is invalidated by strict equality of the game path only. Known limitation: a game
- * patch at the same install path serves a stale term until the cache is cleared. Rebuilding is
- * cheap enough that the cache is only a convenience.
- * @param cacheDir - Where the cache lives
- * @param gamePath - The game installation folder
- * @param cacheKey - Distinguishes game and language pair
- * @param gameDef - The game
- * @param sourceLanguage - The language mod strings are written in
- * @param targetLanguage - The language to translate into
- * @param fs - The injected filesystem
- * @returns The glossary
- */
 export async function loadGlossary(
   cacheDir: string,
   gamePath: string,
@@ -71,9 +49,7 @@ export async function loadGlossary(
         'utf-8'
       )
       await fs.rename(temporary, file)
-    } catch {
-      // A cache that cannot be written just means rebuilding next time.
-    }
+    } catch {}
   }
 
   return glossary
@@ -88,11 +64,9 @@ async function readCache(
   try {
     parsed = JSON.parse(await fs.readFile(file, 'utf-8'))
   } catch {
-    // No cache, or an unreadable one: rebuilding is always correct.
     return undefined
   }
   if (!isRecord(parsed)) return undefined
-  // A cache built from another installation says nothing about this one.
   if (parsed.builtFrom !== gamePath) return undefined
 
   const exact = readStringPairs(parsed.exact)

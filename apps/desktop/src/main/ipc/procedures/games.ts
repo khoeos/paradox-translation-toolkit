@@ -1,4 +1,4 @@
-import { getGameSummaries } from '@ptt/game-registry'
+import { getGameSummaries } from '@ptt/games'
 
 import { publicProcedure, router } from '../trpc.js'
 

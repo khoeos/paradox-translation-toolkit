@@ -1,4 +1,4 @@
-import { AlertTriangle, Download, ExternalLink, RefreshCcw, X } from 'lucide-react'
+import { Download, ExternalLink, RefreshCcw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { Button } from '@ptt/ui/components/button'
@@ -6,24 +6,21 @@ import { Progress } from '@ptt/ui/components/progress'
 import { cn } from '@ptt/ui/lib/utils'
 
 import { trpc } from '@renderer/lib/trpc'
-import { useUpdaterStore } from '@renderer/store/updater'
+import { isUpdateBannerVisible, useUpdaterStore } from '@renderer/store/updater'
 
 export function UpdateBanner() {
   const { t } = useTranslation()
   const status = useUpdaterStore(s => s.status)
   const latestVersion = useUpdaterStore(s => s.latestVersion)
   const downloadProgress = useUpdaterStore(s => s.downloadProgress)
-  const dismissed = useUpdaterStore(s => s.dismissed)
   const dismiss = useUpdaterStore(s => s.dismiss)
+  const visible = useUpdaterStore(isUpdateBannerVisible)
   const autoUpdateSupported = useUpdaterStore(s => s.autoUpdateSupported)
 
   const downloadMutation = trpc.updater.download.useMutation()
   const installMutation = trpc.updater.installNow.useMutation()
 
-  if (status === 'idle' || status === 'not-available' || status === 'checking' || dismissed) {
-    return null
-  }
-  if (status === 'error') return null
+  if (!visible) return null
 
   const isAvailable = status === 'available'
   // `downloading` and `ready` are only reachable on auto-update-capable builds.
@@ -51,15 +48,6 @@ export function UpdateBanner() {
           <span className="text-sm">
             {t('updater.banner.available', { version: latestVersion ?? '' })}
           </span>
-          {!autoUpdateSupported ? (
-            <span
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-              title={t('updater.banner.unsignedTooltip')}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              {t('updater.banner.unsignedWarning')}
-            </span>
-          ) : null}
           <Button
             size="sm"
             onClick={() => downloadMutation.mutate()}

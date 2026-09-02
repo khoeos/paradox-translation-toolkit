@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { BrowserWindow, dialog, shell } from 'electron'
 import { promises as fs } from 'node:fs'
+import { dirname } from 'node:path'
 
 import type { OpenableRegistry } from './openable-registry.js'
 import { canonicalize, isCriticalFolder, isWellKnownParadoxPath } from './path-policy.js'
@@ -10,6 +11,15 @@ async function isExistingDirectory(path: string): Promise<boolean> {
   try {
     const s = await fs.stat(path)
     return s.isDirectory()
+  } catch {
+    return false
+  }
+}
+
+async function isExistingFile(path: string): Promise<boolean> {
+  try {
+    const s = await fs.stat(path)
+    return s.isFile()
   } catch {
     return false
   }
@@ -88,7 +98,6 @@ async function promptUserForApproval(
 export const dialogService = {
   async pickFolder(opts?: { defaultPath?: string | undefined }): Promise<string | null> {
     const win = getOwnerWindow()
-    // Drop defaultPath if it no longer exists; Electron then uses its own default.
     const safeDefaultPath =
       opts?.defaultPath !== undefined && (await isExistingDirectory(opts.defaultPath))
         ? opts.defaultPath
@@ -105,7 +114,6 @@ export const dialogService = {
     const { settings, openable } = requireDeps()
     const canonical = canonicalize(rawPath)
 
-    // Layer 1 : path must be an existing directory.
     if (!(await isExistingDirectory(rawPath))) {
       throw new TRPCError({
         code: 'BAD_REQUEST',
@@ -113,7 +121,6 @@ export const dialogService = {
       })
     }
 
-    // Layer 2: OS-critical folders, never opened.
     if (isCriticalFolder(rawPath)) {
       throw new TRPCError({
         code: 'FORBIDDEN',
@@ -121,7 +128,6 @@ export const dialogService = {
       })
     }
 
-    // Layer 3 : pre-approved sources.
     const userAllowedFolders = settings.getAll().userAllowedFolders
     const alreadyApproved =
       openable.has(rawPath) ||
@@ -134,7 +140,6 @@ export const dialogService = {
       return
     }
 
-    // Layer 4 : interactive bypass.
     const win = getOwnerWindow()
     const choice = await promptUserForApproval(win, canonical, rawPath)
     if (choice === 'cancel') {
@@ -144,20 +149,42 @@ export const dialogService = {
       })
     }
     if (choice === 'always') {
-      // Persist BEFORE opening so a crash mid-shell.openPath still preserves
-      // the authorisation on next launch.
       settings.addAllowedFolder(canonical)
     } else {
       openable.addSession(rawPath)
     }
     await runShellOpen(rawPath)
+  },
+
+  async showItemInFolder(rawPath: string): Promise<void> {
+    const { openable } = requireDeps()
+
+    if (!(await isExistingFile(rawPath))) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: `Path is not an existing file: ${rawPath}`
+      })
+    }
+
+    if (isCriticalFolder(dirname(rawPath))) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `Refusing to reveal a file in a critical system folder: ${rawPath}`
+      })
+    }
+
+    if (!openable.has(rawPath) && !openable.hasSession(rawPath)) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `Not a path this app produced: ${rawPath}`
+      })
+    }
+
+    shell.showItemInFolder(rawPath)
   }
 }
 
 async function runShellOpen(path: string): Promise<void> {
-  // shell.openPath resolves to an empty string on success and to an error
-  // message string on failure (Electron API quirk). Surface failures so the
-  // renderer can show feedback instead of a silent no-op.
   const errorMessage = await shell.openPath(path)
   if (errorMessage.length > 0) {
     throw new Error(errorMessage)

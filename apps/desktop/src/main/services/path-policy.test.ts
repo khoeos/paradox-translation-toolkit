@@ -3,12 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { canonicalize, isCriticalFolder, isWellKnownParadoxPath } from './path-policy.js'
 
 describe('canonicalize', () => {
-  // todo : Macos Error ?
-  // it('converts backslashes to forward slashes and lowercases', () => {
-  //   const got = canonicalize('C:\\Users\\Foo\\Bar')
-  //   expect(got.startsWith('c:/users/foo/bar') || got === 'c:/users/foo/bar').toBe(true)
-  // })
-
   it('resolves relative segments', () => {
     expect(canonicalize('foo/./bar/../baz').endsWith('foo/baz')).toBe(true)
   })

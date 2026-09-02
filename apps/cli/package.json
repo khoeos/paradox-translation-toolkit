@@ -1,6 +1,6 @@
 {
   "name": "@ptt/cli",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -17,7 +17,7 @@
   "dependencies": {
     "@ptt/converter": "workspace:*",
     "@ptt/fs-node": "workspace:*",
-    "@ptt/game-registry": "workspace:*",
+    "@ptt/games": "workspace:*",
     "@ptt/parser": "workspace:*",
     "@ptt/report": "workspace:*",
     "@ptt/shared": "workspace:*",

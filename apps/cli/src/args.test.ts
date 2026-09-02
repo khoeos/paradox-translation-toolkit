@@ -55,12 +55,10 @@ describe('parseArgs', () => {
 
 describe('parseArgs - documented quirks', () => {
   it('treats -x and --x as the same flag', () => {
-    // Kept from the original so a script that used single dashes keeps working.
     expect(parseArgs(['scan', '-path', '/mods']).flags.path).toBe('/mods')
   })
 
   it('swallows a single-dash token as the value of the previous flag', () => {
-    // Only `--` is recognised as the start of the next switch, so `-x` reads as a value.
     const args = parseArgs(['audit', '--json', '-x'])
     expect(args.flags.json).toBe('-x')
     expect(args.flags.x).toBeUndefined()

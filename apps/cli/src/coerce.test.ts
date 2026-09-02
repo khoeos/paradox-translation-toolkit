@@ -8,8 +8,6 @@ describe('asString', () => {
   })
 
   it('renders a number, because a number in the config file is still a value', () => {
-    // The original returned undefined here, so every numeric setting in ptt.config.json was
-    // silently discarded and the default used instead.
     expect(asString(150)).toBe('150')
   })
 
@@ -83,7 +81,6 @@ describe('asList', () => {
   })
 
   it('returns undefined for an empty value rather than an empty list', () => {
-    // An empty list would mean "process no mods", which is never what a user meant to type.
     expect(asList('')).toBeUndefined()
     expect(asList(' , ')).toBeUndefined()
     expect(asList(undefined)).toBeUndefined()

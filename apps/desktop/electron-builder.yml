@@ -1,9 +1,6 @@
 appId: com.ptt.app
 productName: Paradox Translation Toolkit
 copyright: Copyright © 2026 Khoeos
-# `${name}` resolves to the package.json name `@ptt/desktop` which contains a
-# slash - NSIS / electron-builder treat that as a path separator and fail with
-# "Can't open output file". We use a hand-rolled slug instead.
 artifactName: paradox-translation-toolkit-${version}-${os}-${arch}.${ext}
 asar: true
 compression: maximum
@@ -29,24 +26,17 @@ files:
 publish:
   provider: github
   owner: khoeos
-  repo: Paradox-translation-toolkit
+  repo: paradox-translation-toolkit
+  releaseType: release
 
 win:
   executableName: ParadoxTranslationToolkit
   target:
     - target: nsis
       arch: [x64]
-  # Code signing kicks in only when WIN_CSC_LINK + WIN_CSC_KEY_PASSWORD are
-  # present in the build environment (set from CI GitHub Secrets once a Certum
-  # Open Source certificate is purchased, see docs/publishing.md). Without
-  # those secrets, electron-builder skips signing and ships an unsigned NSIS
-  # installer; the app then routes update downloads to the GitHub release page.
+    - target: zip
+      arch: [x64]
   signtoolOptions:
-    # `publisherName` MUST match the CN of the certificate exactly. It is used
-    # by electron-updater to validate that an incoming update was signed by the
-    # same publisher as the running binary. Update when the cert is issued.
-    publisherName:
-      - 'Open Source Developer, Khoeos'
     signingHashAlgorithms:
       - sha256
     rfc3161TimeStampServer: http://time.certum.pl
@@ -68,6 +58,8 @@ linux:
   category: Utility
 
 nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
   artifactName: paradox-translation-toolkit-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}

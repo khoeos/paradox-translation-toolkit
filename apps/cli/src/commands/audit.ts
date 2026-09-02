@@ -6,23 +6,20 @@ import type { CliOptions } from '../options.js'
 import { dim, green, num, red, section, table, yellow } from '../output.js'
 import { printHeader, printScanTotals, runScan, writeOutputs } from './shared.js'
 
-/**
- * The state of every key, and the list of the ones still in the source language.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `commandAudit`) by Artem Kondrashev. This is the
- * reason the CLI exists: it says which strings are still untranslated and why, mod by mod and key
- * by key, which no amount of staring at a progress bar can.
- */
+export const STATE_ORDER: readonly KeyState[] = [
+  'own',
+  'patch',
+  'generated',
+  'kept',
+  'english',
+  'missing'
+]
 
-/** Order the audit prints its state summary in, from best to worst. */
-const STATE_ORDER: readonly KeyState[] = ['own', 'patch', 'generated', 'kept', 'english', 'missing']
-
-const STATE_LABEL: Record<KeyState, string> = {
+export const STATE_LABEL: Record<KeyState, string> = {
   own: 'translated by the mod itself',
   patch: 'translated by a localisation mod',
   generated: 'translated by us',
   kept: 'the backend answered with the source text, mostly proper names',
-  // A hyphen, not an em dash: the repo forbids the character.
   english: 'left in the source language by us - refused',
   missing: 'never generated'
 }
@@ -55,7 +52,7 @@ export async function commandAudit(options: CliOptions, args: Args): Promise<voi
     STATE_ORDER.map(state => {
       const value = counts.get(state) ?? 0
       return [
-        colourFor(state)(state),
+        STATE_COLOUR[state](state),
         num(value),
         `${((value / grand) * 100).toFixed(PERCENT_DECIMALS)}%`,
         dim(STATE_LABEL[state])
@@ -84,41 +81,52 @@ export async function commandAudit(options: CliOptions, args: Args): Promise<voi
       .map(key => [key.modName, key.key, key.source.replace(/\s+/g, ' '), noteFor(key)])
   )
 
-  // Which mods hold the refusals is what decides where to spend a retry.
-  const worst = new Map<string, number>()
-  for (const key of keyStates) {
-    if (key.state !== 'english') continue
-    worst.set(key.modName, (worst.get(key.modName) ?? 0) + 1)
-  }
-  if (worst.size > 0) {
-    section('Refusals by mod')
-    table(
-      [
-        { header: 'mod', max: 50 },
-        { header: 'keys left untranslated', right: true }
-      ],
-      [...worst.entries()]
-        .toSorted((a, b) => b[1] - a[1])
-        .slice(0, options.limit)
-        .map(([name, count]) => [name, red(num(count))])
-    )
-  }
+  printByMod(keyStates, 'english', 'Refusals by mod', options.limit)
 
   console.log(
     dim(
       '\n  A key counts as refused when our generated file repeats the source text word for word.' +
-        '\n  Values made only of markup or numbers are never sent to a translator and are not counted.'
+        "\n  It counts as a copy when the mod's own target file does, which is all v2 of this tool" +
+        '\n  ever wrote. Values made only of markup or numbers are never sent to a translator' +
+        '\n  and are counted as neither.'
     )
   )
 
   await writeOutputs(options, output, selected)
 }
 
-function colourFor(state: KeyState): (text: string) => string {
-  if (state === 'english') return red
-  if (state === 'missing') return yellow
-  if (state === 'kept') return dim
-  return green
+const STATE_COLOUR: Record<KeyState, (text: string) => string> = {
+  own: green,
+  patch: green,
+  generated: green,
+  kept: dim,
+  english: red,
+  missing: yellow
+}
+
+function printByMod(
+  keyStates: readonly KeyReport[],
+  state: KeyState,
+  title: string,
+  limit: number
+): void {
+  const worst = new Map<string, number>()
+  for (const key of keyStates) {
+    if (key.state !== state) continue
+    worst.set(key.modName, (worst.get(key.modName) ?? 0) + 1)
+  }
+  if (worst.size === 0) return
+  section(title)
+  table(
+    [
+      { header: 'mod', max: 50 },
+      { header: 'keys left untranslated', right: true }
+    ],
+    [...worst.entries()]
+      .toSorted((a, b) => b[1] - a[1])
+      .slice(0, limit)
+      .map(([name, count]) => [name, red(num(count))])
+  )
 }
 
 function noteFor(key: KeyReport): string {

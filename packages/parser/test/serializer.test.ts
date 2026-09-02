@@ -208,8 +208,6 @@ describe('round-trip - multi-line values', () => {
 
 describe('serialize - value escaping', () => {
   it('escapes a quote a caller just assigned', () => {
-    // The case translation creates: a provider answer carrying a bare quote. Written raw it
-    // would close the value early and the game would stop reading the file.
     const file: LocaleFile = {
       language: 'french',
       entries: [{ key: 'KEY', version: 0, value: 'il a dit "oui"', rawLine: 2 }],

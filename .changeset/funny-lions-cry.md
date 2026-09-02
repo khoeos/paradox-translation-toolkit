@@ -4,7 +4,7 @@
 
 # Paradox Translation Toolkit v3
 
-Full rewrite of the v2 codebase: new monorepo layout (per-game packages, FS-agnostic core), modern stack (Electron 41, React 19, TanStack Router/Query, tRPC v11, Zustand, Tailwind v4, Vitest, oxlint), and a hardened main process.
+Full rewrite of the v2 codebase: new monorepo layout (one game-definitions package, FS-agnostic core), modern stack (Electron 41, React 19, TanStack Router/Query, tRPC v11, Zustand, Tailwind v4, Vitest, oxlint), and a hardened main process.
 
 ## Main features
 - **More games supported.** Added Europa Universalis V, Victoria 3, Imperator: Rome, Hearts of Iron IV. Total now: Stellaris, EU4, EU5, HoI4, CK3, Vic3, Imperator.
@@ -48,13 +48,13 @@ Full rewrite of the v2 codebase: new monorepo layout (per-game packages, FS-agno
 
 ## Architecture
 
-- **Per-game packages** - adding a new game is a new `@ptt/game-<id>` package + one line in the registry. No changes to `parser` / `converter` ever needed.
+- **Game definitions package** - adding a new game is one file in `@ptt/games` + one line in its registry. No changes to `parser` / `converter` ever needed.
 - **FS-agnostic core** - `parser` and `converter` depend on no Electron or Node FS APIs. The desktop app injects a `FsLike` adapter; tests inject an in-memory fake.
 - **Single-source IPC channel constants** - defined in `@ptt/shared/ipc-channels`, imported by both main and the sandboxed preload (which intentionally never pulls zod into its bundle).
 - **Auto-bumped versions & changelog** - Changesets workflow with `@changesets/changelog-github`.
 
 ## Tooling
 
-- **Vitest unit tests** across all packages: `parser` and `converter` enforce ≥ 90 % coverage. `path-policy` matrix tested on the active host OS. Game registry has an extensibility test asserting the per-game-package invariant.
+- **Vitest unit tests** across all packages: `parser` and `converter` enforce ≥ 90 % coverage. `path-policy` matrix tested on the active host OS. Game registry has an extensibility test asserting a game can be added without touching the core.
 - **Lefthook** git hooks: pre-commit lint + typecheck, commit-msg conventional-commits validation, pre-push full lint/typecheck/test.
 - **GitHub Actions CI**: lint + typecheck + test on Windows + Linux for every PR; release builds on Windows + Linux + macOS for every `v*` tag.

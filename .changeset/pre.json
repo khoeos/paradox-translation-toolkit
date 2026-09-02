@@ -2,18 +2,19 @@
   "mode": "pre",
   "tag": "beta",
   "initialVersions": {
-    "@ptt/desktop": "3.0.0-beta.1",
-    "@ptt/game-ck3": "0.1.0",
-    "@ptt/game-eu4": "0.1.0",
-    "@ptt/game-eu5": "0.1.0",
-    "@ptt/game-hoi4": "0.1.0",
-    "@ptt/game-registry": "0.1.0",
-    "@ptt/game-stellaris": "0.1.0",
+    "@ptt/desktop": "3.0.0-beta.0",
     "@ptt/converter": "0.1.0",
     "@ptt/i18n": "0.1.0",
     "@ptt/parser": "0.1.0",
     "@ptt/shared": "0.1.0",
-    "@ptt/ui": "0.1.0"
+    "@ptt/ui": "0.1.0",
+    "@ptt/cli": "0.1.0",
+    "@ptt/fs-node": "0.1.0",
+    "@ptt/report": "0.1.0",
+    "@ptt/translate": "0.1.0"
   },
-  "changesets": []
+  "changesets": [
+    "batch-scan-and-translation",
+    "funny-lions-cry"
+  ]
 }

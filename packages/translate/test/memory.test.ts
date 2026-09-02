@@ -35,13 +35,11 @@ describe('TranslationMemory - reading', () => {
     const memory = new TranslationMemory('mem', fs)
     await memory.load('ru')
     await memory.set('ru', 'two', 'два')
-    // A second load must not wipe what the run has produced since.
     await memory.load('ru')
     expect(memory.get('ru', 'two')).toBe('два')
   })
 
   it('starts empty on a truncated file rather than throwing', async () => {
-    // What a killed run used to leave behind before the write became atomic.
     const fs = new MemoryFs({ 'mem/ru.json': '{"Colony Ship":"Кораб' })
     const memory = new TranslationMemory('mem', fs)
     await memory.load('ru')
@@ -71,14 +69,11 @@ describe('TranslationMemory - reading', () => {
 
 describe('TranslationMemory - writing', () => {
   it('refuses a write for a language that was never loaded', async () => {
-    // The original dropped it in silence, so a whole run could remember nothing.
     const memory = new TranslationMemory('mem', new MemoryFs())
     await expect(memory.set('ru', 'one', 'один')).rejects.toThrow(/never loaded/)
   })
 
   it('writes through a temporary file and renames it (S-8, S-19)', async () => {
-    // An in-place rewrite killed halfway left a truncated JSON that load() swallowed, losing
-    // the whole language. A rename is atomic, so the file is either the old one or the new one.
     const fs = new MemoryFs()
     const memory = new TranslationMemory('mem', fs)
     await memory.load('ru')
@@ -103,7 +98,6 @@ describe('TranslationMemory - writing', () => {
     const memory = new TranslationMemory('mem', fs)
     await memory.load('ru')
     for (let i = 0; i < FLUSH_EVERY; i++) await memory.set('ru', `k${i}`, `v${i}`)
-    // No explicit flush: the counter reached the threshold.
     expect(fs.snapshot().has('mem/ru.json')).toBe(true)
   })
 

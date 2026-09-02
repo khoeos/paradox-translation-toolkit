@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import { mapWithConcurrency } from '../src/index.js'
 
-/** Resolves only when `release()` is called, so a test can hold a runner hostage. */
 function gate(): { promise: Promise<void>; release: () => void } {
   let resolver: (() => void) | undefined
   const promise = new Promise<void>(resolve => {
@@ -11,14 +10,12 @@ function gate(): { promise: Promise<void>; release: () => void } {
   return { promise, release: () => resolver?.() }
 }
 
-/** Lets every pending microtask run, without pulling a timer into the test. */
 async function flush(): Promise<void> {
   for (let i = 0; i < 20; i++) await Promise.resolve()
 }
 
 describe('mapWithConcurrency', () => {
   it('returns the results in the order of the items, not of completion', async () => {
-    // The first item finishes last, so a naive push-on-completion would reverse the list.
     const held = gate()
     const all = mapWithConcurrency([0, 1, 2, 3], 4, async item => {
       if (item === 0) await held.promise
@@ -53,7 +50,6 @@ describe('mapWithConcurrency', () => {
   })
 
   it('keeps the other runners going while one item is slow', async () => {
-    // This is why the pool pulls from a cursor instead of processing fixed chunks.
     const held = gate()
     const done: number[] = []
     const all = mapWithConcurrency([0, 1, 2, 3], 2, async item => {

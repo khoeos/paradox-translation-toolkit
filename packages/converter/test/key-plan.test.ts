@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
+import { TARGET_CONTENTS } from '@ptt/shared'
+
 import {
+  canPrune,
   PARTIAL_SUFFIX,
   countTranslatableLines,
   getTranslationModPath,
@@ -10,7 +13,13 @@ import {
   planMod,
   readGeneratedMod
 } from '../src/index.js'
-import type { KeyPlanOptions, KeyState, ModFolder, TranslationMemoryPort } from '../src/index.js'
+import type {
+  Coverage,
+  KeyPlanOptions,
+  KeyState,
+  ModFolder,
+  TranslationMemoryPort
+} from '../src/index.js'
 import { localeFile, stellarisDef } from './fixtures.js'
 import { MemoryFs } from './memory-fs.js'
 
@@ -24,7 +33,6 @@ const options = (extra: Partial<KeyPlanOptions> = {}): KeyPlanOptions => ({
   ...extra
 })
 
-/** A memory that claims the backend answered `value` with exactly `value`. */
 const memoryKeeping = (...values: string[]): TranslationMemoryPort => ({
   get: (_language, value) => (values.includes(value) ? value : undefined)
 })
@@ -101,11 +109,9 @@ describe('planMod - the six key states', () => {
   async function planWithEverything(): Promise<Awaited<ReturnType<typeof planMod>>> {
     const fs = new MemoryFs({
       ...sourceFiles,
-      // The mod translates K_OWN itself.
       'workshop/mymod/localisation/russian/a_l_russian.yml': localeFile('russian', [
         ['K_OWN', 'свой текст']
       ]),
-      // A previous run of ours produced these, under the mod namespace.
       'generated/localisation/russian/mymod/a_l_russian.yml': localeFile('russian', [
         ['K_GENERATED', 'сгенерировано'],
         ['K_ENGLISH', 'english text'],
@@ -138,7 +144,6 @@ describe('planMod - the six key states', () => {
 
   it('counts own and patch as covered, and keeps english out of it', async () => {
     const plan = await planWithEverything()
-    // own + patch + generated + kept
     expect(plan.covered.ru).toBe(4)
     expect(plan.english.ru).toBe(1)
     expect(plan.kept.ru).toBe(1)
@@ -159,9 +164,7 @@ describe('planMod - the six key states', () => {
       'K_KEPT',
       'K_MISSING'
     ])
-    // Carried over rather than sent to a translator again.
     expect([...(job?.known.keys() ?? [])].toSorted()).toEqual(['K_GENERATED', 'K_KEPT'])
-    // Only these two still need a translator.
     expect(pendingCount(job!)).toBe(2)
     expect(pendingValues(job!).toSorted()).toEqual(['english text', 'missing text'])
   })
@@ -176,7 +179,6 @@ describe('planMod - english versus kept', () => {
   }
 
   it('is english when the memory knows nothing about the string', async () => {
-    // Nothing ever came back for it, so the next run has to try again.
     const fs = new MemoryFs(files)
     const generated = await readGeneratedMod('generated', stellarisDef, fs)
     const plan = await planMod(mod, options({ detail: true, generated: generated! }), fs)
@@ -185,7 +187,6 @@ describe('planMod - english versus kept', () => {
   })
 
   it('is kept when the memory proves the backend answered the source text', async () => {
-    // A proper name it chose to keep is worth no retry, only the same bill.
     const fs = new MemoryFs(files)
     const generated = await readGeneratedMod('generated', stellarisDef, fs)
     const plan = await planMod(
@@ -210,12 +211,10 @@ describe('planMod - english versus kept', () => {
       }),
       fs
     )
-    // The memory disagrees with what is on disk, so what is on disk is a real translation.
     expect(stateOf(plan.keyStates, 'K')).toBe('english')
   })
 
   it('treats a markup-only value copied verbatim as generated, not as a refusal', async () => {
-    // Markup and numbers are copied on purpose and never sent anywhere.
     const fs = new MemoryFs({
       'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K', '$AMOUNT$']]),
       'generated/localisation/russian/mymod/a_l_russian.yml': localeFile('russian', [
@@ -231,7 +230,6 @@ describe('planMod - english versus kept', () => {
 
 describe('planMod - shadowing', () => {
   it('flags a key our mod holds although somebody else translates it', async () => {
-    // Our mod loads last, so its copy hides their work until the next run drops the key.
     const fs = new MemoryFs({
       'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'text']]),
       'workshop/mymod/localisation/russian/a_l_russian.yml': localeFile('russian', [
@@ -245,14 +243,12 @@ describe('planMod - shadowing', () => {
     const plan = await planMod(mod, options({ detail: true, generated: generated! }), fs)
     expect(plan.shadowed.ru).toBe(1)
     expect(plan.keyStates.find(s => s.key === 'K')?.shadowed).toBe(true)
-    // And the key is not written again.
     expect(plan.jobs.ru).toBeUndefined()
   })
 })
 
 describe('planMod - target files', () => {
   it('rewrites only the segments below the localisation folder', async () => {
-    // A mod folder named after a language must survive untouched.
     const fs = new MemoryFs({
       'workshop/english_names_fix/localisation/english/a_l_english.yml': localeFile('english', [
         ['K', 'A']
@@ -269,8 +265,6 @@ describe('planMod - target files', () => {
   })
 
   it('sits beside an existing translation instead of rewriting it', async () => {
-    // Flat layout, so the natural target name really is the existing file. Topping it up
-    // would mean rewriting somebody else's work.
     const fs = new MemoryFs({
       'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [
         ['K1', 'one'],
@@ -281,7 +275,6 @@ describe('planMod - target files', () => {
     const plan = await planMod(mod, options(), fs)
     const job = plan.jobs.ru?.[0]
     expect(job?.target).toBe(`workshop/mymod/localisation/a${PARTIAL_SUFFIX}_l_russian.yml`)
-    // K1 is covered by that existing file, so only K2 goes into the new one.
     expect([...(job?.keys.keys() ?? [])]).toEqual(['K2'])
   })
 
@@ -294,7 +287,6 @@ describe('planMod - target files', () => {
   })
 
   it('keeps an absolute path absolute', async () => {
-    // posixSplit drops empty segments, so the root separator has to survive by hand.
     const fs = new MemoryFs({
       '/abs/mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'A']])
     })
@@ -324,7 +316,6 @@ describe('planMod - target files', () => {
     const fs = new MemoryFs({
       'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'A']])
     })
-    // stellarisDef declares no Turkish token.
     const plan = await planMod(mod, options({ targetLanguages: ['tr'] }), fs)
     expect(plan.jobs).toEqual({})
   })
@@ -337,7 +328,6 @@ describe('planMod - target files', () => {
     })
     expect((await planMod(mod, options(), fs)).jobs.ru?.[0]?.packed).toEqual([])
     const packed = await planMod(mod, options({ packed: true }), fs)
-    // The source language folder is dropped, the rest of the layout is kept.
     expect(packed.jobs.ru?.[0]?.packed).toEqual(['deep', 'a_l_russian.yml'])
   })
 
@@ -346,6 +336,103 @@ describe('planMod - target files', () => {
       'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'A']])
     })
     expect((await planMod(mod, options(), fs)).keyStates).toEqual([])
+  })
+})
+
+describe('planMod - target content', () => {
+  const collidingFiles = {
+    'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [
+      ['K1', 'one'],
+      ['K2', 'two']
+    ]),
+    'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [['K1', 'один']])
+  }
+  const natural = 'workshop/mymod/localisation/a_l_russian.yml'
+
+  it('takes the natural name under complete-file, carrying over what that file holds', async () => {
+    const fs = new MemoryFs(collidingFiles)
+    const plan = await planMod(mod, options({ targetContent: 'complete-file' }), fs)
+    const job = plan.jobs.ru?.[0]
+    expect(job?.target).toBe(natural)
+    expect([...(job?.keys.keys() ?? [])]).toEqual(['K1', 'K2'])
+    expect(Object.fromEntries(job?.known ?? [])).toEqual({ K1: 'один' })
+  })
+
+  it('takes the natural name under regenerate-file, carrying nothing over', async () => {
+    const fs = new MemoryFs(collidingFiles)
+    const plan = await planMod(mod, options({ targetContent: 'regenerate-file' }), fs)
+    const job = plan.jobs.ru?.[0]
+    expect(job?.target).toBe(natural)
+    expect([...(job?.keys.keys() ?? [])]).toEqual(['K1', 'K2'])
+    expect(job?.known.size).toBe(0)
+  })
+
+  it('sits beside the existing file under missing-keys, and by default', async () => {
+    const expected = `workshop/mymod/localisation/a${PARTIAL_SUFFIX}_l_russian.yml`
+    for (const over of [{ targetContent: 'missing-keys' } as const, {}]) {
+      const fs = new MemoryFs(collidingFiles)
+      const plan = await planMod(mod, options(over), fs)
+      const job = plan.jobs.ru?.[0]
+      expect(job?.target).toBe(expected)
+      expect([...(job?.keys.keys() ?? [])]).toEqual(['K2'])
+    }
+  })
+
+  it('never puts a key a separate localisation mod supplies into a job, in any mode', async () => {
+    const files = {
+      'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [
+        ['K_OWN', 'one'],
+        ['K_PATCH', 'two'],
+        ['K_MISSING', 'three']
+      ]),
+      'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [['K_OWN', 'один']])
+    }
+    const coverage: Coverage = {
+      byLanguage: new Map([['ru', new Set(['K_PATCH'])]]),
+      sources: ['RU Patch']
+    }
+    for (const targetContent of TARGET_CONTENTS) {
+      const fs = new MemoryFs(files)
+      const plan = await planMod(mod, options({ coverage, targetContent }), fs)
+      const planned = (plan.jobs.ru ?? []).flatMap(job => Array.from(job.keys.keys()))
+      expect(planned).toContain('K_MISSING')
+      expect(planned).not.toContain('K_PATCH')
+    }
+  })
+
+  it('still plans one job per source file under the whole-file modes', async () => {
+    const fs = new MemoryFs({
+      'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [
+        ['A1', 'one'],
+        ['A2', 'two']
+      ]),
+      'workshop/mymod/localisation/b_l_english.yml': localeFile('english', [
+        ['B1', 'three'],
+        ['B2', 'four']
+      ]),
+      'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [['A1', 'один']]),
+      'workshop/mymod/localisation/b_l_russian.yml': localeFile('russian', [['B1', 'три']])
+    })
+    const plan = await planMod(mod, options({ targetContent: 'complete-file' }), fs)
+    expect(plan.jobs.ru).toHaveLength(2)
+    const forA = plan.jobs.ru?.find(job => job.source.endsWith('a_l_english.yml'))
+    expect(forA?.target).toBe(natural)
+    expect([...(forA?.keys.keys() ?? [])]).toEqual(['A1', 'A2'])
+  })
+
+  it('emits no job when the target file already holds every key', async () => {
+    const fs = new MemoryFs({
+      'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [
+        ['K1', 'one'],
+        ['K2', 'two']
+      ]),
+      'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [
+        ['K1', 'один'],
+        ['K2', 'два']
+      ])
+    })
+    const plan = await planMod(mod, options({ targetContent: 'complete-file' }), fs)
+    expect(plan.jobs.ru).toBeUndefined()
   })
 })
 
@@ -382,11 +469,37 @@ describe('countTranslatableLines', () => {
       ])
     })
     const plan = await planMod(mod, options(), fs)
-    // K2 is markup only, so no translator ever sees it.
     expect(countTranslatableLines(plan.jobs)).toBe(2)
   })
 
   it('is zero when there is nothing planned', () => {
     expect(countTranslatableLines({})).toBe(0)
+  })
+})
+
+describe('planMod - a value whose quote never closes', () => {
+  const runawayValue = `\ufeffl_english:
+ K_BEFORE:0 "fine"
+ K_OPEN:0 "never closed
+ K_AFTER:0 "fine too"
+`
+
+  it('blocks the prune instead of only warning', async () => {
+    const fs = new MemoryFs({
+      'workshop/mymod/localisation/english/a_l_english.yml': runawayValue
+    })
+    const plan = await planMod(mod, options(), fs)
+    expect(plan.warnings).toEqual([])
+    expect(plan.errors).toHaveLength(1)
+    expect(plan.errors[0]).toContain('K_AFTER')
+    expect(canPrune(plan, false)).toBe(false)
+  })
+
+  it('still reads every key around it', async () => {
+    const fs = new MemoryFs({
+      'workshop/mymod/localisation/english/a_l_english.yml': runawayValue
+    })
+    const plan = await planMod(mod, options(), fs)
+    expect(plan.sourceKeys).toBe(2)
   })
 })

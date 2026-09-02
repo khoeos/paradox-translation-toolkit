@@ -5,11 +5,22 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { nodeFs } from '../src/index.js'
 
-/**
- * The adapter runs against a real temporary directory: it is the seam between the FS-agnostic
- * cores and the actual filesystem, so a fake here would test nothing.
- */
 let dir = ''
+
+const probeSymlinkSupport = async (): Promise<boolean> => {
+  const probe = await mkdtemp(join(tmpdir(), 'ptt-fs-node-probe-'))
+  try {
+    await writeFile(join(probe, 'target'), 'x')
+    await symlink(join(probe, 'target'), join(probe, 'link'))
+    return true
+  } catch {
+    return false
+  } finally {
+    await rm(probe, { recursive: true, force: true })
+  }
+}
+
+const canSymlink = await probeSymlinkSupport()
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'ptt-fs-node-'))
@@ -71,8 +82,7 @@ describe('nodeFs - directories', () => {
     expect(byName.get('file.yml')?.isFile).toBe(true)
   })
 
-  it('flags a symlink, which the walker refuses to follow', async () => {
-    // A mod is untrusted content: the cores rely on this flag to keep a write in its sandbox.
+  it.runIf(canSymlink)('flags a symlink, which the walker refuses to follow', async () => {
     await writeFile(join(dir, 'target'), 'x')
     await symlink(join(dir, 'target'), join(dir, 'link'))
     const entries = await nodeFs.readdir(dir)
@@ -107,7 +117,6 @@ describe('nodeFs - stat and exists', () => {
 
 describe('nodeFs - round trip through the real filesystem', () => {
   it('preserves a BOM and CRLF exactly', async () => {
-    // The parser's round-trip guarantee is worthless if the adapter normalises anything.
     const content = '﻿l_english:\r\n KEY:0 "value"\r\n'
     const path = join(dir, 'bom_l_english.yml')
     await nodeFs.writeFile(path, content, 'utf-8')

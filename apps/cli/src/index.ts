@@ -10,15 +10,6 @@ import { help } from './help.js'
 import { buildOptions, type CliOptions } from './options.js'
 import { clearTicker, dim, red } from './output.js'
 
-/**
- * A headless front end to the same pipeline the app runs, for testing this toolkit against a real
- * mod collection.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts`) by Artem Kondrashev. The window shows counters;
- * this shows the keys behind them. `audit` is the reason it exists: it says which strings are still
- * untranslated and which were never generated at all, mod by mod and key by key.
- */
-
 type Command = (options: CliOptions, args: Args) => Promise<void>
 
 const COMMANDS: Record<string, Command> = {

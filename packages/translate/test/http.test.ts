@@ -18,7 +18,6 @@ describe('withCancel', () => {
   })
 
   it('is already aborted when the run-wide signal is', () => {
-    // Stopping has to be felt at once, not after the whole language finished.
     const controller = new AbortController()
     controller.abort()
     expect(withCancel(1000, controller.signal).aborted).toBe(true)
@@ -88,8 +87,6 @@ describe('checkBaseUrl (S-13)', () => {
   })
 
   it('refuses to send a key over plain http to a remote host', () => {
-    // The original sent the key as Authorization: Bearer to whatever host was configured, and
-    // the CLI read that host from a ptt.config.json found in the current directory.
     const check = checkBaseUrl('http://evil.example.com/v1', true)
     expect(check.ok).toBe(false)
     expect(check.reason).toContain('evil.example.com')

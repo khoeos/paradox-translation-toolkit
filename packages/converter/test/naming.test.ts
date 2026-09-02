@@ -4,6 +4,7 @@ import {
   NAMESPACE_ID_MAX_LEN,
   PARTIAL_SUFFIX,
   getModNamespace,
+  rewriteLanguageInPath,
   sanitizeFolderName,
   withPartialSuffix
 } from '../src/index.js'
@@ -31,7 +32,6 @@ describe('sanitizeFolderName', () => {
   })
 
   it('trims again when the truncation lands on a separator', () => {
-    // 'ab_cdef' cut at 3 gives 'ab_', which is not a usable folder name.
     expect(sanitizeFolderName('ab cdef', 3)).toBe('ab')
   })
 
@@ -46,7 +46,6 @@ describe('getModNamespace', () => {
   })
 
   it('drops the name when the folder is already named after the mod', () => {
-    // No point in `ethics_overhaul_ethics_overhaul`.
     expect(getModNamespace('Ethics Overhaul', 'Ethics Overhaul')).toBe('ethics_overhaul')
   })
 
@@ -83,7 +82,6 @@ describe('getModNamespace', () => {
 
 describe('withPartialSuffix', () => {
   it('inserts the marker before the language tail, never after it', () => {
-    // The games only load files ending in _l_<language>.yml.
     expect(withPartialSuffix('mod/localisation/russian/foo_l_russian.yml')).toBe(
       `mod/localisation/russian/foo${PARTIAL_SUFFIX}_l_russian.yml`
     )
@@ -114,5 +112,41 @@ describe('withPartialSuffix', () => {
     expect(withPartialSuffix('mod\\loc\\foo_l_russian.yml')).toBe(
       `mod/loc/foo${PARTIAL_SUFFIX}_l_russian.yml`
     )
+  })
+})
+
+describe('rewriteLanguageInPath', () => {
+  it('renames a folder that is the language', () => {
+    expect(
+      rewriteLanguageInPath('localisation/english/a_l_english.yml', 'english', 'russian')
+    ).toBe('localisation/russian/a_l_russian.yml')
+  })
+
+  it('never renames a folder that merely contains the language', () => {
+    expect(
+      rewriteLanguageInPath('english_names_fix/localisation/a_l_english.yml', 'english', 'russian')
+    ).toBe('english_names_fix/localisation/a_l_russian.yml')
+  })
+
+  it('rewrites the language tail of the file name', () => {
+    expect(rewriteLanguageInPath('loc/foo_l_english.yml', 'english', 'braz_por')).toBe(
+      'loc/foo_l_braz_por.yml'
+    )
+  })
+
+  it('leaves a file whose tail is another language alone', () => {
+    expect(rewriteLanguageInPath('loc/foo_l_french.yml', 'english', 'russian')).toBe(
+      'loc/foo_l_french.yml'
+    )
+  })
+
+  it('matches the folder case-insensitively', () => {
+    expect(rewriteLanguageInPath('loc/English/a_l_english.yml', 'english', 'russian')).toBe(
+      'loc/russian/a_l_russian.yml'
+    )
+  })
+
+  it('leaves a path with nothing to rewrite untouched', () => {
+    expect(rewriteLanguageInPath('loc/readme.txt', 'english', 'russian')).toBe('loc/readme.txt')
   })
 })

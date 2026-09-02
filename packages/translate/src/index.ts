@@ -22,7 +22,7 @@ export {
   type ProviderDefaults
 } from './defaults.js'
 export { LANGUAGE_DISPLAY_NAMES, RAPIDAPI_CODES, MAPPED_LANGUAGE_CODES } from './language-codes.js'
-export { buildPrompt, indexed } from './prompt.js'
+export { buildPrompt, buildAnswerSchema, indexed, type AnswerSchema } from './prompt.js'
 export { parseAnswer, type ParsedAnswer } from './answer.js'
 export {
   withCancel,

@@ -21,7 +21,6 @@ function localeFile(language: string, entries: Array<[string, string]>): string 
   return content
 }
 
-/** A game install holding the same keys in English and Russian. */
 function gameFs(pairs: Array<[key: string, english: string, russian: string]>): MemoryFs {
   return new MemoryFs({
     'game/game/localisation/english/base_l_english.yml': localeFile(
@@ -54,7 +53,6 @@ describe('isUsableTerm', () => {
   })
 
   it('rejects anything carrying markup', () => {
-    // A hint holding a token would teach the model to reproduce it in the wrong place.
     expect(isUsableTerm('Gain $AMOUNT$')).toBe(false)
     expect(isUsableTerm('£energy£')).toBe(false)
   })
@@ -68,7 +66,6 @@ describe('isUsableTerm', () => {
   })
 
   it('rejects a function word that happens to be a whole label', () => {
-    // Left in, they teach the model that "to" is "То" and poison every batch.
     expect(isUsableTerm('there')).toBe(false)
     expect(isUsableTerm('would')).toBe(false)
   })
@@ -103,7 +100,6 @@ describe('buildGlossary', () => {
   })
 
   it('keeps the most common rendering of a term', async () => {
-    // The same English term is translated by many keys; a one-off must not win.
     const fs = gameFs([
       ['K1', 'Vassal', 'Вассал'],
       ['K2', 'Vassal', 'Вассал'],
@@ -158,7 +154,6 @@ describe('collectHints', () => {
   })
 
   it('keeps the longest match only', () => {
-    // "men-at-arms" adds nothing next to "recruit men-at-arms".
     const hints = collectHints(glossary, ['Recruit men-at-arms now'])
     expect(hints.map(h => h.source)).toEqual(['recruit men-at-arms'])
   })
@@ -203,7 +198,6 @@ describe('loadGlossary', () => {
   it('reads the cache back on the second call', async () => {
     const fs = gameFs([['K', 'Colony Ship', 'Корабль-колония']])
     await loadGlossary('cache', 'game', 'key', stellarisDef, 'en', 'ru', fs)
-    // Remove the game so only the cache can answer.
     const cache = fs.snapshot().get('cache/key.json') ?? ''
     const cacheOnly = new MemoryFs({ 'cache/key.json': cache })
     const glossary = await loadGlossary('cache', 'game', 'key', stellarisDef, 'en', 'ru', cacheOnly)

@@ -2,15 +2,6 @@ export type {
   FsLike,
   FsDirEntry,
   GameContextRef,
-  DiscoveredFile,
-  ScanResult,
-  DiffPlan,
-  DiffOptions,
-  CopyAction,
-  CopyPlan,
-  ApplyReport,
-  ApplyOptions,
-  ProgressEvent,
   ModFolder,
   DiscoveredMods,
   LocalisationFilePath,
@@ -40,10 +31,6 @@ export type {
   ConversionOutput
 } from './types.js'
 
-export { scan } from './scan.js'
-export { diff } from './diff.js'
-export { plan, rewriteLanguageInPath, type PlanOptions } from './plan.js'
-export { apply } from './apply.js'
 export {
   posixJoin,
   posixDirname,
@@ -59,6 +46,9 @@ export {
 export {
   MOD_CONCURRENCY,
   MOD_CONCURRENCY_WITH_BACKEND,
+  SCAN_DIAGNOSTICS_PER_MOD,
+  MAX_SOURCE_FILE_BYTES,
+  MAX_MOD_LOCALISATION_BYTES,
   KEY_OVERLAP_MATCH,
   PARTIAL_SUFFIX,
   DEFAULT_MOD_NAME,
@@ -67,14 +57,27 @@ export {
   NAMESPACE_ID_MAX_LEN,
   NAMESPACE_LABEL_MAX_LEN
 } from './constants.js'
-export { sanitizeFolderName, getModNamespace, withPartialSuffix } from './naming.js'
+export {
+  sanitizeFolderName,
+  getModNamespace,
+  withPartialSuffix,
+  rewriteLanguageInPath
+} from './naming.js'
 export { resolveGeneratedMod, type GeneratedModPaths } from './generated-mod-paths.js'
 export { mapWithConcurrency } from './concurrency.js'
+export {
+  DIAGNOSTIC_SEVERITIES,
+  getParseSeverity,
+  hasUnreadableContent,
+  splitDiagnostics,
+  type DiagnosticSeverity,
+  type ModDiagnostic
+} from './diagnostics.js'
 export { walkFiles, type WalkOptions, type WalkResult } from './walk.js'
 export { readModFiles, describeLocalisationFile, otherLocalisationSpelling } from './mod-files.js'
 export { readDescriptor, buildDescriptor, pickSupportedVersion } from './descriptor.js'
 export { readModKeys, readLocalisationEntries } from './mod-keys.js'
-export { buildCoverage } from './coverage.js'
+export { buildCoverage, type CoverageOptions } from './coverage.js'
 export { discoverMods } from './discover-mods.js'
 export { readGeneratedMod, dropOurOwnMod, summariseGeneratedMod } from './generated-mod.js'
 export { sumByLanguage } from './totals.js'
@@ -91,9 +94,12 @@ export { scanMods, type ScanModsOptions } from './scan-mods.js'
 export {
   isJobEvent,
   JOB_EVENT_TYPES,
+  SCAN_PHASES,
   type JobEvent,
   type JobEventType,
   type ProgressPort,
+  type ScanPhase,
+  type ScanRunningTotals,
   type TranslationProgress
 } from './progress.js'
 export { buildTargetContent, type BuildTargetOptions } from './build-target.js'

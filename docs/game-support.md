@@ -1,32 +1,25 @@
 # Adding support for a new game
 
-A game is a self-contained workspace package: a single `GameDefinition` plus a smoke test. The core packages (`parser`, `converter`) stay untouched, that's the whole point of the per-game layout.
+A game is a `GameDefinition` literal exported from its own file in `packages/games/src/`, registered in `packages/games/src/index.ts` and covered by a row in `packages/games/test/games.test.ts`. The core packages (`parser`, `converter`) stay untouched, that's the whole point of the per-game data.
 
 ---
 
-## 1. Create the package
+## 1. Add the definition
 
-```bash
-cp -r games/game-stellaris games/game-<id>
-```
-
-Then in `games/game-<id>/`:
-
-- **`package.json`**: rename `"name"` to `@ptt/game-<id>`.
-- **`src/index.ts`**: replace the export with your game's `GameDefinition` (see fields below).
-- **`test/smoke.test.ts`**: rename the import and update the asserted ID/displayName.
+Create `packages/games/src/mygame.ts`:
 
 ```ts
 import type { GameDefinition } from '@ptt/shared'
 
-export const myGame: GameDefinition = {
-  id: 'my-game', // url-safe slug, used as map key in settings
+export const mygame: GameDefinition = {
+  id: 'mygame', // url-safe slug, used as map key in settings
   displayName: 'My Game', // human-readable, shown in the tab strip
   steamAppId: 0, // optional, used by the path-policy allowlist
   localisationDirName: 'localisation', // or 'localization' for CK3-style
   layout: 'both', // 'flat' | 'nested-by-language' | 'both'
+  userFolder: 'My Game', // the game's folder name under the user's Documents/Paradox Interactive
   languageFileToken: {
-    // language code (BCP-47) → file token used in `_l_<token>.yml`
+    // language code (BCP-47) -> file token used in `_l_<token>.yml`
     en: 'english',
     fr: 'french'
     // Add only the languages the game actually ships. Missing here = the
@@ -35,8 +28,10 @@ export const myGame: GameDefinition = {
   overrideSubdirs: ['replace'] // empty if the game has no override layer
 }
 
-export default myGame
+export default mygame
 ```
+
+The exported const must be named exactly the game id (`packages/games/src/index.ts` imports it by that name).
 
 ### Field reference
 
@@ -47,14 +42,15 @@ export default myGame
 | `layout`              | `'flat'` = files directly under `localisation/`. `'nested-by-language'` = files under `localisation/<token>/`. `'both'` = either is accepted. Most games are `'both'`.                     |
 | `languageFileToken`   | The token in `<key>_l_<token>.yml`. Stellaris uses `braz_por`, CK3 uses `simp_chinese`, etc., never assume.                                                                                |
 | `overrideSubdirs`     | Subfolders treated as a separate "override" namespace (translated independently from regular files). Empty for games that don't have this concept.                                         |
+| `userFolder`          | The game's folder name under the user's Paradox Interactive user directory.                                                                                                                |
 | `steamAppId`          | Picked up by the path-policy allowlist so users opening their Workshop folder don't see the "Authorize folder" modal (cf. [known-issues.md](./known-issues.md)). Optional but recommended. |
 
 ## 2. Register it
 
-In `games/game-registry/src/index.ts`, import the new package and append it to `builtInGames`:
+In `packages/games/src/index.ts`, import the new file and append it to `builtInGames`:
 
 ```ts
-import { myGame } from '@ptt/game-my-game'
+import { mygame } from './mygame.js'
 // ...
 const builtInGames: readonly GameDefinition[] = [
   stellaris,
@@ -64,15 +60,15 @@ const builtInGames: readonly GameDefinition[] = [
   ck3,
   vic3,
   imperator,
-  myGame
+  mygame
 ]
 ```
 
-The order of this array drives the order of game tabs in the UI.
+Also add `mygame` to the `export { ... }` line at the bottom of the file. The order of `builtInGames` drives the order of game tabs in the UI.
 
-## 3. Wire the workspace dependency
+## 3. Add a test row
 
-`games/game-registry/package.json` and `apps/desktop/package.json` both list every game package as a workspace dep. Add yours to both, then re-run `pnpm install`.
+In `packages/games/test/games.test.ts`, add a row to the `rows` table (id, displayName, steamAppId, localisationDirName, layout, userFolder, and the language tokens you want pinned) and import the new const alongside the others at the top of the file. The table-driven `describe('game definitions')` block asserts every row against the corresponding `GameDefinition`, so no separate smoke test file is needed.
 
 ## 4. Add the game image
 
@@ -81,10 +77,9 @@ For the tab background, drop a `.webp` image at `apps/desktop/src/renderer/src/a
 ## 5. Verify
 
 ```bash
-pnpm --filter @ptt/game-<id> test
-pnpm --filter @ptt/game-registry test  # extensibility check passes
+pnpm --filter @ptt/games test
 pnpm typecheck
 pnpm test
 ```
 
-If all four are green, the new game shows up in the converter UI on the next `pnpm dev`.
+No `pnpm install` is needed, there's no new workspace and no new dependency: the game lives inside the existing `packages/games` package. If all three are green, the new game shows up in the converter UI on the next `pnpm dev`.

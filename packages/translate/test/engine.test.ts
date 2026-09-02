@@ -10,7 +10,6 @@ import {
 } from '../src/index.js'
 import type { EngineOptions, Glossary, Hint, Provider, TranslationCounters } from '../src/index.js'
 
-/** A provider driven by a lookup table, so no network and no model are involved. */
 function tableProvider(
   table: Record<string, string | undefined>,
   onCall?: (texts: readonly string[], hints?: readonly Hint[]) => void
@@ -23,7 +22,6 @@ function tableProvider(
   }
 }
 
-/** A provider that fails a given number of times before answering. */
 function flakyProvider(failures: number, table: Record<string, string>): Provider {
   let seen = 0
   return {
@@ -148,7 +146,6 @@ describe('TranslationEngine - the glossary bypasses the backend', () => {
 
 describe('TranslationEngine - refusals', () => {
   it('refuses a translation that lost a markup token', async () => {
-    // Writing it would break the string in game.
     const engine = await engineWith({
       provider: tableProvider({ 'Gain $AMOUNT$': 'Gagne' })
     })
@@ -173,8 +170,6 @@ describe('TranslationEngine - refusals', () => {
   })
 
   it('refuses an answer carrying a control character (S-3)', async () => {
-    // A real newline breaks the `key:0 "..."` line and can inject fake keys into a file the
-    // game loads. tokensMatch does not see real newlines, and trim does not remove inner ones.
     const engine = await engineWith({
       provider: tableProvider({ one: 'un\nKEY_EVIL:0 "injected"' })
     })
@@ -208,7 +203,6 @@ describe('TranslationEngine - refusals', () => {
   })
 
   it('clears a refusal once the string finally lands', async () => {
-    // The same string can fail for one mod and succeed for the next: keep the last word.
     let attempt = 0
     const provider: Provider = {
       translate: async texts => texts.map(() => (attempt++ === 0 ? 'Gagne' : 'Gagne $AMOUNT$'))
@@ -216,14 +210,11 @@ describe('TranslationEngine - refusals', () => {
     const engine = await engineWith({ provider })
     await engine.translate(['Gain $AMOUNT$'], 'fr')
     expect(engine.refusalFor('fr', 'Gain $AMOUNT$')).toBeDefined()
-    // A second engine call: the memory is empty, so the string is sent again.
     await engine.translate(['Gain $AMOUNT$'], 'fr')
     expect(engine.refusalFor('fr', 'Gain $AMOUNT$')).toBeUndefined()
   })
 
   it('scopes a refusal to its language', async () => {
-    // The original keyed refusals by value alone, so a Russian refusal was readable, and
-    // clearable, while translating French on the same engine.
     const engine = await engineWith({ provider: tableProvider({ 'Gain $A$': 'Gagne' }) })
     await engine.translate(['Gain $A$'], 'fr')
     expect(engine.refusalFor('fr', 'Gain $A$')).toBeDefined()
@@ -249,7 +240,6 @@ describe('TranslationEngine - failure handling', () => {
   })
 
   it('splits a failing batch in half rather than losing it', async () => {
-    // A smaller batch often survives a timeout or a truncated answer.
     const table: Record<string, string> = { a: 'A', b: 'B', c: 'C', d: 'D' }
     const provider: Provider = {
       translate: async texts => {
@@ -266,7 +256,6 @@ describe('TranslationEngine - failure handling', () => {
     const provider: Provider = {
       translate: async texts => {
         if (texts.length > 1) throw new Error('batch too big')
-        // Only 'b' can be translated one at a time.
         return texts.map(text => (text === 'b' ? 'B' : undefined))
       }
     }
@@ -288,8 +277,6 @@ describe('TranslationEngine - failure handling', () => {
   })
 
   it('stops calling the backend once it is down, even for batches already queued', async () => {
-    // The breaker is re-checked after the concurrency queue, so a dead backend does not burn
-    // one full timeout per waiting batch.
     let calls = 0
     const provider: Provider = {
       translate: async () => {
@@ -381,13 +368,10 @@ describe('TranslationEngine - concurrent mods', () => {
     ])
     expect(calls).toBe(1)
     expect(first.results.get('one')).toBe('un')
-    // The second caller waited and then read the memory rather than paying again.
     expect(second.results.get('one')).toBe('un')
   })
 
   it('reports per-call stats, not a share of the engine total (S-11)', async () => {
-    // Two mods on one engine: a before/after delta on the shared counters could come out
-    // negative or doubled, which is what the report and the UI showed.
     const provider: Provider = {
       translate: async texts => {
         await Promise.resolve()

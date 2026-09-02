@@ -24,7 +24,6 @@ describe('discoverMods', () => {
   it('uses the game spelling to recognise the localisation folder', async () => {
     const fs = new MemoryFs({ 'mymod/localization/a_l_english.yml': localeFile('english') })
     expect((await discoverMods('mymod', ck3Def, fs)).single).toBe(true)
-    // For Stellaris that folder is just a subfolder, so the root is a collection.
     expect((await discoverMods('mymod', stellarisDef, fs)).single).toBe(false)
   })
 
@@ -48,7 +47,6 @@ describe('discoverMods', () => {
   })
 
   it('falls back to the root itself when there is no subfolder', async () => {
-    // The run still reports something rather than silently finding zero mods.
     const fs = new MemoryFs({ 'empty/readme.txt': 'x' })
     const result = await discoverMods('empty', stellarisDef, fs)
     expect(result.single).toBe(true)
@@ -56,7 +54,6 @@ describe('discoverMods', () => {
   })
 
   it('propagates a failure to read the root', async () => {
-    // Unlike a single broken mod, an unreadable root leaves nothing to report on.
     const fs = new MemoryFs({})
     await expect(discoverMods('nowhere', stellarisDef, fs)).rejects.toThrow()
   })

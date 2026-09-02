@@ -14,7 +14,7 @@
   },
   "overrides": [
     {
-      "files": ["packages/**/*.ts", "packages/**/*.tsx", "games/**/*.ts"],
+      "files": ["packages/**/*.ts", "packages/**/*.tsx"],
       "excludeFiles": ["packages/fs-node/**"],
       "rules": {
         "no-restricted-imports": [

@@ -1,10 +1,5 @@
 import { posixDirname, resolveGeneratedMod, scanMods, sumByLanguage } from '@ptt/converter'
-import type {
-  GeneratedModPaths,
-  KeyReport,
-  ScanOutput,
-  ScannedMod
-} from '@ptt/converter'
+import type { GeneratedModPaths, KeyReport, ScanOutput, ScannedMod } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
 import { writeKeyCsv } from '@ptt/report'
 import { openTranslationMemory } from '@ptt/translate'
@@ -14,23 +9,10 @@ import { consolePort } from '../console-port.js'
 import type { CliOptions } from '../options.js'
 import { dim, facts, green, num, red, section, yellow } from '../output.js'
 
-/**
- * What `scan` and `audit` share.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts`) by Artem Kondrashev. Both commands call the very
- * same `scanMods` the desktop worker calls, which is what guarantees the CLI and the UI describe
- * the same collection.
- */
-
-/** Missing keys across the collection; the totals only carry files. */
 export function sumMissing(output: ScanOutput): number {
   return output.mods.reduce((sum, mod) => sum + sumByLanguage(mod.missingKeys), 0)
 }
 
-/**
- * Say what the run is about before it starts, so a report is never read against the wrong folder
- * or the wrong language.
- */
 export function printHeader(options: CliOptions): void {
   facts([
     ['game', `${options.game.displayName} (${options.game.id})`],
@@ -41,13 +23,6 @@ export function printHeader(options: CliOptions): void {
   ])
 }
 
-/**
- * The translation memory of a run, scoped exactly as the desktop worker scopes it.
- *
- * Both go through `openTranslationMemory`, so "exactly" is now enforced rather than asserted in
- * a comment: the two used to derive the same directory string separately, and they only share a
- * memory while those strings match byte for byte.
- */
 export async function openMemory(options: CliOptions): Promise<TranslationMemory> {
   return openTranslationMemory(
     options.userDataPath,
@@ -58,17 +33,10 @@ export async function openMemory(options: CliOptions): Promise<TranslationMemory
   )
 }
 
-/** Where the generated mod of this run lives, the same place the desktop app puts it. */
 export function generatedModPaths(options: CliOptions): GeneratedModPaths {
   return resolveGeneratedMod(options.documentsPath, options.game, options.modName)
 }
 
-/**
- * Run a scan, showing progress while it goes.
- * @param options - The command options
- * @param detail - Also collect the state of every key
- * @returns The scan result
- */
 export async function runScan(options: CliOptions, detail: boolean): Promise<ScanOutput> {
   const port = consolePort()
   const memory = await openMemory(options)
@@ -82,11 +50,22 @@ export async function runScan(options: CliOptions, detail: boolean): Promise<Sca
       targetLanguages: options.targetLanguages,
       countLines: options.translate?.enabled === true,
       detail,
+      targetContent: options.targetContent,
       memory,
       generatedModPath: generated.path,
       generatedModFolder: generated.folder,
-      onProgress: (processed, total, modName) =>
-        port.emit({ type: 'mod-progress', jobId: 'cli', processed, total, modName })
+      onProgress: (processed, total, modName, totals) =>
+        port.emit({ type: 'mod-progress', jobId: 'cli', processed, total, modName, totals }),
+      onPhase: (phase, done, total) =>
+        port.emit({
+          type: 'scan-phase',
+          jobId: 'cli',
+          phase,
+          ...(done !== undefined && { done }),
+          ...(total !== undefined && { total })
+        }),
+      onDiagnostic: (message, severity) =>
+        port.emit({ type: 'log', jobId: 'cli', message, severity })
     },
     nodeFs
   )
@@ -94,7 +73,6 @@ export async function runScan(options: CliOptions, detail: boolean): Promise<Sca
   return output
 }
 
-/** Print the collection-wide numbers of a scan. */
 export function printScanTotals(output: ScanOutput): void {
   const { totals } = output
   const missing = sumMissing(output)
@@ -161,12 +139,6 @@ export function printScanTotals(output: ScanOutput): void {
   }
 }
 
-/**
- * Write the machine-readable outputs a command was asked for.
- * @param options - The command options
- * @param output - The scan result
- * @param keys - The key rows the command selected
- */
 export async function writeOutputs(
   options: CliOptions,
   output: ScanOutput,
@@ -187,7 +159,6 @@ export async function writeOutputs(
   }
 }
 
-/** Without key detail the CSV still says what each mod is missing. */
 export function toModRows(mods: readonly ScannedMod[]): KeyReport[] {
   return mods.flatMap(mod =>
     Object.keys(mod.missingKeys).flatMap(languageRaw => {

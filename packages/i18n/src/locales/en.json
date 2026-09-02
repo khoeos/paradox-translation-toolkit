@@ -27,8 +27,8 @@
       "coveredKeys_other": "{{count}} covered",
       "englishKeys_one": "{{count}} key left in the source language by an earlier run",
       "englishKeys_other": "{{count}} keys left in the source language by an earlier run",
-      "errors_one": "{{count}} read error",
-      "errors_other": "{{count}} read errors",
+      "errors_one": "{{count}} read error, content missed",
+      "errors_other": "{{count}} read errors, content missed",
       "missing": "{{files}} files, {{keys}} keys missing",
       "noLocalisation": "No localisation",
       "nothingMissing": "Nothing missing",
@@ -39,7 +39,9 @@
       "sourceKeys_other": "{{count}} source keys",
       "title_one": "{{count}} mod scanned",
       "title_other": "{{count}} mods scanned",
-      "toggle": "Include {{name}}"
+      "toggle": "Include {{name}}",
+      "warnings_one": "{{count}} line skipped, as in game",
+      "warnings_other": "{{count}} lines skipped, as in game"
     },
     "modNameHint": "Name shown in the game launcher for the generated mod.",
     "modNamePlaceholder": "Missing Translations",
@@ -47,15 +49,27 @@
     "noLanguagesPickGame": "Pick a game first.",
     "outputFolder": "Output folder",
     "outputFolderPlaceholder": "D:\\Translation",
-    "overwriteHint": "Force re-create target files from the source, even if they already exist.",
-    "overwriteLabel": "Overwrite existing files",
     "pickGame": "Pick a game",
-    "rescan": "Scan again",
+    "regenerateConfirm": {
+      "body": "The file is rewritten from the source. The translations currently in it are discarded. A .bak copy is kept beside it.",
+      "confirm": "Overwrite",
+      "cost": "Uses more translation API calls than the other options.",
+      "title": "Overwrite the file?"
+    },
     "runError": "Could not start the conversion: {{message}}",
     "scan": "SCAN THE COLLECTION",
     "sourceLanguage": "Source language",
     "sourceLanguageDefault": "English (default)",
     "starting": "Starting…",
+    "targetContent": "What to write",
+    "targetContents": {
+      "completeFile": "Complete (current file)",
+      "completeFileHint": "Add missing keys in the current file",
+      "missingKeys": "Complete (new file)",
+      "missingKeysHint": "Add missing keys in a separate file",
+      "regenerateFile": "Overwrite",
+      "regenerateFileHint": "Rewrite the file from the source"
+    },
     "targetLanguages": "Target languages"
   },
   "editor": {
@@ -96,7 +110,7 @@
       "failed_one": "{{count}} file could not be written",
       "failed_other": "{{count}} files could not be written",
       "openMod": "Open the translation mod",
-      "openReport": "Open the run report",
+      "openReport": "Show the run report in its folder",
       "pruned_one": "{{count}} generated file removed, nothing needs it any more",
       "pruned_other": "{{count}} generated files removed, nothing needs them any more",
       "skipped_one": "{{count}} file left alone, an existing translation was there",
@@ -105,9 +119,9 @@
     "doneToast": "Conversion done - {{count}} files created",
     "doneToast_one": "Conversion done - {{count}} file created",
     "doneToast_other": "Conversion done - {{count}} files created",
+    "elapsed": "Elapsed time",
     "errorToast": "Conversion failed: {{message}}",
     "filesCreated": "Files created:",
-    "filesOverwritten": "Files overwritten:",
     "filesPerLang": "{{lang}} - {{count}} files created",
     "filesPerLang_one": "{{lang}} - {{count}} file created",
     "filesPerLang_other": "{{lang}} - {{count}} files created",
@@ -115,22 +129,23 @@
       "cancelled": "Stopped after the current mod",
       "conversionFinished": "Conversion finished",
       "errorPrefix": "Error: {{message}}",
-      "filesScanned_one": "{{count}} file scanned",
-      "filesScanned_other": "{{count}} files scanned",
-      "missingFiles_one": "{{count}} file missing",
-      "missingFiles_other": "{{count}} files missing",
       "modsScanned_one": "{{count}} mod scanned",
       "modsScanned_other": "{{count}} mods scanned",
-      "sourceFiles_one": "{{count}} file from source language",
-      "sourceFiles_other": "{{count}} files from source language",
+      "severity": {
+        "error": "Error",
+        "warning": "Warning"
+      },
       "startingScanning": "Starting scanning files"
     },
     "modProgress": "Mod {{processed}} of {{total}}: {{name}}",
     "noFilesNeeded": "All target languages already have all files. Nothing to do.",
     "openPathError": "Could not open path: {{message}}",
-    "overwrittenPerLang": "{{lang}} - {{count}} files overwritten",
-    "overwrittenPerLang_one": "{{lang}} - {{count}} file overwritten",
-    "overwrittenPerLang_other": "{{lang}} - {{count}} files overwritten",
+    "phase": {
+      "buildingCoverage": "Reading mod files",
+      "discovering": "Finding mods",
+      "planning": "Checking translations",
+      "readingGenerated": "Reading earlier output"
+    },
     "scanSummary": {
       "estimate": "{{lines}} lines to translate, roughly {{duration}}",
       "generated": "Earlier runs supply {{translated}} translations, {{english}} still in the source language, {{orphans}} orphan folders",
@@ -147,7 +162,6 @@
     "scanToast_other": "{{count}} files missing across the collection",
     "status": {
       "": "Working…",
-      "applying": "Creating files…",
       "cancelled": "Cancelled",
       "done": "Done",
       "error": "Error",
@@ -155,6 +169,18 @@
       "scan-finished": "Scan finished",
       "scanning": "Scanning files…",
       "translating": "Translating…"
+    },
+    "tally": {
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errors",
+      "files_one": "{{count}} file read",
+      "files_other": "{{count}} files read",
+      "lines_one": "{{count}} line missing",
+      "lines_other": "{{count}} lines missing",
+      "toCreate_one": "{{count}} file to create",
+      "toCreate_other": "{{count}} files to create",
+      "warnings_one": "{{count}} warning",
+      "warnings_other": "{{count}} warnings"
     },
     "translationCounters": "{{translated}} translated, {{cached}} free, {{failed}} left alone"
   },
@@ -223,9 +249,7 @@
       "downloading": "Downloading update… {{percent}}%",
       "openInBrowser": "Open in browser",
       "ready": "Update {{version}} ready",
-      "restart": "Restart now",
-      "unsignedTooltip": "This build is not code-signed. Verify the SHA-256 hash from the GitHub release page before installing.",
-      "unsignedWarning": "unsigned build"
+      "restart": "Restart now"
     },
     "betaChannelHint": "Get pre-release builds. Faster access to new features but expect bugs.",
     "betaChannelLabel": "Subscribe to beta releases",

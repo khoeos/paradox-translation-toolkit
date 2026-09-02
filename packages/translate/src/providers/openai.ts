@@ -1,13 +1,8 @@
 import { parseAnswer } from '../answer.js'
 import { checkBaseUrl, describeFailure, trimTrailingSlash, withCancel } from '../http.js'
-import { buildPrompt } from '../prompt.js'
+import { buildAnswerSchema, buildPrompt } from '../prompt.js'
 import type { FetchLike, Hint, Provider } from '../types.js'
 
-/**
- * Any OpenAI-compatible endpoint: Groq, OpenRouter, Gemini, LM Studio, vLLM, ...
- *
- * Ported from PR #4 (e21ee7a, `src/main/translate/providers.ts`) by Artem Kondrashev.
- */
 export class OpenAiProvider implements Provider {
   constructor(
     private readonly baseUrl: string,
@@ -37,7 +32,14 @@ export class OpenAiProvider implements Provider {
       body: JSON.stringify({
         model: this.model,
         temperature: 0.2,
-        response_format: { type: 'json_object' },
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'translations',
+            strict: true,
+            schema: buildAnswerSchema(texts.length)
+          }
+        },
         messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain, hints) }]
       })
     })

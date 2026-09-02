@@ -25,8 +25,6 @@ export function SourceLanguage() {
     <Select
       value={sourceLanguage}
       onValueChange={value => {
-        // Base UI widens the callback value to `LanguageCode | null`; the select
-        // is never cleared, but the null has to be ruled out rather than cast away.
         if (value !== null) setSourceLanguage(value)
       }}
     >

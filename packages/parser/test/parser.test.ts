@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { parse } from '../src/parser.js'
+import { serialize } from '../src/serializer.js'
 
 const BOM = '﻿'
+const NBSP = '\u00A0'
+const ZWSP = '\u200B'
 
 describe('parse - BOM handling', () => {
   it('detects BOM at start of file', () => {
@@ -61,6 +64,31 @@ describe('parse - language header', () => {
     const result = parse('')
     expect(result.ok).toBe(false)
     expect(result.diagnostics.some(d => d.code === 'missing-header')).toBe(true)
+  })
+
+  it('accepts a version number on the header line', () => {
+    const result = parse(`l_english:0\n KEY:0 "value"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.language).toBe('english')
+  })
+
+  it('accepts a comment on the header line', () => {
+    const result = parse(`l_english: # c\n KEY:0 "value"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.language).toBe('english')
+  })
+
+  it('accepts a space before the header colon', () => {
+    const result = parse(`l_german :\n KEY:0 "value"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.language).toBe('german')
+  })
+
+  it('reports a broken header once, not once per line', () => {
+    const result = parse(`l_japanese.:\n KEY1:0 "a"\n KEY2:0 "b"\n KEY3:0 "c"\n`)
+    expect(result.ok).toBe(false)
+    expect(result.diagnostics.filter(d => d.code === 'no-header')).toHaveLength(1)
+    expect(result.diagnostics.filter(d => d.code === 'missing-header')).toHaveLength(1)
   })
 })
 
@@ -145,9 +173,6 @@ describe('parse - value content', () => {
   })
 
   it('stops the value at the first unescaped quote, not the last one on the line', () => {
-    // Regression for finding S-6 of the PR #4 audit: a line-based regexp ending on the last
-    // quote of the line swallowed the trailing comment into the value, so `a" # see "b` was
-    // handed to the translator and written back to disk.
     const result = parse(`l_english:\n KEY:0 "a" # see "b"\n`)
     expect(result.ok).toBe(true)
     expect(result.file.entries[0]?.value).toBe('a')
@@ -199,6 +224,18 @@ describe('parse - error recovery', () => {
     const result = parse(source)
     const diag = result.diagnostics.find(d => d.code === 'expected-quote')
     expect(diag?.line).toBe(3)
+  })
+
+  it.each([
+    ['l_english:\n 40kmega_hive_planet\n', 'expected-colon', 'skipped (the game skips it too)'],
+    ['l_english:\n KEY:0 missing\n', 'expected-quote', 'skipped (the game skips it too)'],
+    ['l_english:\n : "orphan"\n', 'expected-key', 'skipped (the game skips it too)'],
+    ['l_english:\n KEY:0 "runs off\n', 'unterminated-string', 'line skipped'],
+    ['stray line\nl_english:\n KEY:0 "v"\n', 'no-header', 'the game reads nothing above it'],
+    ['just notes\n', 'missing-header', 'none of its keys can be read']
+  ])('says what was dropped, not only what was expected (%#)', (source, code, said) => {
+    const diag = parse(source).diagnostics.find(d => d.code === code)
+    expect(diag?.message).toContain(said)
   })
 })
 
@@ -300,5 +337,178 @@ describe('parse - multi-line values', () => {
     const result = parse(source)
     expect(result.ok).toBe(true)
     expect(result.file.entries.map(e => e.key)).toEqual(['KEY1', 'KEY2'])
+  })
+
+  describe('a runaway value that meets the next entry head', () => {
+    it('keeps the next key instead of swallowing it', () => {
+      const source = `l_english:\n KEY1:0 "unterminated, no closing quote here\n KEY2:0 "value2"\n`
+      const result = parse(source)
+      expect(result.file.entries.map(e => e.key)).toEqual(['KEY2'])
+      expect(result.file.entries[0]?.value).toBe('value2')
+    })
+
+    it('reports the unread line rather than parsing clean', () => {
+      const source = `l_english:\n KEY1:0 "unterminated, no closing quote here\n KEY2:0 "value2"\n`
+      const result = parse(source)
+      const diag = result.diagnostics.find(d => d.code === 'unterminated-string')
+      expect(diag?.line).toBe(2)
+      expect(diag?.message).toContain('KEY2')
+      expect(diag?.message).toContain('line skipped')
+      expect(result.ok).toBe(false)
+    })
+
+    it('keeps the blank and comment lines in between out of the value', () => {
+      const source = [
+        'l_english:',
+        ' legend_royce_bolton_desc:0 "The Boltons never forgot.',
+        '',
+        '#lannister legends',
+        ' legend_the_clever:0 "Tale of Tricksters"',
+        ''
+      ].join('\n')
+      const result = parse(source)
+      expect(result.file.entries.map(e => e.key)).toEqual(['legend_the_clever'])
+      expect(result.file.entries[0]?.value).toBe('Tale of Tricksters')
+      expect(result.file.body?.map(b => b.kind)).toEqual(['blank', 'comment', 'entry'])
+      expect(result.diagnostics.map(d => d.code)).toEqual(['unterminated-string'])
+    })
+
+    it('still reads a well-formed multi-line value followed by an entry', () => {
+      const source = `l_english:\n KEY1:0 "first line\nsecond line"\n KEY2:0 "value2"\n`
+      const result = parse(source)
+      expect(result.ok).toBe(true)
+      expect(result.file.entries.map(e => e.key)).toEqual(['KEY1', 'KEY2'])
+      expect(result.file.entries[0]?.value).toBe('first line\nsecond line')
+    })
+  })
+})
+
+describe('parse - shapes the game accepts', () => {
+  it('accepts an apostrophe in the key', () => {
+    const result = parse(`l_braz_por:\n NAME_Jackson's_Planet: "Planeta de Jackson"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.key).toBe("NAME_Jackson's_Planet")
+  })
+
+  it('accepts a non-breaking space as indentation, and keeps it out of the key', () => {
+    const result = parse(`l_english:\n${NBSP}${NBSP}d_ice_crust_desc: "A natural cave."\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.key).toBe('d_ice_crust_desc')
+    expect(result.file.entries[0]?.value).toBe('A natural cave.')
+  })
+
+  it('accepts a space before the colon', () => {
+    const result = parse(`l_english:\n key : "x"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]).toEqual({ key: 'key', version: null, value: 'x', rawLine: 2 })
+  })
+
+  it('accepts a space before the colon with a version right after it', () => {
+    const result = parse(`l_english:\n key :0 "x"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.key).toBe('key')
+    expect(result.file.entries[0]?.version).toBe(0)
+  })
+
+  it('accepts a space before the version number', () => {
+    const result = parse(`l_english:\n KEY: 2 "x"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.version).toBe(2)
+    expect(result.file.entries[0]?.value).toBe('x')
+  })
+
+  it('keeps an interior space inside the key', () => {
+    const result = parse(
+      `l_english:\n war_goal_wg_gpm_r_pulsestone AAAA_desc:0 "Pulsestone extraction"\n`
+    )
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.key).toBe('war_goal_wg_gpm_r_pulsestone AAAA_desc')
+  })
+
+  it('accepts non-ASCII letters in the key', () => {
+    const result = parse(`l_english:\n FW_text_待修:0 "x"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.key).toBe('FW_text_待修')
+  })
+
+  it('accepts zero-width characters before the value', () => {
+    const result = parse(`l_english:\n tech_comm_hub:0 ${ZWSP}${ZWSP}"Comm hub"\n`)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries[0]?.value).toBe('Comm hub')
+  })
+})
+
+describe('parse - lines that stay refused', () => {
+  it('refuses a junk marker between the colon and the version', () => {
+    const result = parse(`l_english:\n KEY:. 0 "x"\n`)
+    expect(result.ok).toBe(false)
+    expect(result.file.entries).toHaveLength(0)
+  })
+
+  it('refuses a value with no opening quote', () => {
+    const result = parse(`l_english:\n ACOT_SC_GUNSHIP_4_DESC: Gunship"\n`)
+    expect(result.ok).toBe(false)
+    expect(result.file.entries).toHaveLength(0)
+  })
+
+  it('refuses a bare continuation line of an unterminated string', () => {
+    const result = parse(`l_english:\n LEthique Libertaire§!"\n`)
+    expect(result.ok).toBe(false)
+    expect(result.file.entries).toHaveLength(0)
+  })
+
+  it('refuses a key containing a quote', () => {
+    const result = parse(`l_english:\n key"weird:0 "x"\n`)
+    expect(result.ok).toBe(false)
+    expect(result.file.entries).toHaveLength(0)
+  })
+
+  it('refuses a line whose key is only filler', () => {
+    const result = parse(`l_english:\n  : "x"\n`)
+    expect(result.ok).toBe(false)
+    expect(result.file.entries).toHaveLength(0)
+  })
+})
+
+describe('parse - round-trip over the tolerated shapes', () => {
+  const source = [
+    `${BOM}l_english:0`,
+    ` NAME_Jackson's_Planet: "Planeta de Jackson"`,
+    `${NBSP}d_ice_crust_desc: "A cave with a \\"thick\\" ice layer"`,
+    ` key : "x" # note`,
+    ` KEY: 2 "§Yyellow§!"`,
+    ` war_goal_wg_gpm_r_pulsestone AAAA_desc:0 "Pulsestone"`,
+    ` FW_text_待修:0 "x"`,
+    ` tech_comm_hub:0 ${ZWSP}"Comm hub"`,
+    ''
+  ].join('\r\n')
+
+  it('parses every line of the sample', () => {
+    const result = parse(source)
+    expect(result.ok).toBe(true)
+    expect(result.file.entries).toHaveLength(7)
+  })
+
+  it('preserves the BOM, the line ending and the escapes', () => {
+    const output = serialize(parse(source).file)
+    expect(output.startsWith(BOM)).toBe(true)
+    expect(output.includes('\r\n')).toBe(true)
+    expect(output.includes('\n')).toBe(true)
+    expect(output).toContain('A cave with a \\"thick\\" ice layer')
+    expect(output).toContain('§Yyellow§!')
+    expect(output).toContain('# note')
+  })
+
+  it('is stable: a second round-trip changes nothing', () => {
+    const once = serialize(parse(source).file)
+    expect(serialize(parse(once).file)).toBe(once)
+  })
+
+  it('normalises the separator and the indent it just learned to read', () => {
+    const output = serialize(parse(source).file)
+    expect(output).toContain(' key: "x" # note')
+    expect(output).toContain(' d_ice_crust_desc:')
+    expect(output.includes(NBSP)).toBe(false)
+    expect(output.includes(ZWSP)).toBe(false)
   })
 })

@@ -11,8 +11,6 @@ import {
 } from '../src/markup.js'
 
 describe('TOKEN_PATTERN', () => {
-  // One case per alternative of the grammar. A construct missing from the pattern is sent
-  // to a translator as text, which is how markup gets mangled.
   const cases: Array<[label: string, value: string, tokens: string[]]> = [
     ['variable', 'Cost: $VALUE$', ['$VALUE$']],
     ['empty variable', 'a $$ b', ['$$']],
@@ -38,7 +36,6 @@ describe('TOKEN_PATTERN', () => {
   })
 
   it('does not match a hash code at end of value (no trailing whitespace)', () => {
-    // The lookahead requires whitespace, so a value ending in `#bold` yields no token.
     expect(extractTokens('text #bold')).toEqual([])
   })
 
@@ -60,7 +57,6 @@ describe('hasMarkup', () => {
   })
 
   it('gives the same answer on repeated calls', () => {
-    // Guards the reason hasMarkup exists: a global regexp would alternate here.
     const value = 'Gain £energy£ now'
     expect(hasMarkup(value)).toBe(true)
     expect(hasMarkup(value)).toBe(true)
@@ -102,7 +98,6 @@ describe('isTranslatable', () => {
   })
 
   it('counts letters split by a token as separate runs', () => {
-    // `a$X$b` masks to `a b`, which has no run of two letters.
     expect(isTranslatable('a$X$b')).toBe(false)
   })
 })
@@ -167,7 +162,6 @@ describe('restoreTokens', () => {
   })
 
   it('inserts a token containing $ literally, not as a replacement pattern', () => {
-    // `$&` in a replacement string would re-insert the match. The token must win.
     expect(restoreTokens('{0}', ['$&$'])).toBe('$&$')
     expect(restoreTokens('{0}', ['$$'])).toBe('$$')
   })
@@ -177,7 +171,6 @@ describe('restoreTokens', () => {
   })
 
   it('replaces only the first occurrence of a repeated placeholder', () => {
-    // A duplicated {0} leaves a leftover placeholder, so the string is refused.
     expect(restoreTokens('{0} and {0}', ['$A$'])).toBeNull()
   })
 })

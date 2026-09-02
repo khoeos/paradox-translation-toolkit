@@ -1,8 +1,13 @@
 import { DEFAULT_MOD_NAME, posixJoin } from '@ptt/converter'
-import { getAllGameIds, getGame } from '@ptt/game-registry'
+import { getAllGameIds, getGame } from '@ptt/games'
 import type { GameDefinition } from '@ptt/shared'
-import { CONVERT_MODES, LANGUAGE_CODES, LanguageCodeSchema } from '@ptt/shared'
-import type { ConvertMode, LanguageCode } from '@ptt/shared'
+import {
+  CONVERT_MODES,
+  LANGUAGE_CODES,
+  LanguageCodeSchema,
+  TARGET_CONTENTS
+} from '@ptt/shared'
+import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
 import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
@@ -11,22 +16,18 @@ import { asBool, asList, asNumber, asString } from './coerce.js'
 import { readConfig } from './config.js'
 import { resolveDocuments, resolveUserData } from './user-data.js'
 
-/**
- * Turning command line flags into what the desktop worker receives.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/options.ts` `buildOptions`) by Artem Kondrashev. Languages
- * and games go through the registry and the zod schema rather than through a cast: the original
- * checked `ACTIVE_GAMES`, a list that had drifted out of use and rejected nothing.
- */
-
-/** Short names for the three modes, kept from the original so a script keeps working. */
 const MODE_ALIASES: Record<string, ConvertMode> = {
   mod: 'create-translation-mod',
   add: 'add-to-current',
   extract: 'extract-to-folder'
 }
 
-/** Commands that read mods; the others only need to know where the app keeps its data. */
+const TARGET_CONTENT_ALIASES: Record<string, TargetContent> = {
+  missing: 'missing-keys',
+  complete: 'complete-file',
+  regenerate: 'regenerate-file'
+}
+
 const NEEDS_PATH = new Set(['scan', 'audit', 'convert'])
 
 const DEFAULT_ROWS = 30
@@ -38,29 +39,21 @@ export interface CliOptions {
   sourceLanguage: LanguageCode
   targetLanguages: LanguageCode[]
   mode: ConvertMode
+  targetContent: TargetContent
   outputDir?: string
   modName: string
   selectedMods?: string[]
   documentsPath: string
   userDataPath: string
-  /** Where reports go when no explicit file was given. */
   reportsDir: string
   translate?: TranslateConfig
-  /** Mod name filter, matched on the folder id and on the declared name. */
   modFilter?: string
   limit: number
   jsonOut?: string
   csvOut?: string
 }
 
-/**
- * Build everything a command needs.
- * @param args - The parsed command line
- * @returns The resolved options
- * @throws With a message naming the valid values, for any flag that does not parse
- */
 export function buildOptions(args: Args): CliOptions {
-  // A flag always beats the config file, so one run can differ without editing anything.
   const config = readConfig(asString(args.flags.config))
   const flags = { ...config, ...args.flags }
 
@@ -83,6 +76,16 @@ export function buildOptions(args: Args): CliOptions {
     )
   }
 
+  const contentAlias = asString(flags.content) ?? 'missing'
+  const targetContent =
+    TARGET_CONTENT_ALIASES[contentAlias] ??
+    (isTargetContent(contentAlias) ? contentAlias : undefined)
+  if (targetContent === undefined) {
+    throw new Error(
+      `Unknown --content "${contentAlias}", expected one of ${Object.keys(TARGET_CONTENT_ALIASES).join(', ')}`
+    )
+  }
+
   const userDataPath = resolveUserData(asString(flags['user-data']))
   const outputDir = asString(flags.out)
   const modFilter = asString(flags.mod)
@@ -98,6 +101,7 @@ export function buildOptions(args: Args): CliOptions {
     sourceLanguage: parseLanguages(game, asString(flags.from) ?? 'en')[0] ?? 'en',
     targetLanguages: parseLanguages(game, asString(flags.to) ?? 'ru'),
     mode,
+    targetContent,
     modName: asString(flags['mod-name']) ?? DEFAULT_MOD_NAME,
     documentsPath: resolveDocuments(asString(flags.documents)),
     userDataPath,
@@ -126,8 +130,6 @@ function buildTranslate(
   }
   const defaults = PROVIDER_DEFAULTS[providerName]
 
-  // A key on the command line ends up in the shell history, so the environment is the safer
-  // route and the help says so.
   const apiKey = asString(flags['api-key']) ?? process.env.PTT_API_KEY
   const gamePath = asString(flags['game-path'])
 
@@ -146,12 +148,6 @@ function buildTranslate(
   }
 }
 
-/**
- * Language codes, validated and checked against the selected game.
- * @param game - The game, whose `languageFileToken` says what it supports
- * @param codes - Comma-separated language codes (`ru`, `en`, ...)
- * @returns The codes, in the order given
- */
 export function parseLanguages(game: GameDefinition, codes: string): LanguageCode[] {
   const parsed: LanguageCode[] = []
   for (const raw of codes.split(',')) {
@@ -172,6 +168,10 @@ export function parseLanguages(game: GameDefinition, codes: string): LanguageCod
 
 function isConvertMode(value: string): value is ConvertMode {
   return CONVERT_MODES.some(mode => mode === value)
+}
+
+function isTargetContent(value: string): value is TargetContent {
+  return TARGET_CONTENTS.some(content => content === value)
 }
 
 function isProvider(value: string): value is TranslateConfig['provider'] {

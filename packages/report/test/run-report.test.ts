@@ -6,6 +6,7 @@ import type { Refusal } from '@ptt/translate'
 
 import {
   StoredRunReportSchema,
+  buildRunReport,
   countByReason,
   stamp,
   toStored,
@@ -50,6 +51,7 @@ const report = (over: Partial<RunReport> = {}): RunReport => ({
     path: 'workshop',
     game: 'stellaris',
     mode: 'create-translation-mod',
+    targetContent: 'missing-keys',
     sourceLanguage: 'en',
     targetLanguages: ['ru'],
     translate: { provider: 'ollama', model: 'qwen2.5:7b', batchSize: 20, concurrency: 2 }
@@ -83,6 +85,24 @@ describe('countByReason', () => {
   })
 })
 
+describe('buildRunReport', () => {
+  it('carries targetContent from the inputs into the request field by field', () => {
+    const built = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'complete-file',
+      sourceLanguage: 'en',
+      targetLanguages: ['ru'],
+      output: { totals, mods: [modResult()] },
+      untranslated: []
+    })
+    expect(built.request.targetContent).toBe('complete-file')
+  })
+})
+
 describe('toStored', () => {
   it('renders the timestamps as ISO strings and the duration in seconds', () => {
     const stored = toStored(report())
@@ -99,8 +119,6 @@ describe('toStored', () => {
   })
 
   it('never carries an API key, because the type has no field for one', () => {
-    // A report is a file the user may hand around, so leaking the key has to be impossible
-    // rather than merely avoided by a manual pick.
     const stored = toStored(report())
     expect(JSON.stringify(stored)).not.toContain('apiKey')
     expect('apiKey' in stored.request).toBe(false)
@@ -110,6 +128,13 @@ describe('toStored', () => {
       'batchSize',
       'concurrency'
     ])
+  })
+
+  it('carries targetContent from the request through, so a stored report says what it wrote', () => {
+    const withContent = report({
+      request: { ...report().request, targetContent: 'regenerate-file' }
+    })
+    expect(toStored(withContent).request.targetContent).toBe('regenerate-file')
   })
 
   it('flattens each mod to its counters', () => {
@@ -128,7 +153,6 @@ describe('toStored', () => {
   })
 
   it('tallies the refusals rather than listing them twice', () => {
-    // The list is in the CSV; the JSON only needs the shape of the failure.
     const stored = toStored(
       report({
         refusals: {
@@ -167,7 +191,6 @@ describe('writeRunReport', () => {
   })
 
   it('writes a JSON that validates against the schema it declares', async () => {
-    // Audit finding Q-7: reading a report back used to be JSON.parse plus an assertion.
     const fs = new MemoryFs()
     const written = await writeRunReport('reports', report({ untranslated: [key] }), fs)
     const raw = fs.snapshot().get(written?.jsonPath ?? '') ?? ''
@@ -223,5 +246,36 @@ describe('StoredRunReportSchema', () => {
     const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
     raw.request.mode = 'delete-everything'
     expect(StoredRunReportSchema.safeParse(raw).success).toBe(false)
+  })
+
+  it('accepts a report written before targetContent existed (v3.0.0-beta.1)', async () => {
+    const fs = new MemoryFs()
+    const written = await writeRunReport('reports', report(), fs)
+    const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
+    delete raw.request.targetContent
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
+  })
+
+  it('reads back a state the enum is a hand-written copy of', async () => {
+    const fs = new MemoryFs()
+    const written = await writeRunReport(
+      'reports',
+      report({
+        untranslated: [
+          {
+            modId: 'mymod',
+            modName: 'My Mod',
+            language: 'ru',
+            key: 'K',
+            file: 'a_l_english.yml',
+            source: 'text',
+            state: 'kept'
+          }
+        ]
+      }),
+      fs
+    )
+    const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
   })
 })

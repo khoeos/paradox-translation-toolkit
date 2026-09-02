@@ -6,16 +6,6 @@ import { checkBaseUrl, describeFailure, withCancel } from '../http.js'
 import { RAPIDAPI_CODES } from '../language-codes.js'
 import type { FetchLike, Hint, Provider } from '../types.js'
 
-/**
- * A RapidAPI translation hub speaking the TranslateAI JSON shape.
- *
- * Ported from PR #4 (e21ee7a, `src/main/translate/providers.ts`) by Artem Kondrashev.
- *
- * Unlike a model it cannot be told to leave markup alone, so every token is masked before
- * sending and put back afterwards. A string whose placeholders did not survive is dropped
- * rather than written half broken. It maps by explicit key, which is what the model providers
- * were changed to do as well (audit finding S-4).
- */
 export class RapidApiProvider implements Provider {
   constructor(
     private readonly baseUrl: string,
@@ -65,9 +55,6 @@ export class RapidApiProvider implements Provider {
     return masked.map((item, index) => {
       const answer = translated[String(index)]
       if (typeof answer !== 'string') return undefined
-      // A lost placeholder means the markup cannot be put back, so the caller keeps the
-      // source string. Known limitation, audit finding S-18: a literal `{0}` in the source
-      // collides with the masking scheme and fails closed here.
       return restoreTokens(answer, item.tokens) ?? undefined
     })
   }

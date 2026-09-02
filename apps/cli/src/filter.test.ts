@@ -40,9 +40,6 @@ describe('filterMods', () => {
     expect(mods).toEqual(copy)
   })
 
-  // The audit filters key reports, which carry the mod identity under different field names and
-  // exist one per key per language: copying each one into `{ id, name }` shape to filter them was
-  // the reason the accessor exists.
   it('reads the identity through the accessor, whatever the row shape', () => {
     const keys = [
       { modId: '2887679980', modName: 'Ethics Overhaul', key: 'K1' },

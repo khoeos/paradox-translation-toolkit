@@ -9,19 +9,11 @@ import type { CliOptions } from '../options.js'
 import { dim, facts, green, num, red, section, yellow } from '../output.js'
 import { generatedModPaths, openMemory, printHeader } from './shared.js'
 
-/**
- * The real run, reported afterwards key by key.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `commandConvert`) by Artem Kondrashev. It calls
- * the same `runConvert` the desktop worker calls, through the same `ProgressPort`, and builds its
- * engine and its report with the same factories: that is what guarantees the CLI and the app do
- * strictly the same thing rather than two similar things.
- */
-
 export async function commandConvert(options: CliOptions): Promise<void> {
   printHeader(options)
   facts([
     ['mode', options.mode],
+    ['content', options.targetContent],
     [
       'translation',
       options.translate
@@ -30,12 +22,9 @@ export async function commandConvert(options: CliOptions): Promise<void> {
     ]
   ])
 
-  // The flag stops the loops between units of work; the controller cuts the request in flight.
   const abort = new AbortController()
   const cancellation: Cancellation = { requested: false }
 
-  // Ctrl+C has to stop between two units of work: killing the process could leave a half-written
-  // localisation file behind, and a truncated translation memory with it.
   process.on('SIGINT', () => {
     cancellation.requested = true
     abort.abort()
@@ -79,6 +68,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       sourceLanguage: options.sourceLanguage,
       targetLanguages: options.targetLanguages,
       mode: options.mode,
+      targetContent: options.targetContent,
       cancellation,
       memory,
       ...(options.outputDir !== undefined && { outputDir: options.outputDir }),
@@ -94,7 +84,6 @@ export async function commandConvert(options: CliOptions): Promise<void> {
   )
   port.done()
 
-  // Always flushed, cancelled or not: what a stopped run did translate must survive.
   await memory.flush()
 
   const written = await writeRunReport(
@@ -105,6 +94,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       rootDir: options.rootDir,
       gameId: options.game.id,
       mode: options.mode,
+      targetContent: options.targetContent,
       sourceLanguage: options.sourceLanguage,
       targetLanguages: options.targetLanguages,
       output,
@@ -165,6 +155,17 @@ function printResult(
     for (const mod of failing.slice(0, limit)) {
       console.log(`  ${red(mod.name)}`)
       for (const error of mod.errors.slice(0, 3)) console.log(`    ${dim(error)}`)
+    }
+  }
+
+  const shrugged = output.mods.filter(
+    mod => mod.errors.length === 0 && (mod.warnings?.length ?? 0) > 0
+  )
+  if (shrugged.length > 0) {
+    section(`Mods holding lines the game skips (${shrugged.length})`)
+    for (const mod of shrugged.slice(0, limit)) {
+      console.log(`  ${yellow(mod.name)}`)
+      for (const warning of (mod.warnings ?? []).slice(0, 3)) console.log(`    ${dim(warning)}`)
     }
   }
 

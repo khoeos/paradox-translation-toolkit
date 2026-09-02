@@ -1,6 +1,7 @@
 export type {
   LocaleEntry,
   LocaleFile,
+  BodyItem,
   Diagnostic,
   ParseResult,
   ParseOptions,

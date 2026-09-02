@@ -53,7 +53,6 @@ describe('readGeneratedMod', () => {
   })
 
   it('files a key sitting straight under the language folder under no namespace', async () => {
-    // It was not written by us and belongs to no mod.
     const fs = new MemoryFs({
       'generated/localisation/russian/loose_l_russian.yml': localeFile('russian', [['K', 'v']])
     })
@@ -79,8 +78,6 @@ describe('dropOurOwnMod', () => {
   ]
 
   it('drops a copy of our own output found in the scanned folder', async () => {
-    // It carries no source language and repeats other mods keys, so the coverage heuristic
-    // would read it as a third-party localisation mod vouching for our own leftovers.
     const result = dropOurOwnMod(mods, 'missing_translations')
     expect(result.mods.map(m => m.id)).toEqual(['mymod'])
     expect(result.selfCopy).toBe('workshop/missing_translations')
@@ -128,12 +125,10 @@ describe('summariseGeneratedMod', () => {
   })
 
   it('flags a namespace matching no scanned mod as an orphan', () => {
-    // The mod was renamed or unsubscribed, so those files shadow nothing useful.
     const summary = summariseGeneratedMod(generated(['mymod_my_mod', 'gone_forever']), [
       scannedMod()
     ])
     expect(summary.orphanNamespaces).toEqual(['gone_forever'])
-    // And an orphan's keys are not counted as a contribution.
     expect(summary.translated).toBe(1)
   })
 

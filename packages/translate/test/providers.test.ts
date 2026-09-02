@@ -85,7 +85,32 @@ describe('OpenAiProvider', () => {
     const call = fetch.calls[0]!
     expect(call.url).toBe('https://api.openai.com/v1/chat/completions')
     expect(call.init.headers.Authorization).toBe('Bearer sk-secret')
-    expect(call.body).toMatchObject({ response_format: { type: 'json_object' } })
+    expect(call.body).toMatchObject({
+      response_format: { type: 'json_schema', json_schema: { name: 'translations', strict: true } }
+    })
+  })
+
+  it('sends a strict json_schema with one required slot per input, never json_object', async () => {
+    const fetch = openAiAnswering({ '0': 'un', '1': 'deux' })
+    const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
+    await provider.translate(['one', 'two'], 'French')
+    expect(fetch.calls[0]?.body).toMatchObject({
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          schema: {
+            required: ['translations'],
+            properties: {
+              translations: {
+                required: ['0', '1'],
+                properties: { '0': { type: 'string' }, '1': { type: 'string' } },
+                additionalProperties: false
+              }
+            }
+          }
+        }
+      }
+    })
   })
 
   it('sends no Authorization header when there is no key', async () => {
@@ -99,7 +124,6 @@ describe('OpenAiProvider', () => {
     const fetch = openAiAnswering({ '0': 'un' })
     const provider = new OpenAiProvider('http://evil.example.com/v1', 'm', 'sk', TIMEOUT, fetch.fn)
     await expect(provider.translate(['one'], 'French')).rejects.toThrow(/plain http/)
-    // And nothing was sent.
     expect(fetch.calls).toHaveLength(0)
   })
 
@@ -118,7 +142,6 @@ describe('OpenAiProvider', () => {
 
 describe('RapidApiProvider', () => {
   it('masks markup before sending and restores it afterwards', async () => {
-    // The service cannot be told to leave markup alone, so it never sees it.
     const sent: unknown[] = []
     const fetch = fakeFetch(call => {
       sent.push(call.body)
@@ -134,7 +157,6 @@ describe('RapidApiProvider', () => {
     expect(await provider.translate(['Gain £energy£ now'], 'French')).toEqual([
       'Gagne £energy£ maintenant'
     ])
-    // The service saw a placeholder, never the markup itself.
     expect(sent[0]).toMatchObject({ json_content: { '0': 'Gain {0} now' } })
   })
 
@@ -160,7 +182,6 @@ describe('RapidApiProvider', () => {
   })
 
   it('drops a string whose placeholders did not survive', async () => {
-    // Better an untranslated string than a broken one.
     const fetch = fakeFetch(() => ({
       json: async () => ({ translated_json: { '0': 'no token' } })
     }))

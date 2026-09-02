@@ -11,12 +11,6 @@ export interface FakeFetch {
   calls: RecordedCall[]
 }
 
-/**
- * A `fetch` that answers from a script instead of the network.
- *
- * The whole reason the providers take an injected transport: the engine's batching, splitting
- * and circuit breaker are testable without a server, and without mocking a global.
- */
 export function fakeFetch(
   answer: (
     call: RecordedCall,
@@ -39,7 +33,6 @@ export function fakeFetch(
   return { fn, calls }
 }
 
-/** A fetch that always answers with an OpenAI-shaped translation payload. */
 export function openAiAnswering(translations: unknown): FakeFetch {
   return fakeFetch(() => ({
     json: async () => ({
@@ -48,7 +41,6 @@ export function openAiAnswering(translations: unknown): FakeFetch {
   }))
 }
 
-/** A fetch that always answers with an Ollama-shaped translation payload. */
 export function ollamaAnswering(translations: unknown): FakeFetch {
   return fakeFetch(() => ({
     json: async () => ({ message: { content: JSON.stringify({ translations }) } })

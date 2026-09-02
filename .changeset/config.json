@@ -1,16 +1,13 @@
 {
-  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
-  "changelog": [
-    "@changesets/changelog-github",
-    {
-      "repo": "khoeos/paradox-translation-toolkit"
-    }
-  ],
+  "$schema": "https://unpkg.com/@changesets/config@4.0.0/schema.json",
+  "changelogComment": "`@changesets/changelog-github` resolves each changeset's commit through the GitHub API, so `pnpm release:version` needs a GITHUB_TOKEN in the environment and needs those commits already pushed to `repo`. The `## <version>` structure scripts/release-notes.mjs reads is the same as the plain generator's. See docs/publishing.md.",
+  "changelog": ["@changesets/changelog-github", { "repo": "khoeos/paradox-translation-toolkit" }],
   "commit": false,
-  "fixed": [["@ptt/*", "!@ptt/desktop", "!@ptt/cli", "!@ptt/game-*"]],
+  "fixed": [["@ptt/*", "!@ptt/desktop", "!@ptt/cli"]],
   "linked": [],
   "access": "restricted",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
+  "privatePackages": true,
   "ignore": []
 }

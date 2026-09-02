@@ -41,6 +41,15 @@ interface UpdaterUiState {
   dismiss: () => void
 }
 
+export const isUpdateBannerVisible = (
+  state: Pick<UpdaterUiState, 'status' | 'dismissed'>
+): boolean =>
+  !state.dismissed &&
+  state.status !== 'idle' &&
+  state.status !== 'checking' &&
+  state.status !== 'not-available' &&
+  state.status !== 'error'
+
 export const useUpdaterStore = create<UpdaterUiState>(set => ({
   status: 'idle',
   latestVersion: null,

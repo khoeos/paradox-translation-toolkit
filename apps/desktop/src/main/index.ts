@@ -23,15 +23,12 @@ crashReporter.start({
   companyName: 'Khoeos'
 })
 
-// Reject <webview> attachment to close off a class of RCE vectors.
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', event => {
     event.preventDefault()
   })
 })
 
-// Production CSP injected as a header. The <meta> tag in index.html is a fallback.
-// Skipped in dev so Vite's HMR transports stay functional.
 const PROD_CSP =
   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
   "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; " +
@@ -74,7 +71,6 @@ void app.whenReady().then(() => {
   const settingsSnapshot = settings.getAll()
   updater.applyConfig({ channel: settingsSnapshot.updateChannel })
 
-  // Seed the openable registry with previously configured paths.
   for (const v of Object.values(settingsSnapshot.lastModFolder)) {
     if (v !== undefined) openable.add(v)
   }
@@ -82,7 +78,6 @@ void app.whenReady().then(() => {
     if (v !== undefined) openable.add(v)
   }
 
-  // Allow opening the log folder without going through the bypass modal.
   openable.add(app.getPath('logs'))
 
   if (settingsSnapshot.autoCheckUpdates) {

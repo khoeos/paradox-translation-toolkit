@@ -8,13 +8,12 @@ For build commands and per-OS installer flows, see [building.md](./building.md).
 
 ## High-level shape
 
-The repo is a **pnpm + Turbo monorepo** with three top-level groups:
+The repo is a **pnpm + Turbo monorepo** with two top-level groups:
 
 - `apps/` - runnable applications (the desktop app and a developer CLI)
-- `packages/` - reusable, FS-agnostic libraries
-- `games/` - per-game plugins, all conforming to a common `GameDefinition` interface
+- `packages/` - reusable, FS-agnostic libraries, including the per-game data (`@ptt/games`)
 
-The desktop app is **the only consumer of Electron**. The real file system is reached through `@ptt/fs-node`, whose single `nodeFs` is imported by the two apps and nothing else; the core libraries (`parser`, `converter`, `translate`, `report`, the game plugins) receive it as an injected `FsLike`. `translate` reaches the network the same way, through an injected `FetchLike`. This is what makes all of them unit-testable without a disk or a server, and what lets the CLI run exactly the same pipeline as the app.
+The desktop app is **the only consumer of Electron**. The real file system is reached through `@ptt/fs-node`, whose single `nodeFs` is imported by the two apps and nothing else; the core libraries (`parser`, `converter`, `translate`, `report`) receive it as an injected `FsLike`. `translate` reaches the network the same way, through an injected `FetchLike`. This is what makes all of them unit-testable without a disk or a server, and what lets the CLI run exactly the same pipeline as the app.
 
 ---
 
@@ -33,16 +32,17 @@ paradox-translation-toolkit/
 │   ├── report/                   # JSON + CSV run reports (@ptt/report)
 │   ├── fs-node/                  # The single production FsLike (@ptt/fs-node)
 │   ├── ui/                       # shadcn/ui primitives + Tailwind globals (@ptt/ui)
-│   └── i18n/                     # i18next setup + locale JSON files (@ptt/i18n)
-├── games/
-│   ├── game-stellaris/           # Stellaris (281990)
-│   ├── game-eu4/                 # Europa Universalis IV (236850)
-│   ├── game-eu5/                 # Europa Universalis V (3450310)
-│   ├── game-hoi4/                # Hearts of Iron IV (394360)
-│   ├── game-ck3/                 # Crusader Kings III (1158310)
-│   ├── game-vic3/                # Victoria 3 (529340)
-│   ├── game-imperator/           # Imperator: Rome (859580)
-│   └── game-registry/            # Aggregates the games (@ptt/game-registry)
+│   ├── i18n/                     # i18next setup + locale JSON files (@ptt/i18n)
+│   └── games/                    # One GameDefinition per game + the registry (@ptt/games)
+│       └── src/
+│           ├── stellaris.ts      # Stellaris (281990)
+│           ├── eu4.ts            # Europa Universalis IV (236850)
+│           ├── eu5.ts            # Europa Universalis V (3450310)
+│           ├── hoi4.ts           # Hearts of Iron IV (394360)
+│           ├── ck3.ts            # Crusader Kings III (1158310)
+│           ├── vic3.ts           # Victoria 3 (529340)
+│           ├── imperator.ts      # Imperator: Rome (859580)
+│           └── index.ts          # Registry: builtInGames + getGame / getAllGames / getGameSummaries
 └── docs/
 ```
 
@@ -74,13 +74,13 @@ The package exports two entry points:
 - `@ptt/shared`: full surface (types + Zod schemas).
 - `@ptt/shared/ipc-channels`: channel constants only, **no zod**. The sandboxed preload imports from this sub-export to keep the bundle tiny: any module reachable from the preload's import graph gets bundled into the CJS output, and we don't want zod in there.
 
-### `@ptt/game-<id>` and `@ptt/game-registry`
+### `@ptt/games`
 
-Each supported game is its own package exporting a `GameDefinition` (id, Steam app id, locale folder name, layout flag, language token map, override subdirs). The registry aggregates them.
+One package for every supported game. Each game is a file under `src/` exporting a `GameDefinition` (id, Steam app id, locale folder name, layout flag, language token map, override subdirs); `src/index.ts` is the registry, aggregating them into `builtInGames` and exposing `getAllGames`, `getGame`, `getAllGameIds`, `toGameSummary` and `getGameSummaries`.
 
-The long term goal is to scope any future game-specific logic to these packages, keeping the core packages generic and FS-agnostic.
+The long term goal is to scope any future game-specific logic to a field on `GameDefinition` and a file under `packages/games/src`, keeping the core packages generic and FS-agnostic.
 
-**Adding a new game is a new package + one line in the registry**, nothing in `parser` or `converter` changes. This is the architectural invariant we test for.
+**Adding a new game is a new file under `packages/games/src` + one line in the registry**, nothing in `parser` or `converter` changes. This is the architectural invariant we test for.
 
 ### `@ptt/translate`
 
@@ -192,11 +192,11 @@ Uploading is disabled - attach the dump file to a GitHub issue manually.
 - **Core packages stay FS-agnostic.** `parser`, `converter`, `translate` and `report` must not import `node:fs` or any Electron API. Anything FS-related goes through the injected `FsLike`, and anything network-related through the injected `FetchLike`. Only `apps/*` import `@ptt/fs-node`.
 - **The worker and the CLI consume the same contract.** `scanMods` and `runConvert` live in `converter` and take a `ProgressPort`; the desktop worker posts to a `MessagePort` and the CLI renders a ticker. A behaviour added to one is a behaviour added to both, by construction rather than by discipline.
 - **The renderer value-imports only zod-free subexports.** `@ptt/converter/progress` for the job-event protocol and `@ptt/translate/defaults` for the settings bounds. A value import of a package root pulls zod and the whole pipeline into the renderer bundle.
-- **Adding a game is additive.** New `@ptt/game-<id>` package + one entry in `game-registry`. Touching `parser` or `converter` for game-specific logic is a smell.
-- **`@ptt/shared` owns cross-boundary value domains.** `ConvertMode` and `LanguageCode` are derived from `as const` tuples next to their zod schemas, so the union and the validator cannot drift. Don't redefine them inline in `apps/desktop`.
+- **Adding a game is additive.** New file under `packages/games/src` + one entry in the registry (`packages/games/src/index.ts`). Touching `parser` or `converter` for game-specific logic is a smell.
+- **`@ptt/shared` owns cross-boundary value domains.** `ConvertMode`, `LanguageCode` and `TargetContent` are derived from `as const` tuples next to their zod schemas, so the union and the validator cannot drift. Don't redefine them inline in `apps/desktop`.
 - **Cancellation is cooperative.** A run is never killed: the worker checks a flag between units of work and acknowledges a `cancel` message, and only a 5-second timeout falls back to a kill. A kill mid-flush used to leave a truncated translation memory.
 - **The sandboxed preload only imports zod-free modules.** Concretely: import IPC channel constants from `@ptt/shared/ipc-channels`, never from the package root. Anything reachable from the preload's import graph gets bundled into the CJS output, and the preload is meant to stay tiny.
 - **All user input is validated at the IPC boundary** with Zod schemas from `@ptt/shared`. The bridge ([`apps/desktop/src/main/ipc/bridge.ts`](../apps/desktop/src/main/ipc/bridge.ts)) rejects malformed envelopes before any procedure runs.
 - **`shell.openPath` goes through the path policy** ([`apps/desktop/src/main/services/path-policy.ts`](../apps/desktop/src/main/services/path-policy.ts)). The policy is multi-layer: directory check → critical-folder blocklist → trusted sources (registry / Paradox-typical paths / persisted user-allowed) → interactive bypass modal. See [known-issues.md](./known-issues.md#folder-authorisation-prompts).
 - **i18n keys come from `@ptt/i18n` only.** No literal strings in renderer components for user-visible text. Plural variants must be filled for every CLDR category present in the locale, otherwise lookups return empty.
-- **Long-running tRPC procedures are explicit.** A renderer-side watchdog rejects IPC requests that don't reply within 120 s. Procedures whose work outlives that window (currently `converter.scan`, `converter.run`, `converter.scanMods`, `converter.convert`) are listed in `LONG_RUNNING_PATHS` in [`ipc-link.ts`](../apps/desktop/src/renderer/src/lib/ipc-link.ts) and signal completion through job events instead.
+- **Long-running tRPC procedures are explicit.** A renderer-side watchdog rejects IPC requests that don't reply within 120 s. Procedures whose work outlives that window (currently `converter.scanMods` and `converter.convert`) are listed in `LONG_RUNNING_PATHS` in [`ipc-link.ts`](../apps/desktop/src/renderer/src/lib/ipc-link.ts) and signal completion through job events instead.

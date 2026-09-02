@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { ScannedMod } from '@ptt/converter'
 import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS } from '@ptt/translate/defaults'
 
-import {
-  canConvertSelection,
-  canRun,
-  runTranslateConfig,
-  useConverterFormStore
-} from './converter-form.js'
+import { canRun, runTranslateConfig, useConverterFormStore } from './converter-form.js'
 
 const mod = (over: Partial<ScannedMod> = {}): ScannedMod => ({
   id: 'mymod',
@@ -40,8 +35,6 @@ beforeEach(() => {
 })
 
 describe('scan invalidation', () => {
-  // A scan result describes one folder, one game and one set of languages. Once any of those
-  // changes the list on screen is a lie, so it goes rather than sitting there looking valid.
   const seed = (): void => {
     state().setModFolder('workshop')
     state().setScannedMods([mod()])
@@ -79,7 +72,8 @@ describe('scan invalidation', () => {
       modFolder: 'workshop',
       outputFolder: '',
       sourceLanguage: 'en',
-      targetLanguages: ['ru']
+      targetLanguages: ['ru'],
+      gamePath: ''
     })
     expect(state().scannedMods).toEqual([])
   })
@@ -88,6 +82,43 @@ describe('scan invalidation', () => {
     seed()
     state().setModName('My Pack')
     expect(state().scannedMods).toHaveLength(1)
+  })
+})
+
+describe('the game installation folder', () => {
+  it('comes back with the game snapshot', () => {
+    state().loadGame('stellaris', {
+      modFolder: 'workshop',
+      outputFolder: '',
+      sourceLanguage: 'en',
+      targetLanguages: [],
+      gamePath: 'C:/Games/Stellaris'
+    })
+    expect(state().translate.gamePath).toBe('C:/Games/Stellaris')
+  })
+
+  it('is replaced, not kept, by the snapshot of another game', () => {
+    state().setTranslate({ gamePath: 'C:/Games/Stellaris' })
+    state().loadGame('ck3', {
+      modFolder: '',
+      outputFolder: '',
+      sourceLanguage: 'en',
+      targetLanguages: [],
+      gamePath: ''
+    })
+    expect(state().translate.gamePath).toBe('')
+  })
+
+  it('leaves the rest of the backend settings alone', () => {
+    state().setTranslate({ model: 'my-finetune:v3' })
+    state().loadGame('stellaris', {
+      modFolder: '',
+      outputFolder: '',
+      sourceLanguage: 'en',
+      targetLanguages: [],
+      gamePath: 'C:/Games/Stellaris'
+    })
+    expect(state().translate.model).toBe('my-finetune:v3')
   })
 })
 
@@ -191,33 +222,5 @@ describe('canRun', () => {
     expect(canRun(state())).toBe(false)
     state().setOutputFolder('out')
     expect(canRun(state())).toBe(true)
-  })
-})
-
-describe('canConvertSelection', () => {
-  const ready = (): void => {
-    state().setModFolder('workshop')
-    state().toggleTargetLanguage('ru')
-  }
-
-  it('is the same as canRun for the file-level modes', () => {
-    ready()
-    state().setMode('add-to-current')
-    expect(canConvertSelection(state())).toBe(true)
-  })
-
-  it('needs a scan before the generated mod can be written', () => {
-    ready()
-    state().setMode('create-translation-mod')
-    expect(canConvertSelection(state())).toBe(false)
-  })
-
-  it('needs at least one mod ticked', () => {
-    ready()
-    state().setMode('create-translation-mod')
-    state().setScannedMods([mod({ missingFiles: 0 })])
-    expect(canConvertSelection(state())).toBe(false)
-    state().setSelectedMods(['mymod'])
-    expect(canConvertSelection(state())).toBe(true)
   })
 })

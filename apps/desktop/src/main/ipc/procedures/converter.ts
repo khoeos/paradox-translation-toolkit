@@ -1,7 +1,11 @@
 import { z } from 'zod'
 
-import { getAllGameIds } from '@ptt/game-registry'
-import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared'
+import { getAllGameIds } from '@ptt/games'
+import {
+  ConvertModeSchema,
+  LanguageCodeSchema,
+  TargetContentSchema
+} from '@ptt/shared'
 
 import { publicProcedure, router } from '../trpc.js'
 import { TranslateConfigSchema, toTranslateConfig } from './translate.js'
@@ -9,30 +13,6 @@ import { TranslateConfigSchema, toTranslateConfig } from './translate.js'
 const GameIdSchema = z.enum(getAllGameIds())
 
 export const converterRouter = router({
-  scan: publicProcedure
-    .input(
-      z.object({
-        gameId: GameIdSchema,
-        rootDir: z.string()
-      })
-    )
-    .mutation(({ ctx, input }) => ctx.converter.scan(input.gameId, input.rootDir)),
-
-  run: publicProcedure
-    .input(
-      z.object({
-        gameId: GameIdSchema,
-        rootDir: z.string(),
-        sourceLanguage: LanguageCodeSchema,
-        targetLanguages: z.array(LanguageCodeSchema).min(1),
-        mode: ConvertModeSchema,
-        outputDir: z.string().optional(),
-        overwrite: z.boolean().optional()
-      })
-    )
-    .mutation(({ ctx, input }) => ctx.converter.run(input)),
-
-  /** Report what a whole collection is missing, key by key, writing nothing. */
   scanMods: publicProcedure
     .input(
       z.object({
@@ -45,8 +25,6 @@ export const converterRouter = router({
       })
     )
     .mutation(({ ctx, input }) => {
-      // Destructured rather than spread: `{ translate: undefined }` keeps the key, and
-      // exactOptionalPropertyTypes rightly refuses it.
       const { translate, ...rest } = input
       return ctx.converter.scanMods({
         ...rest,
@@ -54,7 +32,6 @@ export const converterRouter = router({
       })
     }),
 
-  /** Write the missing files, translating their values when a backend is configured. */
   convert: publicProcedure
     .input(
       z.object({
@@ -66,6 +43,7 @@ export const converterRouter = router({
         outputDir: z.string().optional(),
         selectedMods: z.array(z.string()).optional(),
         modName: z.string().optional(),
+        targetContent: TargetContentSchema.optional(),
         translate: TranslateConfigSchema.optional()
       })
     )

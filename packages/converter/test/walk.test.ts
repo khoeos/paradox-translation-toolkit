@@ -40,16 +40,16 @@ describe('walkFiles', () => {
   })
 
   it('skips symlinks instead of following them', async () => {
-    // A mod is untrusted third-party content: a link out of the sandbox would let a write escape.
     const fs = new MemoryFs({ 'mod/a.yml': 'a', 'mod/link/b.yml': 'b' })
     fs.seedSymlink('mod/link')
     const result = await walkFiles('mod', fs)
     expect(result.files).toEqual(['mod/a.yml'])
-    expect(result.diagnostics.some(d => d.includes('symlink'))).toBe(true)
+    expect(result.diagnostics).toEqual([
+      { severity: 'error', message: expect.stringContaining('symlink') }
+    ])
   })
 
   it('records an unreadable folder and keeps going', async () => {
-    // One broken mod in a collection of four hundred must not abort the run.
     const fs = new MemoryFs({ 'mod/ok/a.yml': 'a' })
     const original = fs.readdir.bind(fs)
     fs.readdir = async path => {
@@ -59,7 +59,9 @@ describe('walkFiles', () => {
     fs.seedFile('mod/broken/b.yml', 'b')
     const result = await walkFiles('mod', fs)
     expect(result.files).toEqual(['mod/ok/a.yml'])
-    expect(result.diagnostics.some(d => d.includes('EACCES'))).toBe(true)
+    expect(result.diagnostics).toEqual([
+      { severity: 'error', message: expect.stringContaining('EACCES') }
+    ])
   })
 
   it('returns empty results when the root itself is unreadable', async () => {

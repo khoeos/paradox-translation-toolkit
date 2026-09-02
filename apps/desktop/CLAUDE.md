@@ -11,11 +11,11 @@ specific to this app.
   over tRPC. A value import compiles and bundles with no warning, so keep
   `@ptt/shared` and `@ptt/converter` as `import type` in the renderer or
   zod and the whole pipeline land in the renderer bundle.
-- The `scan` / `diff` / `plan` / `apply` pipeline may only be called from
+- The `scanMods` / `runConvert` pipeline may only be called from
   `main/workers/converter.worker.ts`, a UtilityProcess with its own
   `rollupOptions.input` entry in `electron.vite.config.ts` (a second worker without
   that entry is never built). `main/services/*` import converter types only :
-  calling `scan()` from `converter-service.ts` compiles and puts multi-second work
+  calling `scanMods()` from `converter-service.ts` compiles and puts multi-second work
   back on the main thread. `main/services/node-fs.ts` is the only production `FsLike`.
 - New tRPC procedure : file under `main/ipc/procedures/<domain>.ts`, router
   registered in `main/ipc/trpc-router.ts`, `.input()` zod schema inline in that same

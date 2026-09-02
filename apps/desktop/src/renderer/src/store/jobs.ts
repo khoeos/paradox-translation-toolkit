@@ -1,25 +1,22 @@
 import i18next from 'i18next'
 import { create } from 'zustand'
 
-// The progress protocol lives in converter: it used to be declared here and in
-// main/services/converter-service.ts byte for byte, with a guard loose enough that a variant
-// added on one side fell through this switch in silence (audit findings Q-3, Q-6).
-import type {
-  ApplyReport,
-  ConversionOutput,
-  JobEvent,
-  ScanOutput,
-  TranslationProgress
-} from '@ptt/converter'
+import type { ConversionOutput, JobEvent, ScanOutput, TranslationProgress } from '@ptt/converter'
+import type { DiagnosticSeverity, ScanPhase, ScanRunningTotals } from '@ptt/converter/progress'
 
 export type { JobEvent }
+
+export interface LogEntry {
+  ts: number
+  message: string
+  severity?: DiagnosticSeverity
+}
 
 export type JobStatus =
   | 'idle'
   | 'scanning'
   | 'processing-mods'
   | 'translating'
-  | 'applying'
   | 'scan-finished'
   | 'done'
   | 'error'
@@ -29,20 +26,15 @@ export interface JobState {
   jobId: string
   status: JobStatus
   startedAt: number
-  log: { ts: number; message: string }[]
-  scanProcessed: number
-  scanTotal: number
-  applyProcessed: number
-  applyTotal: number
-  /** Mods handled so far, for the mod-level pipeline. */
+  log: LogEntry[]
   modsProcessed: number
   modsTotal: number
-  /** Name of the mod being handled, so progress reads as more than a bar. */
   currentMod: string | null
-  report: ApplyReport | null
-  /** Result of a read-only scan over a whole collection. */
+  phase: ScanPhase | null
+  phaseDone: number | null
+  phaseTotal: number | null
+  totals: ScanRunningTotals | null
   scanOutput: ScanOutput | null
-  /** Result of a conversion over a whole collection. */
   conversion: ConversionOutput | null
   translation: TranslationProgress | null
   errorMessage: string | null
@@ -71,14 +63,13 @@ const blankJob = (jobId: string): JobState => ({
   status: 'scanning',
   startedAt: Date.now(),
   log: [{ ts: Date.now(), message: i18next.t('modal.log.startingScanning') }],
-  scanProcessed: 0,
-  scanTotal: 0,
-  applyProcessed: 0,
-  applyTotal: 0,
   modsProcessed: 0,
   modsTotal: 0,
   currentMod: null,
-  report: null,
+  phase: null,
+  phaseDone: null,
+  phaseTotal: null,
+  totals: null,
   scanOutput: null,
   conversion: null,
   translation: null,
@@ -126,58 +117,45 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         next.set(event.jobId, existing)
         if (!activeJobId) activeJobId = event.jobId
       }
+      if (
+        event.type === 'scan-phase' &&
+        existing.phase === event.phase &&
+        existing.phaseDone === (event.done ?? null) &&
+        existing.phaseTotal === (event.total ?? null)
+      ) {
+        return state
+      }
+
       const updated: JobState = { ...existing, log: [...existing.log] }
 
       switch (event.type) {
-        case 'scan-progress':
-          updated.status = 'scanning'
-          updated.scanProcessed = event.processed
-          updated.scanTotal = event.total
-          break
-        case 'apply-progress':
-          updated.status = 'applying'
-          updated.applyProcessed = event.processed
-          updated.applyTotal = event.total
-          break
-        case 'scan-done':
-          updated.log.push({
-            ts: Date.now(),
-            message: i18next.t('modal.log.filesScanned', { count: event.result.files.length })
-          })
-          break
-        case 'plan-ready': {
-          const now = Date.now()
-          updated.log.push(
-            {
-              ts: now,
-              message: i18next.t('modal.log.filesScanned', { count: event.scannedCount })
-            },
-            { ts: now, message: i18next.t('modal.log.sourceFiles', { count: event.sourceCount }) },
-            { ts: now, message: i18next.t('modal.log.missingFiles', { count: event.missingCount }) }
-          )
-          break
-        }
-        case 'done':
-          updated.status = 'done'
-          updated.report = event.report
-          updated.log.push({ ts: Date.now(), message: i18next.t('modal.log.conversionFinished') })
-          break
         case 'error':
           updated.status = 'error'
           updated.errorMessage = event.message
           updated.log.push({
             ts: Date.now(),
-            message: i18next.t('modal.log.errorPrefix', { message: event.message })
+            message: i18next.t('modal.log.errorPrefix', { message: event.message }),
+            severity: 'error'
           })
           break
         case 'log':
-          updated.log.push({ ts: Date.now(), message: event.message })
+          updated.log.push({
+            ts: Date.now(),
+            message: event.message,
+            ...(event.severity ? { severity: event.severity } : {})
+          })
           break
         case 'mod-progress':
           updated.status = 'processing-mods'
           updated.modsProcessed = event.processed
           updated.modsTotal = event.total
           updated.currentMod = event.modName
+          if (event.totals) updated.totals = event.totals
+          break
+        case 'scan-phase':
+          updated.phase = event.phase
+          updated.phaseDone = event.done ?? null
+          updated.phaseTotal = event.total ?? null
           break
         case 'translate-progress':
           updated.status = 'translating'

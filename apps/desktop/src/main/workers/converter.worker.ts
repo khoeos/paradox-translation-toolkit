@@ -1,31 +1,16 @@
-import { apply, diff, plan, posixJoin, runConvert, scan, scanMods } from '@ptt/converter'
+import { posixJoin, runConvert, scanMods } from '@ptt/converter'
 import type { Cancellation, JobEvent, ProgressPort, TranslationMod } from '@ptt/converter'
 import { nodeFetch, nodeFs } from '@ptt/fs-node'
 import { buildRunReport, writeRunReport } from '@ptt/report'
-import type { ConvertMode, GameDefinition, LanguageCode } from '@ptt/shared'
+import type {
+  ConvertMode,
+  GameDefinition,
+  LanguageCode,
+  TargetContent
+} from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
 import { createEngineForRun, openTranslationMemory } from '@ptt/translate'
 
-interface ScanCommand {
-  type: 'scan'
-  jobId: string
-  rootDir: string
-  game: GameDefinition
-}
-
-interface RunCommand {
-  type: 'run'
-  jobId: string
-  rootDir: string
-  game: GameDefinition
-  sourceLanguage: LanguageCode
-  targetLanguages: LanguageCode[]
-  mode: ConvertMode
-  outputDir?: string
-  overwrite?: boolean
-}
-
-/** Report what a whole collection is missing, key by key, writing nothing. */
 interface ScanModsCommand {
   type: 'scan-mods'
   jobId: string
@@ -39,7 +24,6 @@ interface ScanModsCommand {
   detail?: boolean
 }
 
-/** Write the missing files, translating their values when a backend is configured. */
 interface ConvertCommand {
   type: 'convert'
   jobId: string
@@ -50,19 +34,19 @@ interface ConvertCommand {
   mode: ConvertMode
   outputDir?: string
   selectedMods?: string[]
+  targetContent?: TargetContent
   generatedMod?: TranslationMod
   generatedModsDir?: string
   userDataPath?: string
   translate?: TranslateConfig
 }
 
-/** Ask the run to stop after the current unit of work. */
 interface CancelCommand {
   type: 'cancel'
   jobId: string
 }
 
-type Command = ScanCommand | RunCommand | ScanModsCommand | ConvertCommand | CancelCommand
+type Command = ScanModsCommand | ConvertCommand | CancelCommand
 
 const parentPort = process.parentPort
 if (!parentPort) {
@@ -76,14 +60,6 @@ function emit(payload: JobEvent): void {
 
 const progress: ProgressPort = { emit }
 
-/**
- * Cooperative cancellation, checked between units of work.
- *
- * Never a kill: the run holds a translation memory buffer of up to 200 entries and can have a
- * request in flight, so being killed mid-flush used to leave a truncated JSON that lost a whole
- * language (audit finding S-8). The flag stops the loops and the AbortController cuts the network
- * call, so the run ends without a half-written file.
- */
 const abort = new AbortController()
 const cancellation: Cancellation = { requested: false }
 
@@ -119,10 +95,6 @@ function isCommand(value: unknown): value is Command {
 
 async function handleCommand(cmd: Exclude<Command, CancelCommand>): Promise<void> {
   switch (cmd.type) {
-    case 'scan':
-      return handleScan(cmd)
-    case 'run':
-      return handleRun(cmd)
     case 'scan-mods':
       return handleScanMods(cmd)
     case 'convert':
@@ -130,45 +102,7 @@ async function handleCommand(cmd: Exclude<Command, CancelCommand>): Promise<void
   }
 }
 
-async function handleScan(cmd: ScanCommand): Promise<void> {
-  const result = await scan(cmd.rootDir, cmd.game, nodeFs)
-  emit({ type: 'scan-done', jobId: cmd.jobId, result })
-}
-
-async function handleRun(cmd: RunCommand): Promise<void> {
-  emit({ type: 'scan-progress', jobId: cmd.jobId, processed: 0, total: 0 })
-  const overwrite = cmd.overwrite ?? false
-  const scanResult = await scan(cmd.rootDir, cmd.game, nodeFs)
-  const sourceCount = scanResult.files.filter(f => f.language === cmd.sourceLanguage).length
-  const diffPlan = diff(scanResult, cmd.sourceLanguage, cmd.targetLanguages, { overwrite })
-  const missingCount = Object.values(diffPlan.missingFiles).reduce(
-    (acc, files) => acc + (files?.length ?? 0),
-    0
-  )
-  emit({
-    type: 'plan-ready',
-    jobId: cmd.jobId,
-    scannedCount: scanResult.files.length,
-    sourceCount,
-    missingCount
-  })
-  const copyPlan = plan(diffPlan, {
-    mode: cmd.mode,
-    ...(cmd.outputDir !== undefined && { outputDir: cmd.outputDir }),
-    gameDef: cmd.game
-  })
-
-  const report = await apply(copyPlan, nodeFs, {
-    overwrite,
-    onProgress: p => emit({ ...p, jobId: cmd.jobId })
-  })
-
-  emit({ type: 'done', jobId: cmd.jobId, report })
-}
-
 async function handleScanMods(cmd: ScanModsCommand): Promise<void> {
-  // The memory is loaded even for a read-only scan: it is the only thing that can tell a string
-  // the backend refused from one it answered with the source text itself.
   const memory = cmd.userDataPath
     ? await openTranslationMemory(
         cmd.userDataPath,
@@ -188,8 +122,18 @@ async function handleScanMods(cmd: ScanModsCommand): Promise<void> {
       countLines: cmd.translate?.enabled === true,
       detail: cmd.detail ?? false,
       isCancelled: () => cancellation.requested,
-      onProgress: (processed, total, modName) =>
-        emit({ type: 'mod-progress', jobId: cmd.jobId, processed, total, modName }),
+      onProgress: (processed, total, modName, totals) =>
+        emit({ type: 'mod-progress', jobId: cmd.jobId, processed, total, modName, totals }),
+      onPhase: (phase, done, total) =>
+        emit({
+          type: 'scan-phase',
+          jobId: cmd.jobId,
+          phase,
+          ...(done !== undefined && { done }),
+          ...(total !== undefined && { total })
+        }),
+      onDiagnostic: (message, severity) =>
+        emit({ type: 'log', jobId: cmd.jobId, message, severity }),
       ...(cmd.generatedMod !== undefined && {
         generatedModPath: cmd.generatedMod.path,
         generatedModFolder: cmd.generatedMod.folder
@@ -250,6 +194,7 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
       cancellation,
       ...(cmd.outputDir !== undefined && { outputDir: cmd.outputDir }),
       ...(cmd.selectedMods !== undefined && { selectedMods: cmd.selectedMods }),
+      ...(cmd.targetContent !== undefined && { targetContent: cmd.targetContent }),
       ...(cmd.generatedMod !== undefined && { generatedMod: cmd.generatedMod }),
       ...(cmd.generatedModsDir !== undefined && { generatedModsDir: cmd.generatedModsDir }),
       ...(engine !== undefined && { engine }),
@@ -259,7 +204,6 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
     progress
   )
 
-  // Always flushed, cancelled or not: what a stopped run did translate must survive.
   await memory?.flush()
 
   if (cmd.userDataPath !== undefined) {
@@ -275,6 +219,7 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
         targetLanguages: cmd.targetLanguages,
         output,
         untranslated,
+        targetContent: cmd.targetContent ?? 'missing-keys',
         ...(cmd.selectedMods !== undefined && { selectedMods: cmd.selectedMods }),
         ...(translate !== undefined && { translate }),
         ...(engine !== undefined && {
@@ -293,4 +238,3 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
   }
   emit({ type: 'convert-done', jobId: cmd.jobId, output })
 }
-

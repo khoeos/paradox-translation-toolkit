@@ -36,6 +36,7 @@
     "**/.turbo/**",
     "**/coverage/**",
     "**/node_modules/**",
-    ".changeset/**"
+    ".changeset/**",
+    "**/CHANGELOG.md"
   ]
 }

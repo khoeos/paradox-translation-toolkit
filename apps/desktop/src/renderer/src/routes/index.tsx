@@ -4,13 +4,13 @@ import { useTranslation } from 'react-i18next'
 import { Card, CardContent } from '@ptt/ui/components/card'
 import { Input } from '@ptt/ui/components/input'
 import { Label } from '@ptt/ui/components/label'
-import { Switch } from '@ptt/ui/components/switch'
 
 import { ModeToggle } from '@renderer/components/converter/ModeToggle'
 import { ModList } from '@renderer/components/converter/ModList'
 import { ProgressModal } from '@renderer/components/converter/ProgressModal'
 import { RunButton } from '@renderer/components/converter/RunButton'
 import { SourceLanguage } from '@renderer/components/converter/SourceLanguage'
+import { TargetContentToggle } from '@renderer/components/converter/TargetContentToggle'
 import { TargetLanguages } from '@renderer/components/converter/TargetLanguages'
 import { TranslateSettings } from '@renderer/components/converter/TranslateSettings'
 import { FolderInput } from '@renderer/components/FolderInput'
@@ -26,8 +26,6 @@ function ConverterPage() {
   const outputFolder = useConverterFormStore(s => s.outputFolder)
   const setOutputFolder = useConverterFormStore(s => s.setOutputFolder)
   const mode = useConverterFormStore(s => s.mode)
-  const overwrite = useConverterFormStore(s => s.overwrite)
-  const setOverwrite = useConverterFormStore(s => s.setOverwrite)
   const selectedGameId = useConverterFormStore(s => s.selectedGameId)
   const modName = useConverterFormStore(s => s.modName)
   const setModName = useConverterFormStore(s => s.setModName)
@@ -74,19 +72,12 @@ function ConverterPage() {
                 </div>
                 <TranslateSettings />
                 <ModList />
-                <div className="flex items-center justify-between gap-4 pt-1">
-                  <div className="flex flex-col">
-                    <Label htmlFor="overwrite-toggle">{t('converter.overwriteLabel')}</Label>
-                    <span className="text-xs text-muted-foreground">
-                      {t('converter.overwriteHint')}
-                    </span>
+                {mode === 'add-to-current' ? (
+                  <div className="space-y-2 pt-1">
+                    <Label>{t('converter.targetContent')}</Label>
+                    <TargetContentToggle />
                   </div>
-                  <Switch
-                    id="overwrite-toggle"
-                    checked={overwrite}
-                    onCheckedChange={setOverwrite}
-                  />
-                </div>
+                ) : null}
               </CardContent>
             </Card>
 

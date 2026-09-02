@@ -7,14 +7,6 @@ import type { Args } from '../args.js'
 import type { CliOptions } from '../options.js'
 import { dim, facts, num, section, table } from '../output.js'
 
-/**
- * What earlier runs wrote.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `commandReports`) by Artem Kondrashev, with two
- * fixes: the report goes through `StoredRunReportSchema` instead of `JSON.parse` plus an assertion
- * (audit finding Q-7), and `--json` / `--csv` are honoured, which the original silently ignored.
- */
-
 const BYTES_PER_KB = 1024
 
 export async function commandReports(options: CliOptions, args: Args): Promise<void> {
@@ -95,12 +87,6 @@ async function listReports(directory: string): Promise<string[]> {
   }
 }
 
-/**
- * Read a report back, validated.
- *
- * A file is a process boundary: a hand-edited or truncated report used to crash somewhere far from
- * where it was read.
- */
 async function readReport(path: string): Promise<ParsedRunReport> {
   const raw = await nodeFs.readFile(path, 'utf-8')
   let parsed: unknown
@@ -121,7 +107,6 @@ async function readReport(path: string): Promise<ParsedRunReport> {
   return validated.data
 }
 
-/** `--json` and `--csv`, which the original accepted and then ignored. */
 async function writeOutputs(options: CliOptions, report: ParsedRunReport): Promise<void> {
   if (options.jsonOut !== undefined) {
     const dir = posixDirname(options.jsonOut)

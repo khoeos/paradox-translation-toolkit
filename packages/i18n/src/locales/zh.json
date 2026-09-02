@@ -24,7 +24,7 @@
       "coveredBy": "由 {{names}} 覆盖",
       "coveredKeys_other": "已覆盖 {{count}} 个",
       "englishKeys_other": "上一次运行留下 {{count}} 个未翻译的键",
-      "errors_other": "{{count}} 个读取错误",
+      "errors_other": "{{count}} 个读取错误，部分内容未读",
       "missing": "缺失 {{files}} 个文件，{{keys}} 个键",
       "noLocalisation": "无本地化",
       "nothingMissing": "没有缺失",
@@ -33,7 +33,8 @@
       "selectNone": "全部取消",
       "sourceKeys_other": "{{count}} 个源键",
       "title_other": "已扫描 {{count}} 个模组",
-      "toggle": "包含 {{name}}"
+      "toggle": "包含 {{name}}",
+      "warnings_other": "跳过 {{count}} 行，与游戏一致"
     },
     "modNameHint": "生成的模组在游戏启动器中显示的名称。",
     "modNamePlaceholder": "缺失的翻译",
@@ -41,15 +42,27 @@
     "noLanguagesPickGame": "请先选择一个游戏。",
     "outputFolder": "输出文件夹",
     "outputFolderPlaceholder": "D:\\Translation",
-    "overwriteHint": "即使目标文件已存在,也强制使用源文件重新生成。",
-    "overwriteLabel": "覆盖已存在的文件",
     "pickGame": "选择一个游戏",
-    "rescan": "重新扫描",
+    "regenerateConfirm": {
+      "body": "该文件将根据源文件重写。文件中现有的翻译会被丢弃。旧文件会以 .bak 副本保留在旁边。",
+      "confirm": "覆盖",
+      "cost": "比其他选项消耗更多翻译 API 调用。",
+      "title": "覆盖该文件？"
+    },
     "runError": "无法启动转换:{{message}}",
     "scan": "扫描整个集合",
     "sourceLanguage": "源语言",
     "sourceLanguageDefault": "英语 (默认)",
     "starting": "正在启动…",
+    "targetContent": "写入内容",
+    "targetContents": {
+      "completeFile": "补全（当前文件）",
+      "completeFileHint": "将缺失的键写入当前文件",
+      "missingKeys": "补全（新文件）",
+      "missingKeysHint": "将缺失的键写入单独的文件",
+      "regenerateFile": "覆盖",
+      "regenerateFileHint": "根据源文件重写该文件"
+    },
     "targetLanguages": "目标语言"
   },
   "editor": {
@@ -88,32 +101,37 @@
       "created_other": "已创建 {{count}} 个文件",
       "failed_other": "{{count}} 个文件写入失败",
       "openMod": "打开翻译模组",
-      "openReport": "打开运行报告",
+      "openReport": "在文件夹中显示运行报告",
       "pruned_other": "已删除 {{count}} 个生成文件，不再需要",
       "skipped_other": "{{count}} 个文件保持原样，已存在翻译"
     },
     "doneToast": "转换完成 - 已创建 {{count}} 个文件",
     "doneToast_other": "转换完成 - 已创建 {{count}} 个文件",
+    "elapsed": "已用时间",
     "errorToast": "转换失败:{{message}}",
     "filesCreated": "已创建的文件:",
-    "filesOverwritten": "已覆盖的文件:",
     "filesPerLang": "{{lang}} - 已创建 {{count}} 个文件",
     "filesPerLang_other": "{{lang}} - 已创建 {{count}} 个文件",
     "log": {
       "cancelled": "已在当前模组后停止",
       "conversionFinished": "转换完成",
       "errorPrefix": "错误:{{message}}",
-      "filesScanned_other": "已扫描 {{count}} 个文件",
-      "missingFiles_other": "缺少 {{count}} 个文件",
       "modsScanned_other": "已扫描 {{count}} 个模组",
-      "sourceFiles_other": "源语言中有 {{count}} 个文件",
+      "severity": {
+        "error": "错误",
+        "warning": "警告"
+      },
       "startingScanning": "开始扫描文件"
     },
     "modProgress": "第 {{processed}} / {{total}} 个模组：{{name}}",
     "noFilesNeeded": "所有目标语言已有全部文件,无需操作。",
     "openPathError": "无法打开路径:{{message}}",
-    "overwrittenPerLang": "{{lang}} - 已覆盖 {{count}} 个文件",
-    "overwrittenPerLang_other": "{{lang}} - 已覆盖 {{count}} 个文件",
+    "phase": {
+      "buildingCoverage": "读取模组文件",
+      "discovering": "查找模组",
+      "planning": "检查翻译",
+      "readingGenerated": "读取此前的输出"
+    },
     "scanSummary": {
       "estimate": "需翻译 {{lines}} 行，大约 {{duration}}",
       "generated": "此前的运行提供了 {{translated}} 条翻译，{{english}} 条仍为源语言，{{orphans}} 个孤立文件夹",
@@ -126,7 +144,6 @@
     "scanToast_other": "整个集合缺失 {{count}} 个文件",
     "status": {
       "": "进行中…",
-      "applying": "创建文件中…",
       "cancelled": "已取消",
       "done": "完成",
       "error": "错误",
@@ -134,6 +151,13 @@
       "scan-finished": "扫描完成",
       "scanning": "扫描文件中…",
       "translating": "正在翻译…"
+    },
+    "tally": {
+      "errors_other": "{{count}} 个错误",
+      "files_other": "已读取 {{count}} 个文件",
+      "lines_other": "缺少 {{count}} 行",
+      "toCreate_other": "待创建 {{count}} 个文件",
+      "warnings_other": "{{count}} 个警告"
     },
     "translationCounters": "已翻译 {{translated}}，免费 {{cached}}，保留原样 {{failed}}"
   },
@@ -202,9 +226,7 @@
       "downloading": "下载更新… {{percent}}%",
       "openInBrowser": "在浏览器中打开",
       "ready": "更新 {{version}} 已就绪",
-      "restart": "立即重启",
-      "unsignedTooltip": "此版本未经代码签名。安装前请在 GitHub 发布页面核对 SHA-256 哈希值。",
-      "unsignedWarning": "未签名版本"
+      "restart": "立即重启"
     },
     "betaChannelHint": "获取预览版本。可更早体验新功能,但可能存在缺陷。",
     "betaChannelLabel": "订阅 Beta 版",

@@ -42,12 +42,13 @@ export function useSettingsSync(): void {
         modFolder: s.lastModFolder[s.lastGameId] ?? '',
         outputFolder: s.lastOutputFolder[s.lastGameId] ?? '',
         sourceLanguage: s.sourceLanguage[s.lastGameId] ?? s.defaultSourceLanguage,
-        targetLanguages: s.targetLanguages[s.lastGameId] ?? []
+        targetLanguages: s.targetLanguages[s.lastGameId] ?? [],
+        gamePath: s.gamePath[s.lastGameId] ?? ''
       })
       isHydrating.current = false
     }
     store.setMode(s.mode)
-    store.setOverwrite(s.overwrite)
+    store.setTargetContent(s.targetContent)
   }, [settingsQuery.data])
 
   // Subscribe once.
@@ -88,7 +89,8 @@ export function useSettingsSync(): void {
             modFolder: fresh.lastModFolder[newGameId] ?? '',
             outputFolder: fresh.lastOutputFolder[newGameId] ?? '',
             sourceLanguage: fresh.sourceLanguage[newGameId] ?? fresh.defaultSourceLanguage,
-            targetLanguages: fresh.targetLanguages[newGameId] ?? []
+            targetLanguages: fresh.targetLanguages[newGameId] ?? [],
+            gamePath: fresh.gamePath[newGameId] ?? ''
           })
           isHydrating.current = false
         }
@@ -112,13 +114,17 @@ export function useSettingsSync(): void {
             [state.selectedGameId]: Array.from(state.targetLanguages)
           }
         }
+        if (state.translate.gamePath !== prev.translate.gamePath && state.selectedGameId) {
+          const current = fresh?.gamePath ?? {}
+          patch.gamePath = { ...current, [state.selectedGameId]: state.translate.gamePath ?? '' }
+        }
       }
 
       if (state.mode !== prev.mode) {
         patch.mode = state.mode
       }
-      if (state.overwrite !== prev.overwrite) {
-        patch.overwrite = state.overwrite
+      if (state.targetContent !== prev.targetContent) {
+        patch.targetContent = state.targetContent
       }
 
       if (Object.keys(patch).length > 0) {

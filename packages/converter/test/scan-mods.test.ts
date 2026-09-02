@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { scanMod, scanMods } from '../src/index.js'
-import type { ScanModsOptions } from '../src/index.js'
+import { SCAN_DIAGNOSTICS_PER_MOD, SCAN_PHASES, scanMod, scanMods } from '../src/index.js'
+import type { ScanModsOptions, ScanPhase, ScanRunningTotals } from '../src/index.js'
 import { localeFile, stellarisDef } from './fixtures.js'
 import { MemoryFs } from './memory-fs.js'
 
@@ -15,7 +15,6 @@ const base = (over: Partial<ScanModsOptions> = {}): ScanModsOptions => ({
 
 describe('scanMod', () => {
   it('states zero for a requested language rather than leaving it out', async () => {
-    // "Nothing missing" has to be stated, not implied by an absent key.
     const fs = new MemoryFs({
       'mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'A']]),
       'mymod/localisation/a_l_russian.yml': localeFile('russian', [['K', 'А']])
@@ -35,7 +34,6 @@ describe('scanMod', () => {
   })
 
   it('does not report a file as missing when every key is carried over', async () => {
-    // It is rewritten unchanged, so it is no work.
     const fs = new MemoryFs({
       'mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'text']]),
       'generated/localisation/russian/mymod/a_l_russian.yml': localeFile('russian', [
@@ -106,7 +104,6 @@ describe('scanMods', () => {
     const fs = new MemoryFs(collection)
     const output = await scanMods(base(), fs)
     expect(output.totals.missingFiles).toBe(1)
-    // Mod B already covers its own key.
     expect(output.totals.coveredKeys).toBe(1)
   })
 
@@ -126,7 +123,6 @@ describe('scanMods', () => {
   })
 
   it('applies the coverage of an untracked localisation mod', async () => {
-    // The whole point of the key-level diff: Mod A needs nothing once its RU patch is seen.
     const fs = new MemoryFs({
       'workshop/a/descriptor.mod': 'name="Mod A"',
       'workshop/a/localisation/english/a_l_english.yml': localeFile('english', [
@@ -169,7 +165,6 @@ describe('scanMods', () => {
     expect(output.generatedMod?.path).toBe('generated')
     expect(output.generatedMod?.translated).toBe(1)
     const modA = output.mods.find(m => m.id === 'a')
-    // K1 is carried over, only K2 is left.
     expect(modA?.missingKeys.ru).toBe(1)
   })
 
@@ -191,7 +186,6 @@ describe('scanMods', () => {
   })
 
   it('stops before scanning when cancellation is already requested', async () => {
-    // The scan is interruptible, unlike the original where Cancel was a no-op during it.
     const fs = new MemoryFs(collection)
     const output = await scanMods(base({ isCancelled: () => true }), fs)
     expect(output.mods).toEqual([])
@@ -199,8 +193,6 @@ describe('scanMods', () => {
   })
 
   it('stops taking new mods once cancellation is requested', async () => {
-    // Cancel means "stop before the next unit of work", so a collection larger than the pool
-    // stops short. Everything already started still finishes: no half-written file.
     const many: Record<string, string> = {}
     for (let i = 0; i < 40; i++) {
       many[`workshop/m${i}/localisation/a_l_english.yml`] = localeFile('english', [['K', 'A']])
@@ -218,6 +210,184 @@ describe('scanMods', () => {
     )
     expect(output.mods.length).toBeGreaterThan(0)
     expect(output.mods.length).toBeLessThan(40)
+  })
+
+  it('reports every phase, in order, once', async () => {
+    const fs = new MemoryFs(collection)
+    const seen: ScanPhase[] = []
+    await scanMods(
+      base({
+        onPhase: phase => {
+          if (seen.at(-1) !== phase) seen.push(phase)
+        }
+      }),
+      fs
+    )
+    expect(seen).toEqual([...SCAN_PHASES])
+  })
+
+  it('counts the mods of the two phases that can be counted', async () => {
+    const fs = new MemoryFs(collection)
+    const counted: Array<[ScanPhase, number, number]> = []
+    await scanMods(
+      base({
+        onPhase: (phase, done, total) => {
+          if (done !== undefined && total !== undefined) counted.push([phase, done, total])
+        }
+      }),
+      fs
+    )
+    expect(counted).toEqual([
+      ['building-coverage', 0, 2],
+      ['building-coverage', 1, 2],
+      ['building-coverage', 2, 2],
+      ['planning', 0, 2],
+      ['planning', 1, 2],
+      ['planning', 2, 2]
+    ])
+  })
+
+  it('ends its running totals on exactly the totals it returns', async () => {
+    const fs = new MemoryFs({
+      ...collection,
+      'workshop/c/gfx/icon.dds': 'x',
+      'workshop/ck3mod/localization/english/a_l_english.yml': localeFile('english', [['K', 'A']]),
+      'workshop/broken/localisation/english/b_l_english.yml': `${localeFile('english', [
+        ['K4', 'four']
+      ])} BAD "no colon"\n`,
+      'workshop/alien/localisation/c_l_klingon.yml': localeFile('klingon', [['K5', 'tlh']])
+    })
+    let last: ScanRunningTotals | undefined
+    const output = await scanMods(
+      base({
+        countLines: true,
+        onProgress: (_done, _total, _modName, totals) => {
+          last = totals
+        }
+      }),
+      fs
+    )
+    expect(last).toEqual({
+      files: output.mods.reduce((sum, mod) => sum + mod.localisationFiles, 0),
+      missingFiles: output.totals.missingFiles,
+      missingLines: output.totals.missingLines,
+      withoutLocalisation: output.totals.withoutLocalisation,
+      otherSpelling: output.totals.otherSpelling,
+      errors: output.mods.reduce((sum, mod) => sum + mod.errors.length, 0),
+      warnings: output.mods.reduce((sum, mod) => sum + (mod.warnings?.length ?? 0), 0)
+    })
+    expect(last?.errors).toBeGreaterThan(0)
+    expect(last?.warnings).toBeGreaterThan(0)
+  })
+
+  it('hands out a snapshot of the running totals rather than the accumulator', async () => {
+    const fs = new MemoryFs(collection)
+    const seen: ScanRunningTotals[] = []
+    await scanMods(base({ onProgress: (_done, _total, _modName, totals) => seen.push(totals) }), fs)
+    expect(seen).toHaveLength(2)
+    expect(seen[0]).not.toEqual(seen[1])
+  })
+
+  it('names the mod and the parser line in a diagnostic', async () => {
+    const fs = new MemoryFs({
+      'workshop/a/descriptor.mod': 'name="Mod A"',
+      'workshop/a/localisation/english/a_l_english.yml': `${localeFile('english', [
+        ['K1', 'one']
+      ])} BAD "no colon"\n`
+    })
+    const seen: string[] = []
+    await scanMods(base({ onDiagnostic: message => seen.push(message) }), fs)
+    expect(seen).toHaveLength(1)
+    expect(seen[0]).toContain('Mod A')
+    expect(seen[0]).toContain('workshop/a/localisation/english/a_l_english.yml:3')
+  })
+
+  it('says whether a diagnostic cost keys or only a line', async () => {
+    const fs = new MemoryFs({
+      'workshop/a/descriptor.mod': 'name="Mod A"',
+      'workshop/a/localisation/english/a_l_english.yml': `${localeFile('english', [
+        ['K1', 'one']
+      ])} BAD "no colon"\n`,
+      'workshop/b/descriptor.mod': 'name="Mod B"',
+      'workshop/b/localisation/b_l_klingon.yml': localeFile('klingon', [['K2', 'tlh']])
+    })
+    const seen: Array<[string, string]> = []
+    await scanMods(
+      base({ onDiagnostic: (message, severity) => seen.push([message, severity]) }),
+      fs
+    )
+    expect(seen).toContainEqual([
+      'Mod A : workshop/a/localisation/english/a_l_english.yml:3 : Dangling line: no `:` and no value, line skipped (the game skips it too)',
+      'warning'
+    ])
+    expect(seen.find(([message]) => message.includes('klingon'))?.[1]).toBe('error')
+  })
+
+  it('shows the errors of a mod before its warnings when it has to cap them', async () => {
+    const dangling = Array.from({ length: 8 }, (_line, i) => ` BAD${i} "no colon"`).join('\n')
+    const fs = new MemoryFs({
+      'workshop/a/descriptor.mod': 'name="Mod A"',
+      'workshop/a/localisation/english/a_l_english.yml': `${localeFile('english', [
+        ['K1', 'one']
+      ])}${dangling}\n`,
+      'workshop/a/localisation/english/z_l_klingon.yml': localeFile('klingon', [['K2', 'tlh']])
+    })
+    const seen: Array<[string, string]> = []
+    await scanMods(
+      base({ onDiagnostic: (message, severity) => seen.push([message, severity]) }),
+      fs
+    )
+    expect(seen[0]?.[1]).toBe('error')
+    expect(seen[0]?.[0]).toContain('klingon')
+  })
+
+  it('caps the diagnostics of one mod and says how many it left out', async () => {
+    const broken = Array.from({ length: 8 }, (_line, i) => ` BAD${i} "no colon"`).join('\n')
+    const fs = new MemoryFs({
+      'workshop/a/descriptor.mod': 'name="Mod A"',
+      'workshop/a/localisation/english/a_l_english.yml': `${localeFile('english', [
+        ['K1', 'one']
+      ])}${broken}\n`
+    })
+    const seen: string[] = []
+    await scanMods(base({ onDiagnostic: message => seen.push(message) }), fs)
+    expect(seen).toHaveLength(SCAN_DIAGNOSTICS_PER_MOD + 1)
+    expect(seen.at(-1)).toBe(
+      `Mod A : and ${8 - SCAN_DIAGNOSTICS_PER_MOD} more problem(s) not shown`
+    )
+  })
+
+  it('says out loud that a mod holds no localisation, and that one uses the other spelling', async () => {
+    const fs = new MemoryFs({
+      'workshop/c/gfx/icon.dds': 'x',
+      'workshop/ck3mod/localization/english/a_l_english.yml': localeFile('english', [['K', 'A']])
+    })
+    const seen: string[] = []
+    await scanMods(base({ onDiagnostic: message => seen.push(message) }), fs)
+    expect(seen.some(line => line.startsWith('c : no localisation'))).toBe(true)
+    expect(seen.some(line => line.includes('other spelling'))).toBe(true)
+  })
+
+  it('stops during the coverage phase, which is the longest one', async () => {
+    const many: Record<string, string> = {}
+    for (let i = 0; i < 40; i++) {
+      many[`workshop/m${i}/localisation/a_l_english.yml`] = localeFile('english', [['K', 'A']])
+    }
+    const fs = new MemoryFs(many)
+    let cancelled = false
+    const seen: ScanPhase[] = []
+    const output = await scanMods(
+      base({
+        isCancelled: () => cancelled,
+        onPhase: (phase, done) => {
+          seen.push(phase)
+          if (phase === 'building-coverage' && done !== undefined && done > 0) cancelled = true
+        }
+      }),
+      fs
+    )
+    expect(output.mods).toEqual([])
+    expect(seen).not.toContain('planning')
   })
 
   it('scans a single mod folder as a collection of one', async () => {

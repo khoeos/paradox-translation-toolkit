@@ -3,11 +3,6 @@ import { checkBaseUrl, describeFailure, trimTrailingSlash, withCancel } from '..
 import { buildPrompt } from '../prompt.js'
 import type { FetchLike, Hint, Provider } from '../types.js'
 
-/**
- * Local Ollama server.
- *
- * Ported from PR #4 (e21ee7a, `src/main/translate/providers.ts`) by Artem Kondrashev.
- */
 export class OllamaProvider implements Provider {
   constructor(
     private readonly baseUrl: string,
@@ -33,7 +28,6 @@ export class OllamaProvider implements Provider {
       body: JSON.stringify({
         model: this.model,
         stream: false,
-        // Reasoning models would spend minutes thinking before each batch.
         think: false,
         format: 'json',
         options: { temperature: 0.2 },

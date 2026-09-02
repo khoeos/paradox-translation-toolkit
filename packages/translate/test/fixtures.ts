@@ -1,6 +1,5 @@
 import type { GameContextRef } from '@ptt/converter'
 
-/** Stellaris, reduced to what the mod readers actually consume. */
 export const stellarisDef: GameContextRef = {
   localisationDirName: 'localisation',
   languageFileToken: {

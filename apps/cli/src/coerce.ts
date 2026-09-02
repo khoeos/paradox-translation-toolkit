@@ -1,16 +1,7 @@
-/**
- * Reading a flag value that may have come from the command line or from the config file.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/options.ts`) by Artem Kondrashev, with one fix: the original
- * `asString` returned undefined for anything that was not a string, and every numeric flag went
- * through it, so `{"batch": 150}` in `ptt.config.json` was silently discarded and the default used.
- */
-
 export type FlagValue = string | boolean | number | undefined
 
 export function asString(value: FlagValue): string | undefined {
   if (typeof value === 'string') return value
-  // A number in the config file is still a value the user meant.
   if (typeof value === 'number') return String(value)
   return undefined
 }

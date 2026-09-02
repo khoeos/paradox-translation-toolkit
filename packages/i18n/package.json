@@ -1,6 +1,6 @@
 {
   "name": "@ptt/i18n",
-  "version": "0.1.0",
+  "version": "0.2.0-beta.0",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
@@ -22,7 +22,7 @@
     "i18next": "catalog:"
   },
   "devDependencies": {
-    "i18next-cli": "^1.56.9",
+    "i18next-cli": "^1.72.1",
     "rimraf": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

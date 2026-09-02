@@ -1,24 +1,23 @@
 import { z } from 'zod'
 
-import { getAllGameIds } from '@ptt/game-registry'
+import { getAllGameIds } from '@ptt/games'
 import { VALID_UI_LANGUAGES } from '@ptt/i18n'
-import { ConvertModeSchema, LanguageCodeSchema } from '@ptt/shared'
+import { ConvertModeSchema, LanguageCodeSchema, TargetContentSchema } from '@ptt/shared'
 
 import { publicProcedure, router } from '../trpc.js'
 
-// Constrain per-game records to the closed set of registered game ids. Avoids
-// rogue keys (`""`, typos, attacker-supplied) polluting settings.json.
 const GameIdSchema = z.enum(getAllGameIds())
 
 const SettingsPatchSchema = z
   .object({
     lastModFolder: z.partialRecord(GameIdSchema, z.string()),
     lastOutputFolder: z.partialRecord(GameIdSchema, z.string()),
+    gamePath: z.partialRecord(GameIdSchema, z.string()),
     defaultSourceLanguage: LanguageCodeSchema,
     sourceLanguage: z.partialRecord(GameIdSchema, LanguageCodeSchema),
     targetLanguages: z.partialRecord(GameIdSchema, z.array(LanguageCodeSchema)),
     mode: ConvertModeSchema,
-    overwrite: z.boolean(),
+    targetContent: TargetContentSchema,
     themeOverride: z.enum(['system', 'light', 'dark']),
     uiLanguage: z.enum(VALID_UI_LANGUAGES),
     lastGameId: GameIdSchema.nullable(),

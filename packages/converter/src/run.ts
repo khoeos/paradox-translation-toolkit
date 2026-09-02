@@ -1,5 +1,10 @@
 import { isTranslatable } from '@ptt/parser'
-import type { ConvertMode, GameDefinition, LanguageCode } from '@ptt/shared'
+import type {
+  ConvertMode,
+  GameDefinition,
+  LanguageCode,
+  TargetContent
+} from '@ptt/shared'
 
 import { applyModJobs } from './apply-generated.js'
 import { mapWithConcurrency } from './concurrency.js'
@@ -24,24 +29,6 @@ import type {
   TranslationMod
 } from './types.js'
 
-/**
- * One run of the mod-level pipeline.
- *
- * Ported from PR #4 (e21ee7a, `src/main/translateFn/index.ts` `launchTranslation`) by
- * Artem Kondrashev.
- *
- * It lives here rather than in the desktop worker because `apps/cli` runs the very same thing:
- * audit finding 2.7 of the recap, "the worker of the app and the CLI must consume exactly the same
- * contract", is what guarantees the two do the same work rather than two similar things. The
- * translation engine is injected as a port, so this package still knows nothing about a backend.
- */
-
-/**
- * The translation engine, as seen from here.
- *
- * A port rather than the class, for the same reason as `TranslationMemoryPort`: converter must
- * not depend on the translation subsystem.
- */
 export interface TranslationEnginePort {
   translate(
     values: readonly string[],
@@ -51,12 +38,6 @@ export interface TranslationEnginePort {
   getCounters(): TranslationProgress
 }
 
-/**
- * The stop flag, consulted between units of work.
- *
- * Only the flag: cutting a request in flight is an `AbortSignal` the caller hands to the engine, and
- * this package has no notion of a network call.
- */
 export interface Cancellation {
   requested: boolean
 }
@@ -69,12 +50,10 @@ export interface ConvertRunOptions {
   targetLanguages: readonly LanguageCode[]
   mode: ConvertMode
   outputDir?: string
-  /** Mod folder names to process; every discovered mod when left out. */
   selectedMods?: readonly string[]
-  /** Where the generated mod goes, resolved by the main process. */
   generatedMod?: TranslationMod
-  /** The `.mod` folder the launcher reads, for the outer descriptor. */
   generatedModsDir?: string
+  targetContent?: TargetContent
   engine?: TranslationEnginePort
   memory?: TranslationMemoryPort
   cancellation: Cancellation
@@ -91,16 +70,8 @@ const EMPTY_TOTALS: ConversionTotals = {
   errors: 0
 }
 
-/**
- * Run a conversion over a whole collection.
- * @param options - See `ConvertRunOptions`
- * @param fs - The injected filesystem
- * @param port - Where progress goes
- * @returns What the run did, mod by mod
- */
 export interface ConvertRunResult {
   output: ConversionOutput
-  /** Every key this run wrote in the source language, for the run report. */
   untranslated: KeyReport[]
 }
 
@@ -128,8 +99,6 @@ export async function runConvert(
   const isCancelled = (): boolean => cancellation.requested
   const untranslated: KeyReport[] = []
 
-  // Everything below is read before a single file is written, and each step is a cancellation
-  // checkpoint: audit findings S-9 and S-10, where Cancel was a no-op through all of it.
   const generated = generatedMod ? await readGeneratedMod(generatedMod.path, game, fs) : undefined
   if (isCancelled()) return { output: cancelledOutput(generatedMod), untranslated }
 
@@ -141,9 +110,9 @@ export async function runConvert(
   if (isCancelled()) return { output: cancelledOutput(generatedMod), untranslated }
 
   const mods = selectedMods ? allMods.filter(mod => selectedMods.includes(mod.id)) : allMods
-  // The backend is the bottleneck as soon as translation is on.
   const concurrency = engine ? MOD_CONCURRENCY_WITH_BACKEND : MOD_CONCURRENCY
   const destination = resolveDestination(mode, options)
+  const targetContent = resolveTargetContent(mode, options)
 
   let done = 0
   const results = await mapWithConcurrency(mods, concurrency, async mod => {
@@ -157,6 +126,7 @@ export async function runConvert(
         targetLanguages,
         packed: mode === 'create-translation-mod',
         detail: false,
+        targetContent,
         ...(coverageForMod !== undefined && { coverage: coverageForMod }),
         ...(generated !== undefined && { generated }),
         ...(memory !== undefined && { memory })
@@ -205,10 +175,6 @@ export async function runConvert(
     { ...EMPTY_TOTALS }
   )
 
-  // The descriptors go in once, after the mods, and only when the generated mod holds something.
-  // `unchanged` counts too: a second run over an already complete mod creates nothing, and
-  // gating on `created` alone left that run reporting no translation mod at all and never
-  // refreshing the outer `.mod` file the launcher reads.
   const wroteAnything = totals.created > 0 || totals.unchanged > 0
   let writtenMod: TranslationMod | undefined
   if (generatedMod && generatedModsDir && wroteAnything && !isCancelled()) {
@@ -228,7 +194,6 @@ export async function runConvert(
   }
 }
 
-/** Every key this run writes in the source language, so the next one knows what to retry. */
 export function collectUntranslated(
   plan: ModPlan,
   mod: ModFolder,
@@ -276,8 +241,6 @@ async function translateMod(
     const language = languageRaw as LanguageCode
     if (language === sourceLanguage || !jobs) continue
 
-    // Only what is still untranslated: sending the whole source file would pay again for strings
-    // another mod, or an earlier run of ours, already covered.
     const values: string[] = []
     for (const job of jobs) {
       for (const [key, value] of job.keys) {
@@ -293,7 +256,6 @@ async function translateMod(
       stats.cached += outcome.stats.cached
       stats.failed += outcome.stats.failed
     } catch (err) {
-      // Backend down: fall back to copying, the run keeps its meaning.
       plan.errors.push(`${language} : ${err instanceof Error ? err.message : String(err)}`)
     }
     byLanguage.set(language, results)
@@ -321,10 +283,11 @@ function resolveDestination(mode: ConvertMode, options: ConvertRunOptions): Dest
   return { kind: 'in-place' }
 }
 
-/**
- * Both descriptors a generated mod needs: the outer one the launcher reads, and the inner one
- * the game reads.
- */
+function resolveTargetContent(mode: ConvertMode, options: ConvertRunOptions): TargetContent {
+  if (mode !== 'add-to-current') return 'missing-keys'
+  return options.targetContent ?? 'missing-keys'
+}
+
 async function writeDescriptors(mod: TranslationMod, modsDir: string, fs: FsLike): Promise<void> {
   await fs.mkdir(mod.path, { recursive: true })
   await fs.writeFile(posixJoin(mod.path, 'descriptor.mod'), buildDescriptor(mod, false), 'utf-8')

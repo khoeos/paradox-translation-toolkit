@@ -38,7 +38,6 @@ describe('clip', () => {
 
 describe('visibleLength', () => {
   it('ignores colour codes, which take width in the string but none on screen', () => {
-    // Column widths are computed from this, so a coloured cell would be padded wrong.
     const coloured = `${ESC}[32mok${ESC}[0m`
     expect(coloured.length).toBeGreaterThan(2)
     expect(visibleLength(coloured)).toBe(2)

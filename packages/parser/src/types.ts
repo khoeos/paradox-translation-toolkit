@@ -4,11 +4,9 @@ export interface LocaleEntry {
   value: string
   comment?: string
   rawLine: number
-  /** End line of the entry; differs from rawLine for multi-line values. */
   rawLineEnd?: number
 }
 
-/** Ordered body items used by the serializer to round-trip source layout. */
 export type BodyItem =
   | { kind: 'entry'; entry: LocaleEntry }
   | { kind: 'comment'; text: string }
@@ -19,9 +17,7 @@ export interface LocaleFile {
   entries: LocaleEntry[]
   trailingComments: string[]
   bom: boolean
-  /** Detected line ending of the source. Default: '\n'. */
   lineEnding?: '\n' | '\r\n'
-  /** Ordered body items when produced by the parser. */
   body?: BodyItem[]
 }
 

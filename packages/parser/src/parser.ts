@@ -8,14 +8,20 @@ import type {
 } from './types.js'
 
 const BOM = '﻿'
-const HEADER_RE = /^l_([a-z_]+):\s*$/i
-const KEY_CHAR_RE = /[A-Za-z0-9_\-.]/
-const DIGIT_RE = /[0-9]/
+const HEADER_RE = /^l_([a-z_]+)\s*:\s*(\d+)?\s*(#.*)?$/i
+
+const SPACE = '[ \t\u00A0\u200B\uFEFF\u3000]'
+
+const ENTRY_HEAD_RE = new RegExp(`^${SPACE}*([^:"#\r\n]+?)${SPACE}*:${SPACE}*(\\d*)${SPACE}*"`)
+const ENTRY_HEAD_NO_QUOTE_RE = new RegExp(
+  `^${SPACE}*([^:"#\r\n]+?)${SPACE}*:${SPACE}*(\\d*)${SPACE}*`
+)
+const INDENT_RE = new RegExp(`^${SPACE}*`)
+const KEY_TRIM_RE = new RegExp(`^${SPACE}+|${SPACE}+$`, 'g')
 
 interface EntryParseSuccess {
   ok: true
   entry: LocaleEntry
-  /** Number of additional lines consumed beyond `lineNum` (multi-line values). */
   consumedExtraLines: number
 }
 
@@ -51,6 +57,7 @@ export function parse(source: string, opts?: ParseOptions): ParseResult {
   const body: BodyItem[] = []
   let language = ''
   let foundHeader = false
+  let headerErrorReported = false
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i] ?? ''
@@ -58,7 +65,6 @@ export function parse(source: string, opts?: ParseOptions): ParseResult {
     const trimmed = line.trim()
 
     if (trimmed === '') {
-      // Skip the EOF blank line produced by `split(/\r?\n/)`.
       if (foundHeader && i < lines.length - 1) {
         body.push({ kind: 'blank' })
       }
@@ -80,13 +86,17 @@ export function parse(source: string, opts?: ParseOptions): ParseResult {
         foundHeader = true
         continue
       }
-      diagnostics.push({
-        line: lineNum,
-        col: 1,
-        severity: 'error',
-        code: 'no-header',
-        message: 'Expected language header line (e.g. `l_english:`)'
-      })
+      if (!headerErrorReported) {
+        headerErrorReported = true
+        diagnostics.push({
+          line: lineNum,
+          col: 1,
+          severity: 'error',
+          code: 'no-header',
+          message:
+            'Content before the `l_<language>:` header, skipped (the game reads nothing above it)'
+        })
+      }
       continue
     }
 
@@ -106,7 +116,7 @@ export function parse(source: string, opts?: ParseOptions): ParseResult {
       col: 1,
       severity: 'error',
       code: 'missing-header',
-      message: 'No `l_<language>:` header found in file'
+      message: 'No `l_<language>:` header in the file, so none of its keys can be read'
     })
   }
 
@@ -122,7 +132,44 @@ export function parse(source: string, opts?: ParseOptions): ParseResult {
   return { ok, file, diagnostics }
 }
 
-/** Parses one entry, continuing across lines for unclosed quoted values. */
+const headDiagnostic = (line: string, lineNum: number): Diagnostic => {
+  const indent = INDENT_RE.exec(line)?.[0].length ?? 0
+  const rest = line.slice(indent)
+  if (rest === '' || rest.startsWith(':')) {
+    return {
+      line: lineNum,
+      col: indent + 1,
+      severity: 'error',
+      code: 'expected-key',
+      message: 'No key before the `:`, line skipped (the game skips it too)'
+    }
+  }
+  const upToValue = ENTRY_HEAD_NO_QUOTE_RE.exec(line)
+  if (upToValue === null) {
+    return {
+      line: lineNum,
+      col: indent + 1,
+      severity: 'error',
+      code: 'expected-colon',
+      message: 'Dangling line: no `:` and no value, line skipped (the game skips it too)'
+    }
+  }
+  return {
+    line: lineNum,
+    col: upToValue[0].length + 1,
+    severity: 'error',
+    code: 'expected-quote',
+    message: 'Key with no quoted value, line skipped (the game skips it too)'
+  }
+}
+
+const getEntryHeadKeyAt = (line: string, quoteIdx: number): string | null => {
+  const head = ENTRY_HEAD_RE.exec(line)
+  if (head === null || head[0].length !== quoteIdx + 1) return null
+  const key = (head[1] ?? '').replaceAll(KEY_TRIM_RE, '')
+  return key === '' ? null : key
+}
+
 function parseEntryLines(
   lines: string[],
   startIdx: number,
@@ -130,69 +177,16 @@ function parseEntryLines(
 ): EntryParseResult {
   const startLine = lines[startIdx] ?? ''
   const startLineNum = startIdx + 1
-  let i = 0
 
-  while (i < startLine.length && (startLine[i] === ' ' || startLine[i] === '\t')) i++
-
-  const keyStart = i
-  while (i < startLine.length) {
-    const ch = startLine[i]
-    if (ch === undefined || !KEY_CHAR_RE.test(ch)) break
-    i++
+  const head = ENTRY_HEAD_RE.exec(startLine)
+  const key = head === null ? '' : (head[1] ?? '').replaceAll(KEY_TRIM_RE, '')
+  if (head === null || key === '') {
+    return { ok: false, diagnostic: headDiagnostic(startLine, startLineNum) }
   }
-  if (i === keyStart) {
-    return {
-      ok: false,
-      diagnostic: {
-        line: startLineNum,
-        col: i + 1,
-        severity: 'error',
-        code: 'expected-key',
-        message: 'Expected key identifier'
-      }
-    }
-  }
-  const key = startLine.slice(keyStart, i)
+  const versionDigits = head[2] ?? ''
+  const version = versionDigits === '' ? null : Number.parseInt(versionDigits, 10)
+  let i = head[0].length
 
-  if (startLine[i] !== ':') {
-    return {
-      ok: false,
-      diagnostic: {
-        line: startLineNum,
-        col: i + 1,
-        severity: 'error',
-        code: 'expected-colon',
-        message: 'Expected `:` after key'
-      }
-    }
-  }
-  i++
-
-  const versionStart = i
-  while (i < startLine.length) {
-    const ch = startLine[i]
-    if (ch === undefined || !DIGIT_RE.test(ch)) break
-    i++
-  }
-  const version = i > versionStart ? Number.parseInt(startLine.slice(versionStart, i), 10) : null
-
-  while (i < startLine.length && (startLine[i] === ' ' || startLine[i] === '\t')) i++
-
-  if (startLine[i] !== '"') {
-    return {
-      ok: false,
-      diagnostic: {
-        line: startLineNum,
-        col: i + 1,
-        severity: 'error',
-        code: 'expected-quote',
-        message: 'Expected `"` to start value'
-      }
-    }
-  }
-  i++
-
-  // Consume until an unescaped closing `"`, preserving line endings.
   const valueParts: string[] = []
   let valueStart = i
   let lineIdx = startIdx
@@ -200,6 +194,7 @@ function parseEntryLines(
   let currentLine = startLine
   let consumedExtraLines = 0
   let closed = false
+  let nextEntry: { key: string; lineNum: number } | null = null
 
   while (true) {
     if (i >= lineLen) {
@@ -220,6 +215,13 @@ function parseEntryLines(
       continue
     }
     if (ch === '"') {
+      if (lineIdx > startIdx) {
+        const headKey = getEntryHeadKeyAt(currentLine, i)
+        if (headKey !== null) {
+          nextEntry = { key: headKey, lineNum: lineIdx + 1 }
+          break
+        }
+      }
       valueParts.push(currentLine.slice(valueStart, i))
       closed = true
       break
@@ -232,10 +234,13 @@ function parseEntryLines(
       ok: false,
       diagnostic: {
         line: startLineNum,
-        col: i + 1,
+        col: nextEntry === null ? i + 1 : head[0].length,
         severity: 'error',
         code: 'unterminated-string',
-        message: 'Unterminated value string'
+        message:
+          nextEntry === null
+            ? 'Value string never closed before the end of the file, line skipped'
+            : `Value string never closed before the next key \`${nextEntry.key}\` (line ${nextEntry.lineNum}), line skipped`
       }
     }
   }

@@ -1,17 +1,12 @@
-/**
- * Scanning a whole mod collection.
- *
- * Ported from PR #4 (e21ee7a, `src/main/translateFn/index.ts` `launchScan`) by
- * Artem Kondrashev.
- */
-
-import type { LanguageCode } from '@ptt/shared'
+import type { LanguageCode, TargetContent } from '@ptt/shared'
 
 import { mapWithConcurrency } from './concurrency.js'
-import { MOD_CONCURRENCY } from './constants.js'
+import { MOD_CONCURRENCY, SCAN_DIAGNOSTICS_PER_MOD } from './constants.js'
 import { buildCoverage } from './coverage.js'
+import type { DiagnosticSeverity, ModDiagnostic } from './diagnostics.js'
 import { discoverMods } from './discover-mods.js'
 import { dropOurOwnMod, readGeneratedMod, summariseGeneratedMod } from './generated-mod.js'
+import type { ScanPhase, ScanRunningTotals } from './progress.js'
 import { scanMod } from './scan-mod.js'
 import { sumByLanguage } from './totals.js'
 import type {
@@ -30,21 +25,15 @@ export interface ScanModsOptions {
   gameDef: GameContextRef
   sourceLanguage: LanguageCode
   targetLanguages: readonly LanguageCode[]
-  /**
-   * Where an earlier run wrote its mod, resolved by the caller: only it knows where the game
-   * user folder lives.
-   */
   generatedModPath?: string
-  /** Folder name of the generated mod, so a copy of it inside the scanned folder is dropped. */
   generatedModFolder?: string
   memory?: TranslationMemoryPort
-  /** Read the values to estimate the translation workload. */
+  targetContent?: TargetContent
   countLines?: boolean
-  /** Also return the state of every key, which is what the CLI audit shows. */
   detail?: boolean
-  /** Called after each mod, so a UI can show real progress rather than a spinner. */
-  onProgress?: (done: number, total: number, modName: string) => void
-  /** Consulted between mods; the scan stops cleanly rather than being killed. */
+  onProgress?: (done: number, total: number, modName: string, totals: ScanRunningTotals) => void
+  onPhase?: (phase: ScanPhase, done?: number, total?: number) => void
+  onDiagnostic?: (message: string, severity: DiagnosticSeverity) => void
   isCancelled?: () => boolean
 }
 
@@ -57,15 +46,44 @@ const EMPTY_TOTALS: ScanTotals = {
   coveredKeys: 0,
   englishKeys: 0,
   keptKeys: 0,
-  shadowedKeys: 0
+  shadowedKeys: 0,
 }
 
-/**
- * Report what every mod of a collection is missing, writing nothing.
- * @param options - See `ScanModsOptions`
- * @param fs - The injected filesystem
- * @returns The scan output, ready to hand to a UI or a report
- */
+const accumulate = (running: ScanRunningTotals, mod: ScannedMod): void => {
+  running.files += mod.localisationFiles
+  running.missingFiles += mod.missingFiles
+  running.missingLines += mod.missingLines
+  if (mod.localisationFiles === 0) running.withoutLocalisation += 1
+  if (mod.otherSpelling) running.otherSpelling += 1
+  running.errors += mod.errors.length
+  running.warnings += mod.warnings?.length ?? 0
+}
+
+const reportMod = (
+  mod: ScannedMod,
+  onDiagnostic: (message: string, severity: DiagnosticSeverity) => void
+): void => {
+  if (mod.localisationFiles === 0) {
+    onDiagnostic(`${mod.name} : no localisation folder for this game`, 'warning')
+  }
+  if (mod.otherSpelling) {
+    onDiagnostic(
+      `${mod.name} : uses the other spelling of "localisation", wrong game selected?`,
+      'warning'
+    )
+  }
+
+  const problems: ModDiagnostic[] = [
+    ...mod.errors.map(message => ({ severity: 'error' as const, message })),
+    ...(mod.warnings ?? []).map(message => ({ severity: 'warning' as const, message }))
+  ]
+  for (const problem of problems.slice(0, SCAN_DIAGNOSTICS_PER_MOD)) {
+    onDiagnostic(`${mod.name} : ${problem.message}`, problem.severity)
+  }
+  const hidden = problems.length - SCAN_DIAGNOSTICS_PER_MOD
+  if (hidden > 0) onDiagnostic(`${mod.name} : and ${hidden} more problem(s) not shown`, 'warning')
+}
+
 export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<ScanOutput> {
   const {
     rootDir,
@@ -75,29 +93,45 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
     generatedModPath,
     generatedModFolder,
     memory,
+    targetContent,
     countLines = false,
     detail = false,
     onProgress,
+    onPhase,
+    onDiagnostic,
     isCancelled
   } = options
 
-  // Our own output lives under the game user folder, so without reading it back a second scan
-  // reports everything as missing again.
+  onPhase?.('reading-generated')
   const generated: GeneratedMod | undefined = generatedModPath
     ? await readGeneratedMod(generatedModPath, gameDef, fs)
     : undefined
-  // No `selfCopy` yet: it is the *path* of a copy `dropOurOwnMod` actually found, and nothing
-  // has been discovered at this point. Passing the folder name here claimed a copy that does
-  // not exist.
   if (isCancelled?.() === true) return emptyOutput(generated)
 
+  onPhase?.('discovering')
   const discovered = await discoverMods(rootDir, gameDef, fs)
   const { mods, selfCopy } = dropOurOwnMod(discovered.mods, generatedModFolder)
   if (isCancelled?.() === true) return emptyOutput(generated, selfCopy)
 
-  const coverage = await buildCoverage(mods, gameDef, sourceLanguage, fs)
+  onPhase?.('building-coverage', 0, mods.length)
+  const coverage = await buildCoverage(mods, gameDef, sourceLanguage, fs, {
+    ...(isCancelled !== undefined && { isCancelled }),
+    ...(onPhase !== undefined && {
+      onProgress: (read, total) => onPhase('building-coverage', read, total)
+    })
+  })
   if (isCancelled?.() === true) return emptyOutput(generated, selfCopy)
 
+  onPhase?.('planning', 0, mods.length)
+  const running: ScanRunningTotals = {
+    files: 0,
+    missingFiles: 0,
+    missingLines: 0,
+    withoutLocalisation: 0,
+    otherSpelling: 0,
+    errors: 0,
+    warnings: 0
+  }
   let done = 0
   const results = await mapWithConcurrency(mods, MOD_CONCURRENCY, async mod => {
     if (isCancelled?.() === true) return undefined
@@ -110,6 +144,7 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
         targetLanguages,
         packed: false,
         detail,
+        ...(targetContent !== undefined && { targetContent }),
         ...(coverageForMod !== undefined && { coverage: coverageForMod }),
         ...(generated !== undefined && { generated }),
         ...(memory !== undefined && { memory })
@@ -118,7 +153,10 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
       countLines
     )
     done++
-    onProgress?.(done, mods.length, result.scanned.name)
+    accumulate(running, result.scanned)
+    if (onDiagnostic) reportMod(result.scanned, onDiagnostic)
+    onProgress?.(done, mods.length, result.scanned.name, { ...running })
+    onPhase?.('planning', done, mods.length)
     return result
   })
 
@@ -134,12 +172,11 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
       coveredKeys: acc.coveredKeys + sumByLanguage(mod.coveredKeys),
       englishKeys: acc.englishKeys + sumByLanguage(mod.englishKeys),
       keptKeys: acc.keptKeys + sumByLanguage(mod.keptKeys),
-      shadowedKeys: acc.shadowedKeys + sumByLanguage(mod.shadowedKeys)
+      shadowedKeys: acc.shadowedKeys + sumByLanguage(mod.shadowedKeys),
     }),
     { ...EMPTY_TOTALS }
   )
 
-  // Mods needing work first; the rest keeps the list readable.
   const sorted = scanned.toSorted(
     (a, b) => b.missingFiles - a.missingFiles || a.name.localeCompare(b.name)
   )

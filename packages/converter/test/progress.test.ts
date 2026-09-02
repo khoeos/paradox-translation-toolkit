@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { JOB_EVENT_TYPES, isJobEvent } from '../src/index.js'
+import { JOB_EVENT_TYPES, SCAN_PHASES, isJobEvent } from '../src/index.js'
 import type { JobEvent } from '../src/index.js'
 
 describe('isJobEvent', () => {
@@ -11,8 +11,6 @@ describe('isJobEvent', () => {
   })
 
   it('refuses an event type this build does not know', () => {
-    // The original guard only checked that `type` was a string, so a variant one side emitted
-    // and the other did not handle fell through its switch in silence.
     expect(isJobEvent({ type: 'invented-later', jobId: 'j1' })).toBe(false)
   })
 
@@ -39,10 +37,29 @@ describe('JOB_EVENT_TYPES', () => {
     expect(new Set(JOB_EVENT_TYPES).size).toBe(JOB_EVENT_TYPES.length)
   })
 
-  it('covers both pipelines', () => {
-    expect(JOB_EVENT_TYPES).toContain('apply-progress')
+  it('covers the whole run, from progress to every terminal state', () => {
+    expect(JOB_EVENT_TYPES).toContain('mod-progress')
+    expect(JOB_EVENT_TYPES).toContain('scan-phase')
     expect(JOB_EVENT_TYPES).toContain('mods-scanned')
     expect(JOB_EVENT_TYPES).toContain('convert-done')
     expect(JOB_EVENT_TYPES).toContain('cancelled')
+    expect(JOB_EVENT_TYPES).toContain('error')
+  })
+})
+
+describe('SCAN_PHASES', () => {
+  it('lists the phases of a scan in the order they run', () => {
+    expect(SCAN_PHASES).toEqual([
+      'reading-generated',
+      'discovering',
+      'building-coverage',
+      'planning'
+    ])
+  })
+
+  it('is carried by an event type the guard lets through', () => {
+    for (const phase of SCAN_PHASES) {
+      expect(isJobEvent({ type: 'scan-phase', jobId: 'j1', phase }), phase).toBe(true)
+    }
   })
 })

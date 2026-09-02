@@ -2,13 +2,6 @@ import { promises as fs } from 'node:fs'
 
 import type { FetchLike, FsLike } from '@ptt/shared'
 
-/**
- * The one production `FsLike`.
- *
- * It lived in `apps/desktop/src/main/services/node-fs.ts` while the desktop app was its only
- * consumer. `apps/cli` is the second, and the root `CLAUDE.md` names byte-identical duplication as
- * a failure class, so it moved here rather than being copied.
- */
 export const nodeFs: FsLike = {
   async readFile(path, encoding) {
     return fs.readFile(path, encoding)
@@ -51,14 +44,6 @@ export const nodeFs: FsLike = {
   }
 }
 
-/**
- * The one production `FetchLike`.
- *
- * Same story as `nodeFs`: the desktop worker, the desktop translate service and two CLI commands
- * each carried a byte-identical copy, so a timeout, a proxy or a header added for one of them
- * would have left the other three behind and made the same run behave differently depending on
- * which front end started it. `@ptt/translate` still never reaches for a global `fetch`.
- */
 export const nodeFetch: FetchLike = async (url, init) => {
   const response = await fetch(url, init)
   return {

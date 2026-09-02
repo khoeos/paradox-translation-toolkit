@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_MOD_FOLDER, GENERATED_MOD_FOLDER_MAX_LEN } from '@ptt/converter'
-import { ck3, stellaris } from '@ptt/game-registry'
+import { ck3, stellaris } from '@ptt/games'
 
 import { resolveGeneratedMod } from './generated-mod-paths.js'
 
@@ -17,7 +17,6 @@ describe('resolveGeneratedMod', () => {
   })
 
   it('uses the userFolder of the selected game', () => {
-    // A wrong userFolder writes the mod where no launcher will look.
     expect(resolveGeneratedMod(DOCUMENTS, ck3).modsDir).toContain('Crusader Kings III')
   })
 

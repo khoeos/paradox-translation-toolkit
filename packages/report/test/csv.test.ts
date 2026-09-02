@@ -43,8 +43,6 @@ describe('csvField', () => {
 })
 
 describe('csvField - formula injection (S-2)', () => {
-  // The source, key and mod name columns come from third-party mod content, so a booby-trapped
-  // mod could have a formula evaluated the moment the report was opened.
   const dangerous = ['=', '+', '-', '@', '\t', '\r']
 
   for (const prefix of dangerous) {
@@ -131,7 +129,6 @@ describe('writeKeyCsv', () => {
   })
 
   it('reports how many rows it had to drop', async () => {
-    // A whole collection can refuse more strings than a spreadsheet holds.
     const fs = new MemoryFs()
     const { MAX_CSV_ROWS } = await import('../src/index.js')
     const many = Array.from({ length: MAX_CSV_ROWS + 5 }, (_, i) => key({ key: `K${i}` }))

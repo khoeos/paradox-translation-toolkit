@@ -75,8 +75,6 @@ describe('buildCoverage - declared dependency', () => {
 
 describe('buildCoverage - undeclared localisation mods', () => {
   it('credits a mod that ships no source language but repeats another mod keys', async () => {
-    // Plenty of localisation mods never fill in dependencies. This is the case that made the
-    // old file-level comparison overwrite a real Russian translation with English.
     const fs = new MemoryFs({
       'original/descriptor.mod': 'name="Original"',
       'original/localisation/english/a_l_english.yml': localeFile('english', [
@@ -97,7 +95,6 @@ describe('buildCoverage - undeclared localisation mods', () => {
     const fs = new MemoryFs({
       'original/descriptor.mod': 'name="Original"',
       'original/localisation/english/a_l_english.yml': localeFile('english', [['K1', 'one']]),
-      // Only 1 of 4 translated keys belongs to the original: below KEY_OVERLAP_MATCH.
       'ru-only/descriptor.mod': 'name="RU Only"',
       'ru-only/localisation/russian/a_l_russian.yml': localeFile('russian', [
         ['K1', 'один'],
@@ -111,7 +108,6 @@ describe('buildCoverage - undeclared localisation mods', () => {
   })
 
   it('does not apply the heuristic to a mod that has its own source language', async () => {
-    // A normal mod translating itself is not a patch of anybody.
     const fs = new MemoryFs({
       'a/descriptor.mod': 'name="A"',
       'a/localisation/english/a_l_english.yml': localeFile('english', [['K1', 'one']]),

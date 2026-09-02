@@ -7,12 +7,6 @@ import { IPC_CHANNELS } from '@ptt/shared'
 
 const { autoUpdater } = electronUpdater
 
-// Build-time flag injected by Vite. True only when CI built this binary with a
-// Windows code-signing certificate. See electron.vite.config.ts and
-// docs/publishing.md.
-// eslint-disable-next-line no-underscore-dangle
-declare const __WIN_SIGNED__: boolean
-
 const RELEASES_URL = 'https://github.com/khoeos/paradox-translation-toolkit/releases/latest'
 
 export type UpdaterStatus =
@@ -32,9 +26,7 @@ export interface UpdaterState {
   downloadProgress: number
   errorMessage: string | null
   releaseNotes: string | null
-  /** True iff this build can auto-download + auto-install via `electron-updater`. */
   autoUpdateSupported: boolean
-  /** Canonical URL of the GitHub release page (used as fallback). */
   releaseUrl: string
 }
 
@@ -52,7 +44,7 @@ export class UpdaterService {
   private readonly autoUpdateSupported: boolean
 
   constructor() {
-    this.autoUpdateSupported = process.platform === 'win32' && __WIN_SIGNED__
+    this.autoUpdateSupported = process.platform === 'win32'
 
     this.state = {
       status: 'idle',
@@ -66,7 +58,6 @@ export class UpdaterService {
     }
 
     if (is.dev) {
-      // In dev, electron-builder.yml isn't applied, point to dev-app-update.yml.
       autoUpdater.updateConfigPath = join(app.getAppPath(), 'dev-app-update.yml')
       autoUpdater.forceDevUpdateConfig = true
     }
@@ -76,7 +67,6 @@ export class UpdaterService {
     autoUpdater.allowPrerelease = false
     autoUpdater.channel = 'latest'
 
-    // Listeners wired unconditionally; only the download step is platform-gated.
     autoUpdater.on('checking-for-update', () => {
       this.state = { ...this.state, status: 'checking', errorMessage: null }
       this.broadcast({ type: 'checking' })
@@ -144,10 +134,6 @@ export class UpdaterService {
     }
   }
 
-  /**
-   * Signed Windows: download in place. Every other build: open GitHub Releases.
-   * Auto-installing without a code-signing cert would be a supply-chain risk.
-   */
   async download(): Promise<void> {
     if (!this.autoUpdateSupported) {
       void shell.openExternal(this.state.releaseUrl)
@@ -169,7 +155,7 @@ export class UpdaterService {
   installNow(): void {
     if (!this.autoUpdateSupported) return
     if (this.state.status !== 'ready') return
-    autoUpdater.quitAndInstall(false, true)
+    autoUpdater.quitAndInstall(true, true)
   }
 
   private broadcast(event: UpdaterEvent): void {

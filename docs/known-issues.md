@@ -22,18 +22,40 @@ app to write generated files into unrelated parts of your disk.
 
 ### `.bak` files keep only one previous version
 
-When you run the converter with **Overwrite existing files** enabled and the
-target file already exists, the previous content is saved as `<file>.bak`
-right next to the original. Running the converter again with overwrite still
-on will **replace** that `.bak` with the new previous version, there is no
+A `.bak` is only produced when a run actually replaces an existing target
+file, which only happens under **Complete the file** or **Translate
+everything again**. **Fill in what is missing** never writes to an existing
+file at all (it diverts to a separate file instead), so it never produces a
+`.bak` either.
+
+When a replacement does happen, the previous content is copied to
+`<file>.bak` right next to the target: after the new content has been
+successfully written to a temp file, but before that temp file is renamed
+onto the target. A failed conversion never leaves a stale `.bak` next to the
+original. Running the converter again in one of the two replacing choices
+will **replace** that `.bak` with the new previous version, there is no
 multi-step history.
 
-The backup is created **only after** the new content has been successfully
-written to a temp file (and only if that write succeeded). A failed
-conversion never leaves a stale `.bak` next to the original.
+If the copy itself fails, the run is **not** aborted: the new file is still
+written, and the backup failure is recorded as an error on the run's result
+instead, so a backup you were counting on can be missing even though the
+conversion "succeeded".
 
 **Workaround:** if you need to keep a specific version, rename the `.bak`
-yourself before running another overwrite.
+yourself before running another replacing choice, and check the run's
+errors if you need to confirm a backup was actually taken.
+
+### Replacement only ever targets the natural filename
+
+**Complete the file** and **Translate everything again** replace the file at
+the natural name derived from the source file's own name, the same name
+**Fill in what is missing** would use if there were no existing file there.
+A hand-written translation kept under any other filename is never matched by
+either mode, so it is neither replaced nor lost, but the toolkit also has no
+way to know it exists.
+
+**Workaround:** rename your translation to the natural `_l_<lang>.yml` name
+if you want a replacing choice to take it over.
 
 ### Files in `replace/` are translated independently
 
@@ -54,7 +76,8 @@ toast. Wait for the active job to finish or cancel it from the progress
 modal before starting a new one.
 
 **Why:** running multiple converter workers in parallel against the same
-folder would race on writes and produce inconsistent `.bak` files.
+folder would race on writes, including the `.bak` copy taken when a file is
+replaced under **Complete the file** or **Translate everything again**.
 
 ### Source files larger than 50MB are skipped
 
@@ -69,6 +92,24 @@ worker.
 **Workaround:** if you have a legitimate reason to translate a huge file,
 split it into smaller `_l_<lang>.yml` files (Paradox loads all of them
 together).
+
+### Mods declaring more than 128MB of localisation are scanned partially
+
+The scan reads a mod's localisation files until 128MB of them have been read,
+then stops on that mod with an error naming the file it stopped at and how
+many were left unread. The mod is still reported, its generated files are
+never pruned (an error blocks the prune), and the rest of the collection is
+scanned normally. The per-file 50MB cap now applies to the scan too, not only
+to the write path.
+
+**Why:** every key read stays in memory until the mod is planned. One Workshop
+mod (EU5 transliterated location names) ships 2033 well-formed files, none
+above 1.4MB, for 697MB and 15.7M entries: reading it all aborted the process
+with a heap out-of-memory error, which took down the scan of the whole
+collection instead of failing one mod.
+
+**Workaround:** scan that mod on its own, or split it, if its localisation is
+genuinely that large.
 
 ### "Extract to folder" refuses colliding mod basenames
 
@@ -92,6 +133,22 @@ parser tolerates values whose closing `"` is on a later line (useful for
 hand-crafted multi-paragraph dialogue), but the line endings inside the
 value are preserved verbatim, and Paradox games may handle this
 inconsistently. Use `\n` escapes inside a single-line value when in doubt.
+
+### Loosely written lines are normalised when the file is rewritten
+
+The parser accepts the shapes the Paradox loader accepts even though the format
+does not describe them: an apostrophe, a space or a non-ASCII letter inside a
+key, a non-breaking or zero-width space used as indentation or as filler around
+the `:`, and a space between the `:` and the version number. Vanilla Stellaris
+itself ships 641 lines of that kind.
+
+The key is stored trimmed and the `key:version "value"` separator is rebuilt
+from scratch, so any such line comes back normalised when the toolkit writes the
+file: `key : "v"` becomes `key: "v"`, and a non-breaking-space indent becomes a
+plain space. The game reads both spellings identically. This is not a
+regression either: those lines used to be rejected outright, so a rewrite lost
+them rather than normalising them. Preserving the original separator byte for
+byte would mean carrying it on every entry, which is a deliberate deferral.
 
 ### Inter-mod coverage is matched on key names only
 
@@ -242,14 +299,13 @@ that.
 
 ### Settings reset to defaults on launch
 
-If your previously-configured mod folders, languages, allowed folders,
-etc. are gone after a launch, the underlying `settings.json` file was
-found in a state the toolkit couldn't safely parse (typically after a
-hand-edit gone wrong or a version upgrade with a schema change), and
-the boot validator reset it to defaults rather than crashing the app.
-The reason is recorded in the log file. Re-pick your folders and
-re-toggle your preferences from the Settings page; nothing else needs
-doing.
+The boot validator checks `settings.json` **field by field**: only the
+field that fails validation (typically after a hand-edit gone wrong or a
+version upgrade with a schema change) is reset to its default, the rest of
+your settings survive. If, say, your target languages are back to empty
+after a launch, your mod folders and allowed folders are unaffected. The
+reason is recorded in the log file. Re-set the affected field from the
+Settings page; nothing else needs doing.
 
 ## Builds
 

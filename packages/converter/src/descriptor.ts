@@ -1,10 +1,3 @@
-/**
- * Reading a Paradox mod descriptor (`.mod`).
- *
- * Ported from PR #4 (e21ee7a, `src/main/translateFn/index.ts` `readDescriptor`) by
- * Artem Kondrashev.
- */
-
 import { posixJoin } from './path.js'
 import type { Descriptor, FsLike, TranslationMod } from './types.js'
 
@@ -14,16 +7,6 @@ const REMOTE_FILE_ID_RE = /^\s*remote_file_id\s*=\s*"([^"]*)"/m
 const DEPENDENCIES_BLOCK_RE = /dependencies\s*=\s*\{([^}]*)\}/
 const QUOTED_RE = /"([^"]*)"/g
 
-/**
- * Read what we need from a mod descriptor.
- *
- * A mod can hold several `.mod` files; `descriptor.mod` is the one the game reads, so it is
- * tried first. An unreadable descriptor is not worth failing the mod for: the caller falls
- * back to the folder name.
- * @param modPath - The mod folder
- * @param fs - The injected filesystem
- * @returns The declared metadata, every field optional
- */
 export async function readDescriptor(modPath: string, fs: FsLike): Promise<Descriptor> {
   let names: string[]
   try {
@@ -46,7 +29,6 @@ export async function readDescriptor(modPath: string, fs: FsLike): Promise<Descr
       const name = NAME_RE.exec(content)?.[1]?.trim()
       const supportedVersion = SUPPORTED_VERSION_RE.exec(content)?.[1]?.trim()
       const remoteFileId = REMOTE_FILE_ID_RE.exec(content)?.[1]?.trim()
-      // dependencies={ "Original Mod" } holds the untranslated name of the patched mod.
       const block = DEPENDENCIES_BLOCK_RE.exec(content)?.[1] ?? ''
       const dependencies = [...block.matchAll(QUOTED_RE)]
         .map(match => match[1]?.trim() ?? '')
@@ -60,22 +42,12 @@ export async function readDescriptor(modPath: string, fs: FsLike): Promise<Descr
           dependencies
         }
       }
-    } catch {
-      // Unreadable descriptor is not worth failing the mod for.
-    }
+    } catch {}
   }
 
   return {}
 }
 
-/**
- * Reuse the game version the source mods declare rather than inventing one.
- *
- * Mods that actually needed files describe the version this translation targets, so they are
- * preferred; when none of them declares one, every readable mod counts.
- * @param mods - The processed mods
- * @returns The most frequent supported_version, `*` when none was readable
- */
 export function pickSupportedVersion(
   mods: ReadonlyArray<{ createdCount: number; supportedVersion?: string }>
 ): string {
@@ -100,22 +72,12 @@ export function pickSupportedVersion(
   return best
 }
 
-/**
- * Content of a Paradox mod descriptor.
- *
- * A generated mod needs two of them: `<gameModsDir>/<folder>.mod` carries `path=` and is what
- * the launcher reads, `<mod>/descriptor.mod` carries none and is what the game reads.
- * @param mod - The translation mod description
- * @param withPath - Add the `path` field, required on the outer `.mod` file
- * @returns The descriptor content
- */
 export function buildDescriptor(mod: TranslationMod, withPath: boolean): string {
   const lines = [
     'version="1.0"',
     'tags={',
     '\t"Translation"',
     '}',
-    // A quote in the name would end the field early, so it becomes an apostrophe.
     `name="${mod.name.replaceAll('"', "'")}"`,
     `supported_version="${mod.supportedVersion}"`
   ]

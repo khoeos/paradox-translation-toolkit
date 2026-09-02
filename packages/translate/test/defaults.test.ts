@@ -9,6 +9,7 @@ import {
   TRANSLATE_DEFAULTS,
   TRANSLATE_LIMITS,
   TRANSLATE_PROVIDERS,
+  buildAnswerSchema,
   buildPrompt,
   indexed,
   isDefaultBaseUrl
@@ -16,8 +17,6 @@ import {
 
 describe('TRANSLATE_DEFAULTS (Q-5)', () => {
   it('is the single set of defaults, so the UI and the CLI cannot drift', () => {
-    // The original held one copy per surface and they had already diverged on concurrency,
-    // timeout and the Ollama model.
     expect(TRANSLATE_DEFAULTS.concurrency).toBe(2)
     expect(TRANSLATE_DEFAULTS.timeout).toBe(120_000)
     expect(TRANSLATE_DEFAULTS.model).toBe(PROVIDER_DEFAULTS.ollama.model)
@@ -50,7 +49,6 @@ describe('PROVIDER_DEFAULTS', () => {
   it('uses https for every remote provider', () => {
     expect(PROVIDER_DEFAULTS.openai.baseUrl.startsWith('https://')).toBe(true)
     expect(PROVIDER_DEFAULTS.rapidapi.baseUrl.startsWith('https://')).toBe(true)
-    // Ollama is local, so plain http is right.
     expect(PROVIDER_DEFAULTS.ollama.baseUrl.startsWith('http://localhost')).toBe(true)
   })
 
@@ -67,7 +65,6 @@ describe('isDefaultBaseUrl', () => {
   })
 
   it('does not recognise one the user typed', () => {
-    // Switching provider must not overwrite a custom endpoint.
     expect(isDefaultBaseUrl('https://my-own-gateway.internal/v1')).toBe(false)
   })
 })
@@ -88,6 +85,30 @@ describe('language mappings', () => {
   it('spells the language out rather than passing a code to a model', () => {
     expect(LANGUAGE_DISPLAY_NAMES['zh-Hans']).toBe('Simplified Chinese')
     expect(RAPIDAPI_CODES['zh-Hans']).toBe('zh')
+  })
+})
+
+describe('buildAnswerSchema', () => {
+  it('requires exactly one string per input index and forbids extra keys', () => {
+    expect(buildAnswerSchema(3)).toEqual({
+      type: 'object',
+      properties: {
+        translations: {
+          type: 'object',
+          properties: { '0': { type: 'string' }, '1': { type: 'string' }, '2': { type: 'string' } },
+          required: ['0', '1', '2'],
+          additionalProperties: false
+        }
+      },
+      required: ['translations'],
+      additionalProperties: false
+    })
+  })
+
+  it('stays under the strict-mode property cap at the largest allowed batch', () => {
+    const schema = buildAnswerSchema(TRANSLATE_LIMITS.batchSize.max)
+    expect(schema.properties.translations.required).toHaveLength(TRANSLATE_LIMITS.batchSize.max)
+    expect(TRANSLATE_LIMITS.batchSize.max).toBeLessThanOrEqual(5000)
   })
 })
 
@@ -128,7 +149,6 @@ describe('buildPrompt', () => {
   })
 
   it('always spells out the markup rule', () => {
-    // The clause that keeps a $VARIABLE$ from coming back translated.
     expect(buildPrompt(['one'], 'French')).toContain('$VARIABLE$')
   })
 })

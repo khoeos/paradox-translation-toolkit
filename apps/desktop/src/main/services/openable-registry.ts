@@ -15,7 +15,6 @@ export class OpenableRegistry {
     this.allowed.add(canonicalize(path))
   }
 
-  /** Add a file's path AND its parent directory (UI typically opens the dir). */
   addFileAndParent(path: string): void {
     if (!path) return
     this.add(path)
@@ -26,7 +25,6 @@ export class OpenableRegistry {
     return this.allowed.has(canonicalize(path))
   }
 
-  /** Authorize a path for the current process lifetime only, no persistence. */
   addSession(path: string): void {
     if (!path) return
     this.session.add(canonicalize(path))

@@ -1,11 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import {
-  PROVIDER_DEFAULTS,
-  TRANSLATE_LIMITS,
-  TRANSLATE_PROVIDERS
-} from '@ptt/translate/defaults'
+import { PROVIDER_DEFAULTS, TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate/defaults'
 import { Button } from '@ptt/ui/components/button'
 import { Input } from '@ptt/ui/components/input'
 import { Label } from '@ptt/ui/components/label'
@@ -14,13 +10,6 @@ import { Switch } from '@ptt/ui/components/switch'
 import { trpc } from '@renderer/lib/trpc'
 import { runTranslateConfig, useConverterFormStore } from '@renderer/store/converter-form'
 
-/**
- * The optional machine-translation settings.
- *
- * Ported from PR #4 (e21ee7a, `LanguageConverter/TranslateSettings.tsx`) by Artem Kondrashev.
- * The API key is deliberately not part of the persisted settings: it lives in the store's own
- * in-memory field and is put back only for the call that needs it.
- */
 export function TranslateSettings() {
   const { t } = useTranslation()
   const translate = useConverterFormStore(s => s.translate)
@@ -201,7 +190,6 @@ function NumberField({ id, label, value, limits, onChange }: NumberFieldProps) {
         onChange={event => {
           const parsed = Number.parseInt(event.target.value, 10)
           if (Number.isNaN(parsed)) return
-          // Clamped here so the same bounds hold whether the value was typed or stepped.
           onChange(Math.min(Math.max(parsed, limits.min), limits.max))
         }}
       />

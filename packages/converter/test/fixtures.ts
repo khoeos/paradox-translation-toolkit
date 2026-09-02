@@ -1,3 +1,5 @@
+import type { GameDefinition } from '@ptt/shared'
+
 import type { GameContextRef } from '../src/index.js'
 
 const BOM = '﻿'
@@ -17,6 +19,15 @@ export const stellarisDef: GameContextRef = {
     ja: 'japanese'
   },
   overrideSubdirs: ['replace']
+}
+
+export const stellarisGame: GameDefinition = {
+  ...stellarisDef,
+  id: 'stellaris',
+  displayName: 'Stellaris',
+  layout: 'both',
+  userFolder: 'Stellaris',
+  domain: 'a science-fiction grand strategy game'
 }
 
 export const ck3Def: GameContextRef = {

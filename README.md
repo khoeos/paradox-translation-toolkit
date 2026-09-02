@@ -41,9 +41,9 @@ The easiest way to manage your missing translation files for Paradox games (and 
     <li><a href="#download">Download</a></li>
     <li><a href="#how-to-use">How to use</a></li>
     <li><a href="#about-the-project">About the project</a></li>
+    <li><a href="#contact--support">Contact & Support</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#useful-links">Useful links</a></li>
-    <li><a href="#contact--support">Contact & Support</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#disclaimer">Disclaimer</a></li>
   </ol>
@@ -70,7 +70,7 @@ The easiest way to manage your missing translation files for Paradox games (and 
 | Europa Universalis V  | 3450310  | ⚠️ Supported, lightly tested |
 | Hearts of Iron IV     | 394360   | ⚠️ Supported, lightly tested |
 | Victoria 3            | 529340   | ⚠️ Supported, lightly tested |
-| Imperator: Rome       | 859580   | ⚠️ Supported, lightly tested |
+| Imperator: Rome       | 859580   | ⚠️ Supported, not tested     |
 
 If you find an issue with a specific game, please [open an issue](https://github.com/khoeos/paradox-translation-toolkit/issues).
 
@@ -95,14 +95,14 @@ The installer version creates a shortcut on your desktop and in your start menu.
 3. **Pick the source language** if you want to translate from something other than English
 4. **Select the target language(s)** you want to generate
 5. **Select the mode** (add to current mod or extract to a separate folder)
-6. **Toggle "Overwrite existing files"** if you want to force-rewrite files that already exist (the previous content is saved as `<file>.bak`)
+6. **Choose what a target file should contain** if it already exists: "Fill in what is missing" (default) leaves it untouched and writes only the missing keys elsewhere; "Complete the file" rewrites it with every key from the source while keeping what's already translated; "Translate everything again" rewrites it and retranslates everything, discarding what was there (asks for confirmation first). The last two save the file about to be replaced as `<file>.bak` right beside it before writing
 7. **Enjoy**
 
 The tool will check all the mods in the selected folder, and generate the missing localisation files for the selected target languages, based on the source language. Per-game settings (folders, source/target languages) are remembered automatically.
 
 With the default options, no files will be overwritten and the tool will only generate missing files.
 
-> Before reporting a bug, take a look at [Known issues & limitations](./docs/known-issues.md), it covers behaviours that surprise people the most (symlinks skipped, `.bak` history, per-game state, etc.).
+> Before reporting a bug, take a look at [Known issues & limitations](./docs/known-issues.md), it covers behaviours that surprise people the most (symlinks skipped, when a `.bak` backup is actually written, per-game state, etc.).
 
 ## About the project
 
@@ -113,6 +113,24 @@ Even if you're proficient in English, it's more comfortable to play in your nati
 To help players like me, and modders who want to be more inclusive with minimal effort, I created this app. It generates localization files for any selected language using English files (and eventually other languages in future versions).
 
 There have been several versions leading up to the current one, and I expect to keep improving it (I'll try not to let another two years pass before the next update!).
+
+---
+
+## Contact & Support
+
+For questions, support, or general discussion, the fastest way to reach me is on Discord.
+
+[![logo-discord](https://img.shields.io/badge/Server-grey?style=for-the-badge&logo=discord)](https://discord.gg/X9d96sK4dw)
+![logo-discord](https://img.shields.io/badge/khoeos-grey?style=for-the-badge&logo=discord)
+[![logo-reddit](https://img.shields.io/badge/khoeos-grey?style=for-the-badge&logo=reddit)](https://www.reddit.com/user/khoeos/)
+
+For discord contact, send me a message directly or join the server ([https://discord.gg/X9d96sK4dw](https://discord.gg/X9d96sK4dw)), i rarerly respond to only friend request.
+
+For bug reports and feature requests, please use [GitHub Issues](https://github.com/khoeos/paradox-translation-toolkit/issues).
+
+For security vulnerabilities, please follow the process described in [SECURITY.md](./SECURITY.md).
+
+Project Link: [https://github.com/khoeos/paradox-translation-toolkit](https://github.com/khoeos/paradox-translation-toolkit)
 
 ---
 
@@ -148,21 +166,6 @@ Important notes about the use of AI in the development of this project in the [A
 - [Releasing a new version](./docs/publishing.md)
 - [Adding a new game](./docs/game-support.md)
 - [Adding a new UI language](./docs/ui-language.md)
-
----
-
-## Contact & Support
-
-For questions, support, or general discussion, the fastest way to reach me is on Discord.
-
-[![logo-discord](https://img.shields.io/badge/khoeos-grey?style=for-the-badge&logo=discord)](https://discordapp.com/users/170144954964770816)
-[![logo-reddit](https://img.shields.io/badge/khoeos-grey?style=for-the-badge&logo=reddit)](https://www.reddit.com/user/khoeos/)
-
-For bug reports and feature requests, please use [GitHub Issues](https://github.com/khoeos/paradox-translation-toolkit/issues).
-
-For security vulnerabilities, please follow the process described in [SECURITY.md](./SECURITY.md).
-
-Project Link: [https://github.com/khoeos/paradox-translation-toolkit](https://github.com/khoeos/paradox-translation-toolkit)
 
 ---
 

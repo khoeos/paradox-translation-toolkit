@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { ck3, stellaris } from '@ptt/game-registry'
+import { ck3, stellaris } from '@ptt/games'
 import { TRANSLATE_DEFAULTS } from '@ptt/translate'
 
 import { parseArgs } from './args.js'
@@ -30,7 +30,6 @@ describe('parseLanguages', () => {
   })
 
   it('refuses a language the selected game has no localisation for', () => {
-    // stellaris declares no Turkish token; the original cast blindly and produced undefined.
     expect(() => parseLanguages(stellaris, 'tr')).toThrow(/no localisation for "tr"/)
   })
 
@@ -81,6 +80,30 @@ describe('buildOptions - games and modes', () => {
 
   it('refuses an unknown mode', () => {
     expect(() => build(['memory', '--mode', 'delete'])).toThrow(/Unknown --mode/)
+  })
+})
+
+describe('buildOptions - target content', () => {
+  it('defaults to missing-keys when --content is absent', () => {
+    expect(build(['memory']).targetContent).toBe('missing-keys')
+  })
+
+  it('maps the short content names', () => {
+    expect(build(['memory', '--content', 'missing']).targetContent).toBe('missing-keys')
+    expect(build(['memory', '--content', 'complete']).targetContent).toBe('complete-file')
+    expect(build(['memory', '--content', 'regenerate']).targetContent).toBe('regenerate-file')
+  })
+
+  it('accepts the full content name too', () => {
+    expect(build(['memory', '--content', 'missing-keys']).targetContent).toBe('missing-keys')
+    expect(build(['memory', '--content', 'complete-file']).targetContent).toBe('complete-file')
+    expect(build(['memory', '--content', 'regenerate-file']).targetContent).toBe('regenerate-file')
+  })
+
+  it('refuses an unknown content value, naming the accepted ones', () => {
+    expect(() => build(['memory', '--content', 'wipe'])).toThrow(
+      /Unknown --content "wipe", expected one of missing, complete, regenerate/
+    )
   })
 })
 
@@ -157,7 +180,6 @@ describe('buildOptions - config file', () => {
   })
 
   it('honours a numeric value from the config file', () => {
-    // The original dropped it: every numeric setting went through a string-only guard.
     writeFileSync(join(dir, 'ptt.config.json'), JSON.stringify({ translate: true, batch: 150 }))
     expect(build(['memory']).translate?.batchSize).toBe(150)
   })

@@ -21,7 +21,6 @@ export function serialize(file: LocaleFile, opts?: SerializeOptions): string {
       }
     }
   } else {
-    // Layout used when the file was constructed in code rather than parsed.
     for (const entry of file.entries) {
       lines.push(formatEntry(entry))
     }
@@ -37,16 +36,6 @@ export function serialize(file: LocaleFile, opts?: SerializeOptions): string {
   return output
 }
 
-/**
- * Quotes inside a value must stay escaped or the game stops reading the file.
- *
- * Unescape first, then escape: the parser keeps a value exactly as it sits on disk, so an
- * untouched value already carries `\"` and must not gain a second backslash, while a value
- * a caller just assigned carries a bare `"` and must gain one. Doing both makes the
- * function idempotent, which is what keeps the round-trip guarantee intact.
- *
- * Ported from PR #4 (e21ee7a, `src/main/translate/yml.ts` `escapeValue`) by Artem Kondrashev.
- */
 function escapeValue(value: string): string {
   return value.replaceAll('\\"', '"').replaceAll('"', '\\"')
 }

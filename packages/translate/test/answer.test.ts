@@ -43,8 +43,6 @@ describe('parseAnswer - shapes', () => {
 
 describe('parseAnswer - reordering (S-4)', () => {
   it('places a keyed answer by its index, not by its position', () => {
-    // A model that answers out of order used to put the wrong translation on the wrong key,
-    // and prose without markup passes tokensMatch, so it was written and remembered.
     const parsed = parseAnswer('{"translations":{"1":"deux","0":"un"}}', 2)
     expect(parsed.slots).toEqual(['un', 'deux'])
   })
@@ -65,8 +63,6 @@ describe('parseAnswer - reordering (S-4)', () => {
 })
 
 describe('parseAnswer - non-strings (S-5)', () => {
-  // The original coerced with String(item), so these became truthy strings that were written
-  // into a .yml and remembered.
   const cases: Array<[label: string, json: string]> = [
     ['null', '{"translations":{"0":null}}'],
     ['a number', '{"translations":{"0":123}}'],

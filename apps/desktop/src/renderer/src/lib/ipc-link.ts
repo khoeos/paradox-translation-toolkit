@@ -17,12 +17,7 @@ type IpcResponse = IpcSuccessResponse | IpcErrorResponse
 const DEFAULT_IPC_TIMEOUT_MS = 120_000
 
 /** tRPC paths whose work runs longer than DEFAULT_IPC_TIMEOUT_MS. */
-const LONG_RUNNING_PATHS = new Set([
-  'converter.scan',
-  'converter.run',
-  'converter.scanMods',
-  'converter.convert'
-])
+const LONG_RUNNING_PATHS = new Set(['converter.scanMods', 'converter.convert'])
 
 interface PendingRequest {
   resolve: (data: unknown) => void

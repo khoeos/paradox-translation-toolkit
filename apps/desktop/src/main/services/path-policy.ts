@@ -1,9 +1,8 @@
 import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 
-import { getAllGames } from '@ptt/game-registry'
+import { getAllGames } from '@ptt/games'
 
-/** Absolute, forward-slashed, lowercased form for path comparisons. */
 export function canonicalize(p: string): string {
   return resolve(p).replaceAll('\\', '/').toLowerCase()
 }
@@ -14,7 +13,6 @@ function segmentsOf(canonical: string): string[] {
 
 let allowedTokensCache: ReadonlySet<string> | null = null
 
-/** Segment-level tokens marking a path as a typical Paradox install/mod location. */
 function getAllowedTokens(): ReadonlySet<string> {
   if (allowedTokensCache) return allowedTokensCache
   const tokens = new Set<string>()
@@ -32,10 +30,6 @@ function getAllowedTokens(): ReadonlySet<string> {
   return tokens
 }
 
-/**
- * True iff the path looks like a Paradox-managed location: a Steam Workshop
- * layout or a segment matching a known token.
- */
 export function isWellKnownParadoxPath(absPath: string): boolean {
   const canonical = canonicalize(absPath)
   const segs = segmentsOf(canonical)
@@ -49,9 +43,6 @@ export function isWellKnownParadoxPath(absPath: string): boolean {
   return false
 }
 
-// DEEP = the path and every descendant are blocked (real system locations).
-// EXACT = only the literal root is blocked, descendants fall through to the
-// next policy layers (Steam, Paradox mods, etc.).
 const WIN_CRITICAL_DEEP_PREFIXES = ['c:/windows', 'c:/system volume information', 'c:/$recycle.bin']
 const WIN_CRITICAL_EXACT = new Set([
   'c:/users',
@@ -81,7 +72,6 @@ function isDriveRoot(canonical: string): boolean {
   return /^[a-z]:\/$/.test(canonical) || canonical === '/'
 }
 
-/** True iff the path is OS-critical and must not be opened by the renderer. */
 export function isCriticalFolder(absPath: string): boolean {
   const canonical = canonicalize(absPath)
   if (canonical === '') return true

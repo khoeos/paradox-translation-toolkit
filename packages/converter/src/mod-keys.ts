@@ -1,29 +1,12 @@
-/**
- * Reading every localisation key a mod declares.
- *
- * Ported from PR #4 (e21ee7a, `src/main/translateFn/index.ts` `readModKeys`) by
- * Artem Kondrashev.
- */
-
 import { parse } from '@ptt/parser'
 import type { LanguageCode } from '@ptt/shared'
 
+import { MAX_MOD_LOCALISATION_BYTES, MAX_SOURCE_FILE_BYTES } from './constants.js'
+import { getParseSeverity } from './diagnostics.js'
 import { readModFiles } from './mod-files.js'
 import type { FsLike, GameContextRef, LocalisationEntry, ModEntries, ModKeys } from './types.js'
 import { stringifyError } from './walk.js'
 
-/**
- * Read every localisation entry of a mod, in file order, with nothing deduplicated.
- *
- * The `l_<language>:` header is what the game actually reads, not the folder name, so it
- * decides the language of a file. A file whose header names a language the game does not
- * declare is skipped with a diagnostic rather than tracked under a raw token: nothing
- * downstream could ever act on it.
- * @param modPath - The mod folder
- * @param gameDef - The game, for its localisation folder and language tokens
- * @param fs - The injected filesystem
- * @returns Every entry found, plus the file count and any read diagnostics
- */
 export async function readLocalisationEntries(
   modPath: string,
   gameDef: GameContextRef,
@@ -37,29 +20,57 @@ export async function readLocalisationEntries(
     if (token !== undefined) tokenToLanguage.set(token, lc as LanguageCode)
   }
 
-  for (const described of files) {
+  let budget = MAX_MOD_LOCALISATION_BYTES
+
+  for (const [index, described] of files.entries()) {
+    let size: number
+    try {
+      size = (await fs.stat(described.path)).size
+    } catch (err) {
+      diagnostics.push({ severity: 'error', message: `${described.path} : ${stringifyError(err)}` })
+      continue
+    }
+
+    if (size > MAX_SOURCE_FILE_BYTES) {
+      diagnostics.push({
+        severity: 'error',
+        message: `${described.path} exceeds ${MAX_SOURCE_FILE_BYTES} bytes and was not read`
+      })
+      continue
+    }
+
+    if (size > budget) {
+      diagnostics.push({
+        severity: 'error',
+        message: `${modPath} declares more than ${MAX_MOD_LOCALISATION_BYTES} bytes of localisation : stopped at ${described.path}, ${files.length - index} file(s) left unread`
+      })
+      break
+    }
+    budget -= size
+
     let content: string
     try {
       content = await fs.readFile(described.path, 'utf-8')
     } catch (err) {
-      diagnostics.push(`${described.path} : ${stringifyError(err)}`)
+      diagnostics.push({ severity: 'error', message: `${described.path} : ${stringifyError(err)}` })
       continue
     }
 
     const parsed = parse(content)
-    // A file with no `l_<language>:` header yields no entries at all, because the games do
-    // not load one either. Report it rather than dropping it silently: the original inferred
-    // the language from the folder name, which hid a malformed file behind a plausible guess.
     for (const diagnostic of parsed.diagnostics) {
-      if (diagnostic.severity === 'error') {
-        diagnostics.push(`${described.path}:${diagnostic.line} : ${diagnostic.message}`)
-      }
+      diagnostics.push({
+        severity: getParseSeverity(diagnostic.code),
+        message: `${described.path}:${diagnostic.line} : ${diagnostic.message}`
+      })
     }
 
     const language = tokenToLanguage.get(parsed.file.language)
     if (!language) {
       if (parsed.file.language !== '') {
-        diagnostics.push(`Unknown language token "${parsed.file.language}" in ${described.path}`)
+        diagnostics.push({
+          severity: 'error',
+          message: `Unknown language token "${parsed.file.language}" in ${described.path}`
+        })
       }
       continue
     }
@@ -78,16 +89,6 @@ export async function readLocalisationEntries(
   return { files: files.length, entries, otherSpelling, diagnostics }
 }
 
-/**
- * Read every localisation key a mod declares, grouped by language.
- *
- * One key per language, first declaration winning, which is how the game resolves a
- * duplicated key too.
- * @param modPath - The mod folder
- * @param gameDef - The game, for its localisation folder and language tokens
- * @param fs - The injected filesystem
- * @returns Language to key to where that key was declared
- */
 export async function readModKeys(
   modPath: string,
   gameDef: GameContextRef,

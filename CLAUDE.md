@@ -1,14 +1,14 @@
 # Paradox Translation Toolkit
 
 Turbo + pnpm monorepo : Electron app (`apps/desktop`) + developer CLI (`apps/cli`) +
-FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games/`).
+FS-agnostic cores (`packages/`) + one `packages/games` package holding every game definition and the registry.
 
 ## Read docs/ first, by task
 
 - Architecture and responsibilities : `docs/architecture.md`, section
   "Invariants worth preserving" (canonical, with two stale bullets : cross-boundary
   types are NOT all in `@ptt/shared`, see the duplications below)
-- Add a game : `docs/game-support.md` (copy `games/game-stellaris`)
+- Add a game : `docs/game-support.md` (add `packages/games/src/<id>.ts`)
 - Add a UI language : `docs/ui-language.md` (CLDR plural variants trap)
 - Release, changesets, beta channel : `docs/publishing.md`
 - Local installers : `docs/building.md` (dist-deploy workaround for pnpm)
@@ -20,7 +20,7 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
 - `packages/parser`, `packages/converter`, `packages/translate` and
   `packages/report` are FS-agnostic : no `node:fs`, no Electron imports. This is now
   enforced rather than asserted, by `no-restricted-imports` in `.oxlintrc.json`
-  (`packages/**` and `games/**`, `packages/fs-node/**` excluded) plus `"types": []` on
+  (`packages/**`, `packages/fs-node/**` excluded) plus `"types": []` on
   every one of them. It used to be enforced in half the packages it was claimed of : a
   `/// <reference types="node" />` in translate leaked node's globals through the import
   graph and a probe importing `node:fs` compiled clean in translate and report. The
@@ -51,7 +51,7 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   `JobEvent` / `isJobEvent`, `@ptt/translate/defaults` for the settings bounds. A value
   import of a package root pulls zod and the whole pipeline into the renderer bundle (check
   with `grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
-- `games/game-registry` array order = UI tab order (`builtInGames` ->
+- `packages/games/src/index.ts` `builtInGames` order = UI tab order (`builtInGames` ->
   `getGameSummaries()` -> `games.list` -> `GameTabs`, no sort on the path). A new
   game also needs its tab image wired in `GameTabs.tsx`.
 - parser round-trip guarantee : parse -> mutate -> serialize must not
@@ -83,7 +83,7 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   `as const` tuples so `z.enum()` can derive the union).
 - Legitimate and staying : key widening from `Object.entries()` / `Object.keys()`
   over a `Partial<Record<K, V>>` (`converter/src/plan.ts`, `scan.ts`,
-  `game-registry/src/index.ts`) ; external types that are wrong or closed
+  `games/src/index.ts`) ; external types that are wrong or closed
   (electron-store `Store.set`, tRPC `_def._config`, `TRPCClientError.from`) ;
   `packages/ui` (vendored shadcn, never hand-edited) ; fixture traversal in tests.
   Add a one-line reason at the site : 17 of the 19 current sites have none.
@@ -142,7 +142,7 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
 - Filename case is per-directory, there is no repo-wide convention.
   `renderer/src/components/**` : PascalCase matching the exported component (12/12).
   `renderer/src/hooks/**` : camelCase `useX.ts` (4/4). Every other file under
-  `apps/desktop/src`, and all 42 files in `packages/*/src` + `games/*/src` :
+  `apps/desktop/src`, and every file in `packages/*/src` :
   lowercase or kebab, `packages/ui` included (kebab files exporting 89 PascalCase
   components). A `use*` export does not make the file camelCase : the stores are
   `store/converter-form.ts | jobs.ts | updater.ts`.
@@ -156,8 +156,8 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   `LANGUAGE_CODES`, `UI_LANGUAGES`, `VALID_UI_LANGUAGES`, `DEFAULT_UI_LANGUAGE`) or
   module-local (`PROD_CSP`, `MAX_STORED_JOBS`, ...) ; singletons, routers and tRPC
   builders are camelCase (`nodeFs`, `dialogService`, `appRouter`, `*Router`).
-  `games/game-<id>/src/index.ts` must export a const named exactly `<id>`, because
-  `game-registry` does `import { <id> } from '@ptt/game-<id>'`.
+  `packages/games/src/<id>.ts` must export a const named exactly `<id>`, because
+  `src/index.ts` does `import { <id> } from './<id>.js'`.
 - `...Schema` does not imply zod. Most `*Schema` identifiers are zod, but
   `SettingsSchema` (`main/services/settings-service.ts`) and `TranslationSchema`
   (`packages/i18n/src/index.ts`) are plain TS ; where the TS name was taken first the
@@ -170,14 +170,13 @@ FS-agnostic cores (`packages/`) + one package per supported Paradox game (`games
   advertises `@/components` : every app-level import the shadcn CLI writes has to be
   re-pointed to `@renderer/*`. Cross-package, import a declared `exports` subpath.
 - Tests are always `*.test.ts` (no `.spec.`, no `__tests__/`) ; location is
-  per-workspace : `packages/*` and `games/*` use a `test/` sibling of `src/`,
+  per-workspace : `packages/*` use a `test/` sibling of `src/`,
   `apps/desktop` and `apps/cli` colocate as `src/**/*.test.ts`. Every workspace with a
-  `vitest.config.ts` pins an `include`, 7 of them : the five `packages/*` libraries through
+  `vitest.config.ts` pins an `include`, 8 of them : the six `packages/*` libraries through
   `libraryVitestConfig()`'s `test/**/*.test.ts`, plus the two apps' `src/**/*.test.ts`.
   There, a test outside the glob is never run and `pnpm test` stays green, so a colocated
-  `src/foo.test.ts` in a `packages/*` library is a file nothing executes. Only `games/*`
-  are unpinned, having no config. Shared helpers must keep no `.test` segment
-  (`converter/test/memory-fs.ts`, `fixtures.ts`).
+  `src/foo.test.ts` in a `packages/*` library is a file nothing executes. Shared helpers must
+  keep no `.test` segment (`converter/test/memory-fs.ts`, `fixtures.ts`).
 
 ## Gotchas
 

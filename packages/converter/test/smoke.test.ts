@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest'
 
-import { apply, diff, plan, scan } from '../src/index.js'
+import { applyModJobs, planMod, runConvert, scanMods } from '../src/index.js'
 
 describe('converter skeleton', () => {
-  it('exports scan', () => {
-    expect(typeof scan).toBe('function')
+  it('exports scanMods', () => {
+    expect(typeof scanMods).toBe('function')
   })
 
-  it('exports diff', () => {
-    expect(typeof diff).toBe('function')
+  it('exports planMod', () => {
+    expect(typeof planMod).toBe('function')
   })
 
-  it('exports plan', () => {
-    expect(typeof plan).toBe('function')
+  it('exports applyModJobs', () => {
+    expect(typeof applyModJobs).toBe('function')
   })
 
-  it('exports apply', () => {
-    expect(typeof apply).toBe('function')
+  it('exports runConvert', () => {
+    expect(typeof runConvert).toBe('function')
   })
 })

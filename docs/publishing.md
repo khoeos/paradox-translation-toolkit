@@ -8,14 +8,14 @@ The repo uses **Changesets** to manage versions and changelogs, and **electron-u
 
 ## TL;DR
 
-| Action                                           | Command                                        |
-| ------------------------------------------------ | ---------------------------------------------- |
-| Add a release note while developing              | `pnpm changeset`                               |
-| Enter beta mode (next versions are pre-releases) | `pnpm changeset pre enter beta`                |
-| Cut a beta version                               | `pnpm changeset version` _(while in pre-mode)_ |
-| Exit beta mode                                   | `pnpm changeset pre exit`                      |
-| Cut a stable version                             | `pnpm changeset version` _(out of pre-mode)_   |
-| Tag + push (triggers CI release)                 | `git tag v<version> && git push --tags`        |
+| Action                                           | Command                                      |
+| ------------------------------------------------ | -------------------------------------------- |
+| Add a release note while developing              | `pnpm changeset`                             |
+| Enter beta mode (next versions are pre-releases) | `pnpm changeset pre enter beta`              |
+| Cut a beta version                               | `pnpm release:version` _(while in pre-mode)_ |
+| Exit beta mode                                   | `pnpm changeset pre exit`                    |
+| Cut a stable version                             | `pnpm release:version` _(out of pre-mode)_   |
+| Tag + push (triggers CI release)                 | `git tag v<version> && git push --tags`      |
 
 ---
 
@@ -51,7 +51,7 @@ Out of pre-mode, the flow is:
 
 ```bash
 # 1. Consume all pending changesets, bump versions, regenerate CHANGELOG.md per package
-pnpm changeset version
+pnpm release:version
 
 # 2. Review the diff (especially the resulting @ptt/desktop version)
 git diff
@@ -85,7 +85,9 @@ Beta versions follow the same flow but go through Changesets' **pre-mode**.
 pnpm changeset pre enter beta
 ```
 
-This creates `.changeset/pre.json` recording the entry. While in pre-mode, every `pnpm changeset version` call produces pre-release versions (`3.1.0-beta.0`, `3.1.0-beta.1`, …) instead of stable bumps.
+This creates `.changeset/pre.json` recording the entry. While in pre-mode, every `pnpm release:version` call produces pre-release versions (`3.1.0-beta.0`, `3.1.0-beta.1`, …) instead of stable bumps.
+
+Since `@changesets/cli` 3, `pre.json` only holds `{ "mode", "tag" }` : the changesets already consumed by a beta are moved to `.changeset/pre/` instead of being listed inside it. The first `pnpm release:version` run after the 2.x → 3.x upgrade performs that migration, and as a side effect advances the pre-release counter of **every** workspace package once (`0.2.0-beta.0` → `0.2.0-beta.1`, …). Only `@ptt/desktop`'s version is distributed, so this is cosmetic ; later runs bump only the packages an actual changeset targets.
 
 ### Cutting a beta
 
@@ -94,7 +96,7 @@ This creates `.changeset/pre.json` recording the entry. While in pre-mode, every
 pnpm changeset
 
 # Bump versions in beta mode
-pnpm changeset version
+pnpm release:version
 # → e.g. @ptt/desktop 3.0.0 → 3.1.0-beta.0
 
 git add -A
@@ -109,7 +111,7 @@ Apps with **Subscribe to beta releases** enabled in Settings → Updates will fe
 
 ### Iterating on betas
 
-Just keep adding changesets and running `pnpm changeset version`, each call increments the pre-release counter (`-beta.1`, `-beta.2`, …).
+Just keep adding changesets and running `pnpm release:version`, each call increments the pre-release counter (`-beta.1`, `-beta.2`, …).
 
 ### Promoting a beta to stable
 
@@ -117,7 +119,7 @@ When ready:
 
 ```bash
 pnpm changeset pre exit
-pnpm changeset version
+pnpm release:version
 # → e.g. @ptt/desktop 3.1.0-beta.5 → 3.1.0
 
 git add -A
@@ -126,7 +128,7 @@ git tag v3.1.0
 git push origin main --tags
 ```
 
-`pre exit` removes `.changeset/pre.json` and the next `version` produces stable bumps. Note that `pre exit` re-emits all pending changesets at version time, so the CHANGELOG entry for 3.1.0 contains everything that landed across 3.1.0-beta.0…beta.5.
+`pre exit` removes `.changeset/pre.json` and empties `.changeset/pre/`, and the next `version` produces stable bumps. Note that `pre exit` re-emits all pending changesets at version time, so the CHANGELOG entry for 3.1.0 contains everything that landed across 3.1.0-beta.0…beta.5.
 
 ---
 
@@ -134,22 +136,59 @@ git push origin main --tags
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) runs on `push: tags: ['v*']`:
 
-- Matrix: `windows-latest`, `ubuntu-latest`, `macos-latest`
+- Matrix: `windows-latest`, `ubuntu-latest`, `macos-latest` by default, narrowable (below)
 - Steps: install (`pnpm install --frozen-lockfile`), `pnpm typecheck`, `pnpm test`, `pnpm --filter @ptt/desktop run release`
 - The `release` script runs `electron-vite build && pnpm deploy --prod ./dist-deploy && electron-builder --publish always`
 - `GH_TOKEN` is the standard `secrets.GITHUB_TOKEN`; no manual setup needed
+- `releaseType: release` in `electron-builder.yml`: the default is `draft`, and a draft
+  carries no assets and no channel file, so the update feed would never see it. There is no
+  `draft` key on this version's `GithubOptions`, and an unknown key makes electron-builder
+  reject the whole config before packaging
 
----
+### Where the release notes come from
 
-## Differential updates
+`changeset version` writes one `## <version>` section per release into
+`apps/desktop/CHANGELOG.md`. Nothing carries that text further on its own, so the release
+job is followed by a `notes` job that extracts the section for the tag being released and
+sets it as the GitHub release description:
 
-`electron-updater` ships differential downloads on three platforms:
+```bash
+node scripts/release-notes.mjs            # the version in apps/desktop/package.json
+node scripts/release-notes.mjs 3.0.0-beta.2
+```
 
-- **Windows (NSIS)**: `.exe.blockmap` files generated alongside the installer; only changed blocks are downloaded
-- **macOS (zip)**: same blockmap mechanism on the zip target
-- **Linux (AppImage)**: native `zsync` integration
+The script exits 1 when the section is missing or empty, so a release never publishes with
+silently empty notes.
 
-The `.deb` Linux target is shipped but doesn't auto-update, Linux users on `.deb` install manually (or use AppImage for auto-updates).
+This is also where the app's "what's new" comes from: electron-updater's `GitHubProvider`
+reads the release body through the releases atom feed when the channel file carries no notes
+(`computeReleaseNotes`). An empty description therefore costs the notes twice, on the page
+and in the app. Note that `releaseNotes` is carried from the main process into the renderer
+store but no component renders it yet.
+
+The job runs after the platform jobs (`needs: release`) rather than inside them: the release
+has to exist before it can be edited, and three platform jobs would otherwise race to write
+the same body. It is skipped on a `workflow_dispatch` run, which has no tag.
+
+### Building only some platforms
+
+A beta that only needs a Windows installer should not spend three runners on it.
+
+Set the repository variable **`RELEASE_PLATFORMS`** (Settings > Secrets and variables >
+Actions > Variables) to a comma-separated list of `windows`, `linux`, `macos`. Spaces and
+case do not matter. Unset or empty means all three, so the default is always a complete
+release:
+
+```
+RELEASE_PLATFORMS = windows
+```
+
+The next tag pushed then builds Windows alone. It has to be a variable rather than a
+workflow input because the release runs on a **tag push**, where `inputs` does not exist.
+
+For a one-off manual run, `workflow_dispatch` takes a `platforms` input which overrides the
+variable, so no settings change is needed. A value matching none of the three tokens fails
+the run loudly rather than publishing an empty release.
 
 ---
 
@@ -166,49 +205,3 @@ The `.deb` Linux target is shipped but doesn't auto-update, Linux users on `.deb
 
 **A user installed a beta and now wants to go back to stable**
 → Toggling the setting switches the channel for _future_ checks. They stay on the beta version until the next stable release ≥ their current beta version. This is normal `electron-updater` behavior, no auto-downgrade.
-
----
-
-## Code signing strategy
-
-The auto-updater is the most attack-sensitive part of the app: a compromised release server or a MITM during download could ship a malicious binary that the OS would happily run. Without code signing, `electron-updater` has no way to verify that an incoming update was published by us. Our policy reflects that risk per platform.
-
-### Windows - preparing for Certum Open Source (~30 €/year)
-
-The build pipeline is wired for code signing, but it is **inactive** until a certificate is purchased and the secrets are configured. Today's Windows release ships **unsigned**; the renderer detects this and routes "Download" clicks to the GitHub release page rather than letting `electron-updater` install an unverified binary.
-
-**To activate signing**:
-
-1. **Buy the certificate**: [Certum Open Source Code Signing Certificate](https://shop.certum.eu) (~30 €/yr). Validation takes 1–3 weeks (ID check + proof of OSS maintenance). Ask Certum for the `.pfx` format, it is simpler to inject in CI than the HSM-only formats.
-2. **Update `electron-builder.yml`**: set `win.signtoolOptions.publisherName` to the exact CN of the issued certificate. Typical Certum Open Source format: `Open Source Developer, <Real Name>`. Verify with `openssl pkcs12 -info -in cert.pfx -nokeys` after purchase.
-3. **Configure GitHub Secrets** (Settings → Secrets and variables → Actions):
-   - `WIN_CSC_LINK`: the `.pfx` content encoded in base64 (`base64 -w0 cert.pfx`).
-   - `WIN_CSC_KEY_PASSWORD`: the `.pfx` passphrase.
-4. **Cut a release tag**. CI exposes `PTT_WIN_SIGNED=1` automatically when `WIN_CSC_LINK` is non-empty; the desktop build embeds this flag, and the running app will trust `electron-updater` for auto-download + auto-install.
-5. **Validate**: on a clean Windows VM, run `Get-AuthenticodeSignature .\paradox-translation-toolkit-<version>-setup.exe` and confirm `Status: Valid` and `SignerCertificate.Subject` matches `publisherName`.
-6. **SmartScreen reputation**: the "Windows protected your PC" warning will persist for the first weeks until install volume accumulates. Users have to click "More info" → "Run anyway". An EV certificate would skip this but costs ~10× more and requires a hardware token.
-
-⚠️ **Renewing the certificate**: keep the same CN at renewal time, otherwise installed users won't be able to auto-update from the old binary to the new one (`electron-updater` rejects the publisher mismatch).
-
-### macOS - intentionally unsigned
-
-Apple Developer Program membership (99 $/year) and the notarization workflow are **not pursued**. The macOS target still builds in CI (`.dmg`, `.zip`, x64 + arm64) so Mac users can download manually, but:
-
-- The first launch requires right-click → Open (Gatekeeper). README documents this.
-- `electron-updater` is **disabled by design** on macOS: `autoUpdateSupported` is hard-coded to `false` in the main process. The "Download" button in the update banner opens the GitHub release page in the user's browser instead.
-- `CSC_IDENTITY_AUTO_DISCOVERY: false` is set in `release.yml` so `electron-builder` doesn't search for a non-existent identity.
-
-### Linux - intentionally manual
-
-Same posture as macOS. AppImage and `.deb` are built and published, but there is no auto-update; users follow the in-app notification to GitHub Releases and download manually. No GPG signature is published today, a future enhancement could add detached `.sig` files for users who want to verify, but that is out of scope for now.
-
-### Update flow recap
-
-| Platform                  | Build artifact      | Auto-update behaviour                         | Triggered by                                    |
-| ------------------------- | ------------------- | --------------------------------------------- | ----------------------------------------------- |
-| Windows (unsigned, today) | `.exe` NSIS         | Notification only → opens GitHub release page | `download()` redirects via `shell.openExternal` |
-| Windows (signed, future)  | `.exe` NSIS, signed | In-place download + restart-to-install        | `electron-updater`                              |
-| macOS                     | `.dmg`, `.zip`      | Notification only → opens GitHub release page | `download()` redirects                          |
-| Linux                     | `.AppImage`, `.deb` | Notification only → opens GitHub release page | `download()` redirects                          |
-
-The version-detection step (`check()`) works on every platform, only the download path differs.

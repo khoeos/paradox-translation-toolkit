@@ -39,7 +39,6 @@ describe('posixJoin', () => {
   })
 
   it('keeps the root when the first part is only a separator', () => {
-    // '/' trims to the empty string, so the root has to be carried outside the segments.
     expect(posixJoin('/', 'mod', 'foo.yml')).toBe('/mod/foo.yml')
   })
 
@@ -231,8 +230,6 @@ describe('pathKey', () => {
   })
 
   it('leaves . and .. alone', () => {
-    // Identity comparison of well-formed paths: resolving here would change what compares
-    // equal, and callers that need resolution have posixNormalize.
     expect(pathKey('a/./b/../c')).toBe('a/./b/../c')
   })
 

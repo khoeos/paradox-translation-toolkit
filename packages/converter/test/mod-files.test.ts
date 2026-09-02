@@ -59,7 +59,6 @@ describe('readModFiles', () => {
   })
 
   it('walks replace/, which real mods use for translated strings', async () => {
-    // Skipping it silently ignored 4 files and 11 keys in Succession Expanded.
     const fs = new MemoryFs({
       'mod/localisation/replace/a_l_english.yml': localeFile('english')
     })

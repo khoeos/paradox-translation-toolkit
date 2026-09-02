@@ -11,8 +11,6 @@ const HOME = '/Users/x'
 
 describe('defaultUserDataPath', () => {
   it('matches what Electron uses on macOS', () => {
-    // The original only covered Windows and Linux, so on macOS the CLI built its own userData
-    // folder next to the app's real one and the two never shared a memory or a report.
     expect(defaultUserDataPath('darwin', {}, HOME)).toBe(
       `/Users/x/Library/Application Support/${APP_FOLDER}`
     )
@@ -60,8 +58,6 @@ describe('resolveUserData', () => {
   })
 
   it('ignores an empty explicit path rather than using the working directory', () => {
-    // `--user-data ''` used to make a derived path cwd-relative, and the memory command then
-    // deleted it (audit finding S-16).
     expect(resolveUserData('')).not.toBe('')
     expect(resolveUserData('   ')).toContain(APP_FOLDER)
   })

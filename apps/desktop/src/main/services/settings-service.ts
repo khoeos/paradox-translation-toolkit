@@ -1,13 +1,15 @@
 import Store from 'electron-store'
 import { z } from 'zod'
 
-import { getAllGameIds } from '@ptt/game-registry'
+import { getAllGameIds } from '@ptt/games'
 import { DEFAULT_UI_LANGUAGE, VALID_UI_LANGUAGES, type UiLanguage } from '@ptt/i18n'
 import {
   ConvertModeSchema,
   LanguageCodeSchema,
+  TargetContentSchema,
   type ConvertMode,
-  type LanguageCode
+  type LanguageCode,
+  type TargetContent
 } from '@ptt/shared'
 
 import { log } from '../log.js'
@@ -17,21 +19,19 @@ const GameIdSchema = z.enum(getAllGameIds())
 export type UpdateChannel = 'stable' | 'beta'
 
 export interface SettingsSchema {
-  // Per-game records are sparse, hence `Partial<...>` to match the
-  // `z.partialRecord` IPC patch schema.
   lastModFolder: Partial<Record<string, string>>
   lastOutputFolder: Partial<Record<string, string>>
+  gamePath: Partial<Record<string, string>>
   defaultSourceLanguage: LanguageCode
   sourceLanguage: Partial<Record<string, LanguageCode>>
   targetLanguages: Partial<Record<string, LanguageCode[]>>
   mode: ConvertMode
-  overwrite: boolean
+  targetContent: TargetContent
   themeOverride: 'system' | 'light' | 'dark'
   uiLanguage: UiLanguage
   lastGameId: string | null
   autoCheckUpdates: boolean
   updateChannel: UpdateChannel
-  /** Canonical paths approved via the "Authorize folder" modal, persisted. */
   userAllowedFolders: string[]
 }
 
@@ -39,14 +39,15 @@ export type SettingsPatch = {
   [K in keyof SettingsSchema]?: SettingsSchema[K] | undefined
 }
 
-const DEFAULTS: SettingsSchema = {
+export const DEFAULTS: SettingsSchema = {
   lastModFolder: {},
   lastOutputFolder: {},
+  gamePath: {},
   defaultSourceLanguage: 'en',
   sourceLanguage: {},
   targetLanguages: {},
   mode: 'add-to-current',
-  overwrite: false,
+  targetContent: 'missing-keys',
   themeOverride: 'system',
   uiLanguage: DEFAULT_UI_LANGUAGE,
   lastGameId: null,
@@ -55,16 +56,15 @@ const DEFAULTS: SettingsSchema = {
   userAllowedFolders: []
 }
 
-// Validate the raw store on load; falls back to defaults rather than crashing.
-// `z.partialRecord` is required: zod v4's `z.record` enforces every key.
-const SettingsSchemaZod = z.object({
+export const SettingsSchemaZod = z.object({
   lastModFolder: z.partialRecord(GameIdSchema, z.string()),
   lastOutputFolder: z.partialRecord(GameIdSchema, z.string()),
+  gamePath: z.partialRecord(GameIdSchema, z.string()),
   defaultSourceLanguage: LanguageCodeSchema,
   sourceLanguage: z.partialRecord(GameIdSchema, LanguageCodeSchema),
   targetLanguages: z.partialRecord(GameIdSchema, z.array(LanguageCodeSchema)),
   mode: ConvertModeSchema,
-  overwrite: z.boolean(),
+  targetContent: TargetContentSchema,
   themeOverride: z.enum(['system', 'light', 'dark']),
   uiLanguage: z.enum(VALID_UI_LANGUAGES),
   lastGameId: GameIdSchema.nullable(),
@@ -72,6 +72,17 @@ const SettingsSchemaZod = z.object({
   updateChannel: z.enum(['stable', 'beta']),
   userAllowedFolders: z.array(z.string())
 })
+
+interface LegacyKeyStore {
+  delete(key: string): void
+}
+
+export const migrateSettings = (raw: unknown): SettingsPatch => {
+  if (typeof raw !== 'object' || raw === null || !('overwrite' in raw)) return {}
+  const legacy = raw.overwrite
+  if (typeof legacy !== 'boolean') return {}
+  return { targetContent: legacy ? 'complete-file' : 'missing-keys' }
+}
 
 export class SettingsService {
   private store: Store<SettingsSchema>
@@ -81,7 +92,7 @@ export class SettingsService {
       name: 'settings',
       defaults: DEFAULTS
     })
-    // Validate once at boot so a corrupted file doesn't bubble up later.
+    this.migrateLegacyKeys()
     this.ensureValidStore()
   }
 
@@ -111,14 +122,35 @@ export class SettingsService {
     return this.store.store
   }
 
-  private ensureValidStore(): void {
-    const parsed = SettingsSchemaZod.safeParse(this.store.store)
-    if (parsed.success) return
-    log.warn(
-      '[settings] settings.json failed validation, resetting to defaults:',
-      parsed.error.message
-    )
-    this.store.clear()
-    this.store.store = DEFAULTS
+  private migrateLegacyKeys(): void {
+    const raw = this.store.store
+    this.update(migrateSettings(raw))
+    if ('overwrite' in raw) {
+      const legacy: LegacyKeyStore = this.store
+      legacy.delete('overwrite')
+    }
   }
+
+  private ensureValidStore(): void {
+    const raw = this.store.store
+    const repaired: SettingsSchema = { ...raw }
+    const invalidKeys: string[] = []
+
+    for (const key of Object.keys(SettingsSchemaZod.shape)) {
+      if (!isSettingsKey(key)) continue
+      if (SettingsSchemaZod.shape[key].safeParse(raw[key]).success) continue
+      invalidKeys.push(key)
+      resetField(repaired, key)
+    }
+
+    if (invalidKeys.length === 0) return
+    log.warn(`[settings] invalid setting(s) reset to defaults: ${invalidKeys.join(', ')}`)
+    this.store.store = repaired
+  }
+}
+
+const isSettingsKey = (key: string): key is keyof SettingsSchema => key in DEFAULTS
+
+const resetField = <K extends keyof SettingsSchema>(target: SettingsSchema, key: K): void => {
+  target[key] = DEFAULTS[key]
 }

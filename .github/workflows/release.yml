@@ -5,15 +5,46 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to build, comma separated (windows, linux, macos). Empty uses the RELEASE_PLATFORMS variable.'
+        required: false
+        type: string
 
 jobs:
+  platforms:
+    name: Resolve platforms
+    runs-on: ubuntu-latest
+    outputs:
+      os: ${{ steps.pick.outputs.os }}
+    steps:
+      - id: pick
+        env:
+          REQUESTED: ${{ inputs.platforms || vars.RELEASE_PLATFORMS }}
+        run: |
+          requested="${REQUESTED:-windows,linux,macos}"
+          requested="$(echo "$requested" | tr -d "[:space:]" | tr "[:upper:]" "[:lower:]")"
+          runners=()
+          case ",$requested," in *,windows,*) runners+=('"windows-latest"') ;; esac
+          case ",$requested," in *,linux,*) runners+=('"ubuntu-latest"') ;; esac
+          case ",$requested," in *,macos,*) runners+=('"macos-latest"') ;; esac
+          if [ ${#runners[@]} -eq 0 ]; then
+            echo "RELEASE_PLATFORMS / platforms matched nothing: \"$requested\"." >&2
+            echo 'Expected any of: windows, linux, macos.' >&2
+            exit 1
+          fi
+          list="$(IFS=,; echo "${runners[*]}")"
+          echo "Building for: $list"
+          echo "os=[$list]" >> "$GITHUB_OUTPUT"
+
   release:
     name: Build & publish (${{ matrix.os }})
+    needs: platforms
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: ${{ fromJSON(needs.platforms.outputs.os) }}
     permissions:
       contents: write
     steps:
@@ -22,8 +53,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
-        with:
-          version: 9
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -48,7 +77,32 @@ jobs:
           # Windows code-signing. Empty = unsigned. See docs/publishing.md.
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-          # Build-time flag injected via Vite's `define` and consumed by
-          # updater-service.ts to gate auto-install on signed Windows only.
-          PTT_WIN_SIGNED: ${{ secrets.WIN_CSC_LINK != '' && '1' || '0' }}
         run: pnpm --filter @ptt/desktop run release
+
+  notes:
+    name: Release notes
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Extract this version's changelog section
+        id: notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "Version: $version"
+          node scripts/release-notes.mjs "$version" > release-notes.md
+          echo "--- notes ---"
+          cat release-notes.md
+
+      - name: Set the release description
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md

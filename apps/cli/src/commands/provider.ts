@@ -5,14 +5,6 @@ import type { Args } from '../args.js'
 import type { CliOptions } from '../options.js'
 import { dim, facts, green, section, yellow } from '../output.js'
 
-/**
- * Prove the backend answers before spending a night on a collection.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `commandProvider`) by Artem Kondrashev. The default
- * sample carries markup on purpose: an answer that looks fine but lost the `£gold£` is the failure
- * this command exists to surface.
- */
-
 const DEFAULT_SAMPLE = ['Colony Ship', 'Gain £gold£ and $VALUE$ prestige']
 const KEY_PREVIEW_CHARS = 4
 

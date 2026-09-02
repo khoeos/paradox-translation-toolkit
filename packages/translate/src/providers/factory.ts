@@ -5,17 +5,6 @@ import { OllamaProvider } from './ollama.js'
 import { OpenAiProvider } from './openai.js'
 import { RapidApiProvider } from './rapidapi.js'
 
-/**
- * Build the provider described by the user settings.
- *
- * Ported from PR #4 (e21ee7a, `src/main/translate/providers.ts` `createProvider`) by
- * Artem Kondrashev. It now takes the target language too, because RapidAPI needs a service
- * code and deriving one from an English language name was a lookup waiting to go wrong.
- * @param config - The translation settings
- * @param targetLanguage - The language this provider will translate into
- * @param fetchFn - The injected transport
- * @returns The provider
- */
 export function createProvider(
   config: TranslateConfig,
   targetLanguage: LanguageCode,

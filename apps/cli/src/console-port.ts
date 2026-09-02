@@ -1,19 +1,22 @@
-import type { JobEvent, ProgressPort } from '@ptt/converter'
+import type { DiagnosticSeverity, JobEvent, ProgressPort, ScanPhase } from '@ptt/converter'
 
-import { clearTicker, dim, ticker } from './output.js'
-
-/**
- * The progress port, rendered as a terminal ticker.
- *
- * Ported from PR #4 (e21ee7a, `src/cli/index.ts` `consolePort`) by Artem Kondrashev. Its whole point
- * is that the CLI and the desktop worker consume the *same* contract, so the two cannot drift into
- * doing different things. The original typed it `any` with three eslint-disables; it is now the
- * `ProgressPort` interface that converter owns (audit finding Q-3).
- */
+import { clearTicker, dim, red, ticker, yellow } from './output.js'
 
 export interface ConsolePort extends ProgressPort {
-  /** Wipe the in-place line before printing anything else. */
   done(): void
+}
+
+const PHASE_LABELS: Record<ScanPhase, string> = {
+  'reading-generated': 'reading the generated mod',
+  discovering: 'discovering mods',
+  'building-coverage': 'reading localisation',
+  planning: 'planning'
+}
+
+const LOG_MARKS: Record<DiagnosticSeverity | 'none', string> = {
+  none: dim('  ·'),
+  warning: yellow('  !'),
+  error: red('  ×')
 }
 
 export function consolePort(): ConsolePort {
@@ -23,6 +26,12 @@ export function consolePort(): ConsolePort {
   return {
     emit(event: JobEvent): void {
       switch (event.type) {
+        case 'scan-phase': {
+          if (event.phase === 'planning' && event.done !== undefined) break
+          const count = event.total === undefined ? '' : `  ${event.done ?? 0}/${event.total}`
+          tick(`  ${PHASE_LABELS[event.phase]}${count}`)
+          break
+        }
         case 'mod-progress':
           tick(`  ${event.processed}/${event.total}  ${event.modName}${counters}`)
           break
@@ -31,19 +40,11 @@ export function consolePort(): ConsolePort {
             `  ${event.counters.translated} translated, ` +
             `${event.counters.cached} cached, ${event.counters.failed} refused`
           break
-        case 'scan-progress':
-          tick(`  scanning ${event.processed}/${event.total}`)
-          break
-        case 'apply-progress':
-          tick(`  writing ${event.processed}/${event.total}`)
-          break
         case 'log':
           clearTicker()
-          console.error(dim(`  · ${event.message}`))
+          console.error(`${LOG_MARKS[event.severity ?? 'none']} ${dim(event.message)}`)
           break
         default:
-          // The terminal cares about progress; the terminal states are printed by the command
-          // itself, which has the whole result in hand.
           break
       }
     },

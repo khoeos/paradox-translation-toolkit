@@ -14,7 +14,6 @@ describe('estimateDuration', () => {
   })
 
   it('switches to hours for an overnight run', () => {
-    // 40 000 lines at 3 lines per second is what a real collection looks like on Ollama.
     expect(estimateDuration(40_000, 3)).toEqual({ value: 4, unit: 'hour' })
   })
 

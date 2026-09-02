@@ -2,8 +2,6 @@ import { memo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { ScannedMod } from '@ptt/converter'
-// The zod-free subexport, like `@ptt/converter/progress`: a value import of the package
-// root would pull zod and the whole pipeline into the renderer bundle.
 import { sumByLanguage } from '@ptt/converter/totals'
 import { Badge } from '@ptt/ui/components/badge'
 import { Button } from '@ptt/ui/components/button'
@@ -13,13 +11,6 @@ import { cn } from '@ptt/ui/lib/utils'
 
 import { useConverterFormStore } from '@renderer/store/converter-form'
 
-/**
- * The mods a scan found, and what each is missing.
- *
- * Ported from PR #4 (e21ee7a, `LanguageConverter/ModList.tsx`) by Artem Kondrashev. It replaced a
- * single Convert button, which matters because a local translation runs at a few lines per second:
- * the user has to be able to pick what is worth the wait.
- */
 export function ModList() {
   const { t } = useTranslation()
   const mods = useConverterFormStore(s => s.scannedMods)
@@ -54,9 +45,6 @@ export function ModList() {
 
       <ScrollArea className="h-64 rounded-md border">
         <ul className="divide-y">
-          {/* `toggleMod` is passed straight through rather than wrapped in a per-row closure:
-              a new function per render would defeat the `memo` on `ModRow` and re-render every
-              row of a several-hundred-mod collection on each checkbox click. */}
           {mods.map(mod => (
             <ModRow key={mod.id} mod={mod} checked={selected.has(mod.id)} onToggle={toggleMod} />
           ))}
@@ -77,6 +65,7 @@ const ModRow = memo(function ModRow({ mod, checked, onToggle }: ModRowProps) {
   const missingKeys = sumByLanguage(mod.missingKeys)
   const coveredKeys = sumByLanguage(mod.coveredKeys)
   const englishKeys = sumByLanguage(mod.englishKeys)
+  const warnings = mod.warnings?.length ?? 0
   const nothingToDo = mod.missingFiles === 0
 
   return (
@@ -113,6 +102,12 @@ const ModRow = memo(function ModRow({ mod, checked, onToggle }: ModRowProps) {
         {englishKeys > 0 ? (
           <p className="text-xs text-amber-600 dark:text-amber-500">
             {t('converter.modList.englishKeys', { count: englishKeys })}
+          </p>
+        ) : null}
+
+        {warnings > 0 ? (
+          <p className="text-xs text-amber-600 dark:text-amber-500">
+            {t('converter.modList.warnings', { count: warnings })}
           </p>
         ) : null}
 

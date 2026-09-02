@@ -16,7 +16,7 @@ Thanks for your interest in contributing to Paradox Translation Toolkit! This do
 
 - **Code** - bug fixes, features, refactors. Open an issue first for anything non-trivial so we can align before you write code.
 - **Translations** - add or improve UI translations in [`packages/i18n`](./packages/i18n). See [Adding a new UI language](./docs/ui-language.md).
-- **Game support** - add a new Paradox game by creating a `@ptt/game-<id>` package. See [Adding a new game](./docs/game-support.md).
+- **Game support** - add a new Paradox game by adding a definition file to `@ptt/games`. See [Adding a new game](./docs/game-support.md).
 - **Testing** - try the app on real mods, on different OSes, and report what breaks.
 - **Documentation** - fix typos, clarify steps, add screenshots.
 
@@ -82,7 +82,7 @@ The scope is optional, but when present it must be one of the four allowed value
 
 | Scope  | Use for                                          |
 | ------ | ------------------------------------------------ |
-| `app`  | anything in `apps/`, `packages/`, `games/`       |
+| `app`  | anything in `apps/`, `packages/`                 |
 | `ci`   | workflows, lefthook, commitlint, release tooling |
 | `deps` | dependency bumps                                 |
 | `docs` | documentation files                              |
