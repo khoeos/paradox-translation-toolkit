@@ -12,7 +12,7 @@ The easiest way to manage your missing translation files for Paradox games (and 
 
 <p align="center">
   <a href="https://github.com/khoeos/paradox-translation-toolkit">
-    <img src="https://github.com/khoeos/Paradox-mod-language-converter/blob/main/screenshots/1.png?raw=true" alt="screenshot" width="700"/>
+    <img src="https://github.com/khoeos/Paradox-mod-language-converter/blob/main/screenshots/01.png?raw=true" alt="screenshot" width="700"/>
   </a>
 </p>
 
