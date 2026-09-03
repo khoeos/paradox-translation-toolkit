@@ -3,7 +3,7 @@
 [![issues-shield](https://img.shields.io/github/issues/khoeos/paradox-translation-toolkit.svg?style=for-the-badge)](https://github.com/khoeos/paradox-translation-toolkit/issues)
 [![release-shield](https://img.shields.io/github/v/release/khoeos/paradox-translation-toolkit?include_prereleases&style=for-the-badge)](https://github.com/khoeos/paradox-translation-toolkit/releases)
 [![ci-shield](https://img.shields.io/github/actions/workflow/status/khoeos/paradox-translation-toolkit/ci.yml?branch=main&style=for-the-badge&label=CI)](https://github.com/khoeos/paradox-translation-toolkit/actions/workflows/ci.yml)
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg?style=for-the-badge)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0.html)
 
 <h1 align="center">Paradox Translation Toolkit</h1>
 <p align="center">
@@ -171,9 +171,7 @@ Important notes about the use of AI in the development of this project in the [A
 
 ## License
 
-[CC BY-NC-SA 4.0](./LICENSE.md)
-
-> **Note:** CC BY-NC-SA 4.0 is a "source-available" license rather than a strict open-source license (the NonCommercial clause is incompatible with the OSI definition). The source remains freely readable, modifiable and shareable for non-commercial purposes.
+[GPL-3.0-or-later](./LICENSE.md)
 
 ## Disclaimer
 

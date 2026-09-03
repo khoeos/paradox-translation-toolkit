@@ -3,7 +3,7 @@
   "version": "3.0.0-beta.1",
   "private": true,
   "description": "Help players and modders from many Paradox games to manage language and localisation files within mods",
-  "license": "CC-BY-NC-SA-4.0",
+  "license": "GPL-3.0-or-later",
   "author": "Khoeos",
   "homepage": "https://github.com/khoeos/paradox-translation-toolkit",
   "engines": {
