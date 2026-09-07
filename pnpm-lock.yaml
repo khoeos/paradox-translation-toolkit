@@ -28,8 +28,8 @@ catalogs:
       specifier: ^7.0.2
       version: 7.0.2
     vitest:
-      specifier: ^4.1.11
-      version: 4.1.11
+      specifier: ^5.0.0
+      version: 5.0.0
     zod:
       specifier: ^4.5.4
       version: 4.5.4
@@ -101,7 +101,7 @@ importers:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
-        version: 4.1.11(vitest@4.1.11)
+        version: 4.1.11(vitest@5.0.0)
       esbuild:
         specifier: 'catalog:'
         version: 0.28.2
@@ -113,7 +113,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   apps/desktop:
     dependencies:
@@ -255,7 +255,7 @@ importers:
         version: 6.1.1(supports-color@7.2.0)(typescript@7.0.2)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11(vitest@4.1.11))(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/converter:
     dependencies:
@@ -268,7 +268,7 @@ importers:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
-        version: 4.1.11(vitest@4.1.11)
+        version: 4.1.11(vitest@5.0.0)
       rimraf:
         specifier: 'catalog:'
         version: 6.1.3
@@ -277,7 +277,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/fs-node:
     dependencies:
@@ -287,7 +287,7 @@ importers:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
-        version: 4.1.11(vitest@4.1.11)
+        version: 4.1.11(vitest@5.0.0)
       rimraf:
         specifier: 'catalog:'
         version: 6.1.3
@@ -296,7 +296,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/games:
     dependencies:
@@ -306,7 +306,7 @@ importers:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
-        version: 4.1.11(vitest@4.1.11)
+        version: 4.1.11(vitest@5.0.0)
       rimraf:
         specifier: 'catalog:'
         version: 6.1.3
@@ -315,7 +315,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/i18n:
     dependencies:
@@ -334,13 +334,13 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11(vitest@4.1.11))(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/parser:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
-        version: 4.1.11(vitest@4.1.11)
+        version: 4.1.11(vitest@5.0.0)
       rimraf:
         specifier: 'catalog:'
         version: 6.1.3
@@ -349,7 +349,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/report:
     dependencies:
@@ -368,7 +368,7 @@ importers:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
-        version: 4.1.11(vitest@4.1.11)
+        version: 4.1.11(vitest@5.0.0)
       rimraf:
         specifier: 'catalog:'
         version: 6.1.3
@@ -377,7 +377,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/shared:
     dependencies:
@@ -393,7 +393,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11(vitest@4.1.11))(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/translate:
     dependencies:
@@ -409,7 +409,7 @@ importers:
     devDependencies:
       '@vitest/coverage-v8':
         specifier: 'catalog:'
-        version: 4.1.11(vitest@4.1.11)
+        version: 4.1.11(vitest@5.0.0)
       rimraf:
         specifier: 'catalog:'
         version: 6.1.3
@@ -418,7 +418,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/ui:
     dependencies:
@@ -473,7 +473,7 @@ importers:
         version: 7.0.2
       vitest:
         specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+        version: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11(vitest@4.1.11))(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
 packages:
 
@@ -2497,6 +2497,17 @@ packages:
       vite:
         optional: true
 
+  '@vitest/mocker@5.0.0':
+    resolution: {integrity: sha512-66PGTMIiVJP3t4a5yxU9qPtf7MdTBs8jmToMvy+HVflB3Yy13WJZTtPePdvU+wjRV02SKK5doLbSA6o9pwOmiA==}
+    peerDependencies:
+      msw: ^2.4.9
+      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+    peerDependenciesMeta:
+      msw:
+        optional: true
+      vite:
+        optional: true
+
   '@vitest/pretty-format@4.1.11':
     resolution: {integrity: sha512-yiZzPbGTS9Sr/JpFl8zHrcIkAofNbFV6k21vIgQN/cY/oxZeXhJv5sc/MBJ5jFKWmWs+oJHw0UXLZjmf931+Vw==}
 
@@ -2508,6 +2519,9 @@ packages:
 
   '@vitest/spy@4.1.11':
     resolution: {integrity: sha512-apNa/prQy2qCeywhnixOHPRCgGNhvg7T4Dapfl1GahLp/R+uhBm5cPyFoNVyqsNd2h1nJxL6BqqdIjiABL60YA==}
+
+  '@vitest/spy@5.0.0':
+    resolution: {integrity: sha512-uy+luWBAPw9XfthoHi5AkfHUnuPYEESjl0p/r+meoBnU8bxg5GDQ3Ey8MjcJ6sqahkL4PFyrvfMJJBw7LbU06g==}
 
   '@vitest/ui@4.1.11':
     resolution: {integrity: sha512-r/rwyKoev21mWdRGSEkZOqkQ2BYy68mwjihg9M90nNRbf4NGrgzZ4cj6JNCEwlOGJkbKeMgsjlykvwKUbRr7gw==}
@@ -3123,6 +3137,9 @@ packages:
   es-module-lexer@2.1.0:
     resolution: {integrity: sha512-n27zTYMjYu1aj4MjCWzSP7G9r75utsaoc8m61weK+W8JMBGGQybd43GstCXZ3WNmSFtGT9wi59qQTW6mhTR5LQ==}
 
+  es-module-lexer@2.3.2:
+    resolution: {integrity: sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw==}
+
   es-object-atoms@1.1.1:
     resolution: {integrity: sha512-FGgH2h8zKNim9ljj7dankFPcICIK9Cp5bm+c2gQSYePhpaG5+esrLODihIorn+Pe6FGJzWhXQotPv73jTaldXA==}
     engines: {node: '>= 0.4'}
@@ -3192,6 +3209,10 @@ packages:
 
   expect-type@1.3.0:
     resolution: {integrity: sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA==}
+    engines: {node: '>=12.0.0'}
+
+  expect-type@1.4.0:
+    resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
 
   exponential-backoff@3.1.3:
@@ -4160,6 +4181,10 @@ packages:
   obug@2.1.1:
     resolution: {integrity: sha512-uTqF9MuPraAQ+IsnPf366RG4cP9RtUi7MLO1N3KEc+wb0a6yKpeL0lmk2IB1jY5KHPAlTc6T/JRdC/YqxHNwkQ==}
 
+  obug@2.1.4:
+    resolution: {integrity: sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA==}
+    engines: {node: '>=12.20.0'}
+
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
     engines: {node: '>= 0.8'}
@@ -4287,6 +4312,10 @@ packages:
 
   picomatch@4.0.5:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
+    engines: {node: '>=12'}
+
+  picomatch@4.0.7:
+    resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
   pkce-challenge@5.0.1:
@@ -4669,6 +4698,9 @@ packages:
   std-env@4.1.0:
     resolution: {integrity: sha512-Rq7ybcX2RuC55r9oaPVEW7/xu3tj8u4GeBYHBWCychFtzMIr86A7e3PPEBPT37sHStKX3+TiX/Fr/ACmJLVlLQ==}
 
+  std-env@4.2.0:
+    resolution: {integrity: sha512-oCUKSupKTHX53EyjDtuZQ64pjLJ6yYCtpmEw0goYxtjG9KpbRe8KAsl2tBUGU9DyMcJ0RwJ8GqJAFzMXcXW1Rw==}
+
   stdin-discarder@0.2.2:
     resolution: {integrity: sha512-UhDfHmA92YAlNnCfhmq0VeNL5bDbiZGg7sZ2IvPsXubGkiNa9EC+tUTsjBRsYUAz87btI6/1wf4XoVvQ3uRnmQ==}
     engines: {node: '>=18'}
@@ -4772,6 +4804,10 @@ packages:
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
+
+  tinybench@6.1.4:
+    resolution: {integrity: sha512-9APumHG7r4yOk4X4WlkmE71aZcv1gvin1czO3OQ1U9iJcFA5Ja/ygyb0vPOVHTthFozUYs8CLoLUlM8grb2lTQ==}
+    engines: {node: '>=20.0.0'}
 
   tinyexec@1.3.0:
     resolution: {integrity: sha512-QKAl9m8gWWGHV8jZcPeym6j+XULi6tOf1mT83WYJ4Lk2ytW/uwAWkrP0uFsdoYMdueVJ0qs26wZ+23xeB4ibNQ==}
@@ -5001,6 +5037,47 @@ packages:
       happy-dom: '*'
       jsdom: '*'
       vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+    peerDependenciesMeta:
+      '@edge-runtime/vm':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@types/node':
+        optional: true
+      '@vitest/browser-playwright':
+        optional: true
+      '@vitest/browser-preview':
+        optional: true
+      '@vitest/browser-webdriverio':
+        optional: true
+      '@vitest/coverage-istanbul':
+        optional: true
+      '@vitest/coverage-v8':
+        optional: true
+      '@vitest/ui':
+        optional: true
+      happy-dom:
+        optional: true
+      jsdom:
+        optional: true
+
+  vitest@5.0.0:
+    resolution: {integrity: sha512-gpsMNoRhMjMktVxPtstOH4/PJuPyovVaMDr4oDilXaGH1EcqM2OE96SoHT2VIQ6fTGtTjqmHDrEu2X9RQiXf8Q==}
+    engines: {node: ^22.12.0 || ^24.0.0 || >=26.0.0}
+    hasBin: true
+    peerDependencies:
+      '@edge-runtime/vm': '*'
+      '@opentelemetry/api': ^1.9.0
+      '@types/node': ^22.0.0 || >=24.0.0
+      '@vitest/browser-playwright': 5.0.0
+      '@vitest/browser-preview': 5.0.0
+      '@vitest/browser-webdriverio': ^5.0.0-beta.5 || >=5.0.0
+      '@vitest/coverage-istanbul': 5.0.0
+      '@vitest/coverage-v8': 5.0.0
+      '@vitest/ui': 5.0.0
+      happy-dom: '*'
+      jsdom: '*'
+      vite: ^6.4.0 || ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
       '@edge-runtime/vm':
         optional: true
@@ -6871,6 +6948,21 @@ snapshots:
       std-env: 4.1.0
       tinyrainbow: 3.1.1
       vitest: 4.1.11(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+    optional: true
+
+  '@vitest/coverage-v8@4.1.11(vitest@5.0.0)':
+    dependencies:
+      '@bcoe/v8-coverage': 1.0.2
+      '@vitest/utils': 4.1.11
+      ast-v8-to-istanbul: 1.0.0
+      istanbul-lib-coverage: 3.2.2
+      istanbul-lib-report: 3.0.1
+      istanbul-reports: 3.2.0
+      magicast: 0.5.2
+      obug: 2.1.1
+      std-env: 4.1.0
+      tinyrainbow: 3.1.1
+      vitest: 5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
   '@vitest/expect@4.1.11':
     dependencies:
@@ -6886,6 +6978,16 @@ snapshots:
       '@vitest/spy': 4.1.11
       estree-walker: 3.0.3
       magic-string: 0.30.21
+    optionalDependencies:
+      msw: 2.13.6(@types/node@26.4.0)(typescript@7.0.2)
+      vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)
+
+  '@vitest/mocker@5.0.0(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))':
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      '@vitest/spy': 5.0.0
+      estree-walker: 3.0.3
+      magic-string: 1.2.3
     optionalDependencies:
       msw: 2.13.6(@types/node@26.4.0)(typescript@7.0.2)
       vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)
@@ -6907,6 +7009,8 @@ snapshots:
       pathe: 2.0.3
 
   '@vitest/spy@4.1.11': {}
+
+  '@vitest/spy@5.0.0': {}
 
   '@vitest/ui@4.1.11(vitest@4.1.11)':
     dependencies:
@@ -7572,6 +7676,8 @@ snapshots:
 
   es-module-lexer@2.1.0: {}
 
+  es-module-lexer@2.3.2: {}
+
   es-object-atoms@1.1.1:
     dependencies:
       es-errors: 1.3.0
@@ -7710,6 +7816,8 @@ snapshots:
       yoctocolors: 2.1.2
 
   expect-type@1.3.0: {}
+
+  expect-type@1.4.0: {}
 
   exponential-backoff@3.1.3: {}
 
@@ -8610,6 +8718,8 @@ snapshots:
 
   obug@2.1.1: {}
 
+  obug@2.1.4: {}
+
   on-finished@2.4.1:
     dependencies:
       ee-first: 1.1.1
@@ -8759,6 +8869,8 @@ snapshots:
   picomatch@2.3.2: {}
 
   picomatch@4.0.5: {}
+
+  picomatch@4.0.7: {}
 
   pkce-challenge@5.0.1: {}
 
@@ -9189,6 +9301,8 @@ snapshots:
 
   std-env@4.1.0: {}
 
+  std-env@4.2.0: {}
+
   stdin-discarder@0.2.2: {}
 
   stdin-discarder@0.3.2: {}
@@ -9290,6 +9404,8 @@ snapshots:
   tiny-typed-emitter@2.1.0: {}
 
   tinybench@2.9.0: {}
+
+  tinybench@6.1.4: {}
 
   tinyexec@1.3.0: {}
 
@@ -9499,6 +9615,52 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.4.0
       '@vitest/coverage-v8': 4.1.11(vitest@4.1.11)
+      '@vitest/ui': 4.1.11(vitest@4.1.11)
+    transitivePeerDependencies:
+      - msw
+
+  vitest@5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11(vitest@4.1.11))(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)):
+    dependencies:
+      '@types/chai': 5.2.3
+      '@vitest/mocker': 5.0.0(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+      chai: 6.2.2
+      es-module-lexer: 2.3.2
+      expect-type: 1.4.0
+      magic-string: 1.2.3
+      obug: 2.1.4
+      picomatch: 4.0.7
+      std-env: 4.2.0
+      tinybench: 6.1.4
+      tinyexec: 1.3.0
+      tinyglobby: 0.2.17
+      vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 26.4.0
+      '@vitest/coverage-v8': 4.1.11(vitest@4.1.11)
+      '@vitest/ui': 4.1.11(vitest@4.1.11)
+    transitivePeerDependencies:
+      - msw
+
+  vitest@5.0.0(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11(vitest@4.1.11))(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)):
+    dependencies:
+      '@types/chai': 5.2.3
+      '@vitest/mocker': 5.0.0(msw@2.13.6(@types/node@26.4.0)(typescript@7.0.2))(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
+      chai: 6.2.2
+      es-module-lexer: 2.3.2
+      expect-type: 1.4.0
+      magic-string: 1.2.3
+      obug: 2.1.4
+      picomatch: 4.0.7
+      std-env: 4.2.0
+      tinybench: 6.1.4
+      tinyexec: 1.3.0
+      tinyglobby: 0.2.17
+      vite: 8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 26.4.0
+      '@vitest/coverage-v8': 4.1.11(vitest@5.0.0)
       '@vitest/ui': 4.1.11(vitest@4.1.11)
     transitivePeerDependencies:
       - msw
