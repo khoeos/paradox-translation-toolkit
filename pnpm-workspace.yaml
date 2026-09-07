@@ -16,7 +16,7 @@ allowBuilds:
   msw: true
 
 catalog:
-  '@vitest/coverage-v8': ^4.1.11
+  '@vitest/coverage-v8': ^5.0.0
   esbuild: ^0.28.1
   i18next: ^26.4.1
   react: ^19.2.8
