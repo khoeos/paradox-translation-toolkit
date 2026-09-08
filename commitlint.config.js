@@ -8,6 +8,7 @@ export default {
       [
         // core
         'app',
+        'games',
         // infra
         'ci',
         'deps',
