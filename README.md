@@ -60,6 +60,9 @@ The easiest way to manage your missing translation files for Paradox games (and 
 - Remember what was translated, so a stopped run resumes and a repeated string is free
 - Working with multiple paradox games
 
+**Demo**: [https://www.youtube.com/watch?v=V2nhfQZ6cfw](https://www.youtube.com/watch?v=V2nhfQZ6cfw)
+
+
 ## Supported games
 
 | Game                  | Steam ID | Status                       |
