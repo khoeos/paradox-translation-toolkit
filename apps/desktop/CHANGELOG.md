@@ -1,20 +1,18 @@
 # @ptt/desktop
 
-## 3.0.0-beta.1
+## 3.0.0
 
 ### Major Changes
 
-- cdbc7b2: # Paradox Translation Toolkit v3
+- # Paradox Translation Toolkit v3
 
-  Full rewrite of the v2 codebase: new monorepo layout (per-game packages, FS-agnostic core), modern stack (Electron 41, React 19, TanStack Router/Query, tRPC v11, Zustand, Tailwind v4, Vitest, oxlint), and a hardened main process.
+  Full rewrite of the v2 codebase: new monorepo layout (one game-definitions package, FS-agnostic core), modern stack (Electron 41, React 19, TanStack Router/Query, tRPC v11, Zustand, Tailwind v4, Vitest, oxlint), and a hardened main process.
 
   ## Main features
-
   - **More games supported.** Added Europa Universalis V, Victoria 3, Imperator: Rome, Hearts of Iron IV. Total now: Stellaris, EU4, EU5, HoI4, CK3, Vic3, Imperator.
   - **Saved settings** - mod folder, output folder, source/target languages remembered per game and restored on tab switch.
 
   ## Conversion features
-
   - **Real Paradox-format parser** - proper tokenizer for `_l_<lang>.yml` (BOM, `KEY:VERSION "value"`, escapes, color codes), with diagnostics instead of crashes. Multi-line values now supported.
   - **Round-trip layout preservation** - line endings (CRLF/LF), inline and standalone comments, and blank lines keep their original position. Re-saving a parsed file produces zero diff noise on git-versioned mods.
   - **Source-language picker** - convert from any supported language, not just English.
@@ -52,20 +50,20 @@
 
   ## Architecture
 
-  - **Per-game packages** - adding a new game is a new `@ptt/game-<id>` package + one line in the registry. No changes to `parser` / `converter` ever needed.
+  - **Game definitions package** - adding a new game is one file in `@ptt/games` + one line in its registry. No changes to `parser` / `converter` ever needed.
   - **FS-agnostic core** - `parser` and `converter` depend on no Electron or Node FS APIs. The desktop app injects a `FsLike` adapter; tests inject an in-memory fake.
   - **Single-source IPC channel constants** - defined in `@ptt/shared/ipc-channels`, imported by both main and the sandboxed preload (which intentionally never pulls zod into its bundle).
   - **Auto-bumped versions & changelog** - Changesets workflow with `@changesets/changelog-github`.
 
   ## Tooling
 
-  - **Vitest unit tests** across all packages: `parser` and `converter` enforce ≥ 90 % coverage. `path-policy` matrix tested on the active host OS. Game registry has an extensibility test asserting the per-game-package invariant.
+  - **Vitest unit tests** across all packages: `parser` and `converter` enforce ≥ 90 % coverage. `path-policy` matrix tested on the active host OS. Game registry has an extensibility test asserting a game can be added without touching the core.
   - **Lefthook** git hooks: pre-commit lint + typecheck, commit-msg conventional-commits validation, pre-push full lint/typecheck/test.
   - **GitHub Actions CI**: lint + typecheck + test on Windows + Linux for every PR; release builds on Windows + Linux + macOS for every `v*` tag.
 
 ### Minor Changes
 
-- 616bfd9: Batch scanning over a whole mod collection, key-level coverage between mods, a generated translation
+- Batch scanning over a whole mod collection, key-level coverage between mods, a generated translation
   mod, and optional machine translation.
 
   Designed and written by [**Artem Kondrashev**](https://github.com/blockbabyyy) in
@@ -97,94 +95,26 @@
   headless front end running the same pipeline, whose `audit` command lists which keys are still
   untranslated and why.
 
-- A translation that only repeats the source text now counts as work, not as coverage, and a new
-  option says what to do about it.
+- ## In-app problem reporting
 
-  **If you used version 2 of this tool, this is the release that finally translates your mods.**
-  Version 2 never translated: `launchTranslation` ended at `createNewFiles`, which copied each
-  source file and swapped the `l_english:` header for the target language, in place inside the mod.
-  Every file it produced is English under a target-language header. Version 3 read those files,
-  trusted the header, and asked only whether the key existed, so it counted them as translated and
-  reported nothing to do for the exact mods it was rewritten to fix. On one 5,668-key Victoria 3
-  mod, 5,409 keys reported as covered and 12 files as up to date, while the game showed English.
-  The same mod now reports 5,409 copies and writes those 12 files.
+  Added a "Report a problem" feature that sends feedback straight to a Discord webhook.
 
-  - **Detection is key by key**, so a file somebody translated halfway is read correctly, and any
-    untranslated copy is caught whatever wrote it. A value the backend itself answered with
-    unchanged, a proper name in practice, is exempt: the translation memory is the witness, and
-    values made only of markup or numbers were never candidates.
-  - **New option, "Untranslated copies"** (`--copies` in the CLI): `regenerate`, the default,
-    translates them into the generated mod, which loads last and replaces them; `report-only`
-    counts them and writes nothing. Removing the stale files in place is a separate change.
-  - **Only Create a translation mod can act on them.** A stale file inside a mod cannot be
-    outranked from inside that same mod, so the other two modes report and write nothing, and
-    `docs/known-issues.md` says so.
-  - **New key state `copy`** in the key-by-key report, `--state copy` in `ptt audit`, with its own
-    per-mod breakdown next to the refusals: the two call for opposite things, a retry against a
-    regeneration.
-  - **New counter** in the scan, the mod list, the scan summary and the CLI totals. Coverage counts
-    drop by the number of copies, which is the point: the old number was overstating exactly the
-    strings that still needed work.
-  - `complete-file` no longer carries a copied value over as the finished translation.
+  - **Always included** - the current page, the selected game, and the chosen settings (languages, mode, target content, theme, update channel). Never any file paths.
+  - **Opt-in technical info** - a toggle attaches folder paths and recent job summaries to help debugging.
+  - **Optional contact**
+  - **Community link**
 
-- Fixes a critical data-loss bug: with destination mode **Add to current mod** and
-  **Overwrite existing files** turned on, converting a mod overwrote a hand-written translation
-  with a file holding only the keys that had been missing, discarding the rest of it silently.
-
-  What it changes for you:
-
-  - **"Overwrite existing files" is gone**, replaced by a three-way choice of what a target file
-    should contain:
-    - **Fill in what is missing** (default, unchanged): only the missing keys, existing files
-      untouched.
-    - **Complete the file**: every key from the source, keeping what the target already has. The
-      safe, non-destructive replacement for the old "overwrite".
-    - **Translate everything again**: every key from the source, discarding and re-translating
-      what the target already has. The one destructive option, now behind a confirmation dialog.
-  - **Your existing setting migrates safely.** "Overwrite existing files: on" becomes
-    **Complete the file**, not **Translate everything again**: you asked to take over the file,
-    not to have your translations thrown away and paid for again. "Off" becomes **Fill in what
-    is missing**, same as before.
-  - **`.bak` backups are now actually written.** Before **Complete the file** or **Translate
-    everything again** replaces a file, the previous content is copied to `<file>.bak` beside it.
-    A failed backup is reported as a run error but never blocks the write.
-  - The CLI gets the equivalent `--content` flag (`missing` / `complete` / `regenerate`).
-
-- Splits the problems found while reading a mod into **warnings** and **errors**, and lets only
-  errors keep a mod's stale generated files on disk.
-
-  Until now any diagnostic at all blocked pruning, so one dead line in one file froze a whole mod's
-  generated folder for ever: the leftovers stayed on disk and kept shadowing the mod's real
-  translations. On a 204-mod Stellaris collection that hit 19 mods; 12 of them can now be cleaned up
-  again.
-
-  - **Warning**: the file was read and its language was known, and a line the game skips too was
-    skipped. A dangling line with no `:`, a key with no quoted value, content above the language
-    header. That key does not exist in game either, so anything generated for it is genuinely
-    orphaned.
-  - **Error**: content nothing could see. An unreadable folder or file, a symlink refused as a
-    traversal risk, a file with no `l_<language>:` header, an unknown language token, a key whose
-    value quote never closes. Keys we cannot see may be real, so pruning stays blocked exactly as
-    before.
-
-  The line-level messages now say what happened rather than which character was expected:
-  `` Expected `:` after key `` became `` Dangling line: no `:` and no value, line skipped (the game
-skips it too) ``, with the file path and line number unchanged. The CLI marks the two apart in its
-  run log and lists them in separate sections; the live scan totals count them apart.
+  The webhook URL is injected at build time.
 
 ### Patch Changes
 
-- Updated dependencies [616bfd9]
-- Updated dependencies
-- Updated dependencies
-- Updated dependencies
-- Updated dependencies
-  - @ptt/converter@0.2.0-beta.0
-  - @ptt/parser@0.2.0-beta.0
-  - @ptt/shared@0.2.0-beta.0
-  - @ptt/i18n@0.2.0-beta.0
-  - @ptt/report@0.2.0-beta.0
-  - @ptt/translate@0.2.0-beta.0
-  - @ptt/game-registry@0.1.1-beta.0
-  - @ptt/fs-node@0.2.0-beta.0
-  - @ptt/ui@0.2.0-beta.0
+- Updated dependencies []:
+  - @ptt/converter@1.0.0
+  - @ptt/parser@1.0.0
+  - @ptt/shared@1.0.0
+  - @ptt/i18n@1.0.0
+  - @ptt/report@1.0.0
+  - @ptt/translate@1.0.0
+  - @ptt/fs-node@1.0.0
+  - @ptt/games@1.0.0
+  - @ptt/ui@1.0.0

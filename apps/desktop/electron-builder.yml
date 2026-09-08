@@ -42,6 +42,7 @@ win:
 
 mac:
   category: public.app-category.utilities
+  executableName: paradox-translation-toolkit
   target:
     - target: zip
       arch: [x64, arm64]
@@ -49,6 +50,9 @@ mac:
       arch: [x64, arm64]
 
 linux:
+  # Without this, electron-builder derives the binary name from the package name
+  # (@ptt/desktop -> @pttdesktop) and the `@` breaks the AppImage file path.
+  executableName: paradox-translation-toolkit
   target:
     - AppImage
     - deb

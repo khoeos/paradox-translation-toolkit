@@ -1,6 +1,6 @@
 {
   "name": "paradox-translation-toolkit",
-  "version": "3.0.0-beta.1",
+  "version": "3.0.0",
   "private": true,
   "description": "Help players and modders from many Paradox games to manage language and localisation files within mods",
   "license": "GPL-3.0-or-later",

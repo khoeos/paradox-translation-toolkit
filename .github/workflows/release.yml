@@ -39,16 +39,14 @@ jobs:
           echo "Building for: $list"
           echo "os=[$list]" >> "$GITHUB_OUTPUT"
 
-  release:
-    name: Build & publish (${{ matrix.os }})
+  build:
+    name: Build installers (${{ matrix.os }})
     needs: platforms
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.platforms.outputs.os) }}
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -71,40 +69,86 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build & publish desktop installers
+      # Build the installers WITHOUT publishing. Each runner still emits its
+      # platform's update manifest (latest.yml / latest-mac.yml / latest-linux.yml)
+      # into apps/desktop/dist. Publishing is done once, later, by the `publish`
+      # job, so the three runners never race to create the GitHub release.
+      - name: Build desktop installers
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # macOS builds are intentionally unsigned (no Apple Developer Program).
           CSC_IDENTITY_AUTO_DISCOVERY: false
           # Windows code-signing. Empty = unsigned. See docs/publishing.md.
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-        run: pnpm --filter @ptt/desktop run release
+        run: pnpm --filter @ptt/desktop run dist
 
-  notes:
-    name: Release notes
-    needs: release
-    if: startsWith(github.ref, 'refs/tags/v')
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          if-no-files-found: error
+          retention-days: 3
+          path: |
+            apps/desktop/dist/*.exe
+            apps/desktop/dist/*.dmg
+            apps/desktop/dist/*.zip
+            apps/desktop/dist/*.AppImage
+            apps/desktop/dist/*.deb
+            apps/desktop/dist/*.blockmap
+            apps/desktop/dist/*.yml
+
+  publish:
+    name: Publish release
+    needs: [platforms, build]
+    # Runs even if a platform build failed, so the release and its changelog
+    # still go out with whatever installers succeeded. Only skipped if the run
+    # was cancelled or the platform matrix never resolved.
+    if: ${{ !cancelled() && needs.platforms.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
 
-      - name: Extract this version's changelog section
-        id: notes
+      - name: Download all installers
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: installers-*
+          merge-multiple: true
+
+      - name: Resolve version and changelog
+        id: meta
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          echo "Version: $version"
+          version="$(node -p "require('./apps/desktop/package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$version" in *-*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac >> "$GITHUB_OUTPUT"
           node scripts/release-notes.mjs "$version" > release-notes.md
           echo "--- notes ---"
           cat release-notes.md
 
-      - name: Set the release description
+      # Single writer to the GitHub release: create it (or update it on a re-run),
+      # attach every collected installer and manifest, and set the changelog body.
+      - name: Create or update the GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "$GITHUB_REF_NAME" --notes-file release-notes.md
+          VERSION: ${{ steps.meta.outputs.version }}
+          PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+        run: |
+          shopt -s nullglob
+          tag="v$VERSION"
+          files=(dist/*)
+          flags=(--title "$VERSION" --notes-file release-notes.md)
+          if [ "$PRERELEASE" = "true" ]; then flags+=(--prerelease); else flags+=(--latest); fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" "${flags[@]}"
+            if [ ${#files[@]} -gt 0 ]; then gh release upload "$tag" "${files[@]}" --clobber; fi
+          else
+            gh release create "$tag" "${flags[@]}" "${files[@]}"
+          fi

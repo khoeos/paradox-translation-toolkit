@@ -67,11 +67,11 @@ git push origin main --tags
 
 CI takes over:
 
-- Builds Win + Linux + macOS installers via `electron-builder --publish always`
-- Generates `latest.yml` (the manifest read by `electron-updater`)
-- Publishes a draft GitHub Release with all artifacts attached
+- Builds Win + Linux + macOS installers in parallel, each with `electron-builder --publish never`
+- Each runner emits its platform's update manifest (`latest.yml` / `latest-mac.yml` / `latest-linux.yml`, read by `electron-updater`) and uploads its artifacts
+- A single final `publish` job collects every platform's artifacts and creates **one** GitHub Release for the tag, with all installers, all manifests, and the CHANGELOG section as the body
 
-The maintainer then **publishes the draft** from the GitHub UI (release notes are pre-filled from the CHANGELOG entries). Apps installed in the field detect the new release at next launch (5s after boot if `autoCheckUpdates` is enabled).
+The release is published directly (not a draft), marked **Latest** for a stable version or **pre-release** for a `-beta` one. Apps installed in the field detect the new release at next launch (5s after boot if `autoCheckUpdates` is enabled).
 
 ---
 
@@ -136,14 +136,12 @@ git push origin main --tags
 
 [`.github/workflows/release.yml`](../.github/workflows/release.yml) runs on `push: tags: ['v*']`:
 
-- Matrix: `windows-latest`, `ubuntu-latest`, `macos-latest` by default, narrowable (below)
-- Steps: install (`pnpm install --frozen-lockfile`), `pnpm typecheck`, `pnpm test`, `pnpm --filter @ptt/desktop run release`
-- The `release` script runs `electron-vite build && pnpm deploy --prod ./dist-deploy && electron-builder --publish always`
+- `build` matrix: `windows-latest`, `ubuntu-latest`, `macos-latest` by default, narrowable (below), `fail-fast: false`
+- Per runner: install (`pnpm install --frozen-lockfile`), `pnpm typecheck`, `pnpm test`, then `pnpm --filter @ptt/desktop run dist`
+- The `dist` script runs `electron-vite build && pnpm deploy --prod ./dist-deploy && electron-builder --publish never`, then `actions/upload-artifact` ships each platform's installers + manifests
+- The single `publish` job (`needs: [platforms, build]`, `if: !cancelled()`) downloads all artifacts and writes the release with `gh release create` / `edit`. Being the only writer, it cannot race into duplicate releases, and running under `if: !cancelled()` means a failed platform still produces a release (with the platforms that succeeded) and its changelog
 - `GH_TOKEN` is the standard `secrets.GITHUB_TOKEN`; no manual setup needed
-- `releaseType: release` in `electron-builder.yml`: the default is `draft`, and a draft
-  carries no assets and no channel file, so the update feed would never see it. There is no
-  `draft` key on this version's `GithubOptions`, and an unknown key makes electron-builder
-  reject the whole config before packaging
+- Splitting build from publish is deliberate: three runners each calling `--publish always` on the same tag used to race and create duplicate GitHub Releases with partial assets
 
 ### Where the release notes come from
 
@@ -198,7 +196,7 @@ the run loudly rather than publishing an empty release.
 → Check the Actions tab. Most common cause: `GITHUB_TOKEN` doesn't have `contents: write` permission. Settings → Actions → General → Workflow permissions = "Read and write permissions".
 
 **`electron-updater` says no update available even though there's a newer release**
-→ The release is still a draft. Publish it from the GitHub UI.
+→ Check the release actually carries this platform's manifest (`latest.yml` on Windows, `latest-mac.yml` on macOS, `latest-linux.yml` on Linux). A missing manifest means that platform's `build` leg failed but the `publish` job still ran; re-run the workflow so the failed platform rebuilds and its manifest is attached.
 
 **Beta channel users aren't getting the new beta**
 → `beta.yml` must exist in the GitHub Release assets. If only `latest.yml` is there, electron-builder didn't recognize the pre-release. Check that the version field actually contains `-beta.x`.
