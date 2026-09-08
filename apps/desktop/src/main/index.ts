@@ -8,6 +8,7 @@ import { initializeLogger } from './log.js'
 import { createConverterService } from './services/converter-service.js'
 import { configureDialogService } from './services/dialog-service.js'
 import { OpenableRegistry } from './services/openable-registry.js'
+import { createReportService } from './services/report-service.js'
 import { SettingsService } from './services/settings-service.js'
 import { createTranslateService } from './services/translate-service.js'
 import { UpdaterService } from './services/updater-service.js'
@@ -60,12 +61,13 @@ void app.whenReady().then(() => {
   const converter = createConverterService(openable, userDataPath, app.getPath('documents'))
   const updater = new UpdaterService()
   const translate = createTranslateService(userDataPath)
+  const report = createReportService()
   configureDialogService({ settings, openable })
   createMainWindow()
 
   setupTrpcIpcBridge({
     router: appRouter,
-    ctx: createContext({ converter, settings, updater, translate, openable })
+    ctx: createContext({ converter, settings, updater, translate, report, openable })
   })
 
   const settingsSnapshot = settings.getAll()

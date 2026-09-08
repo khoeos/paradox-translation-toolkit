@@ -1,6 +1,7 @@
 import type { ConverterService } from '../services/converter-service.js'
 import { dialogService } from '../services/dialog-service.js'
 import type { OpenableRegistry } from '../services/openable-registry.js'
+import type { ReportService } from '../services/report-service.js'
 import type { SettingsService } from '../services/settings-service.js'
 import type { TranslateService } from '../services/translate-service.js'
 import type { UpdaterService } from '../services/updater-service.js'
@@ -10,6 +11,7 @@ export interface AppContext {
   settings: SettingsService
   updater: UpdaterService
   translate: TranslateService
+  report: ReportService
   openable: OpenableRegistry
   dialog: typeof dialogService
 }
@@ -19,6 +21,7 @@ export function createContext(deps: {
   settings: SettingsService
   updater: UpdaterService
   translate: TranslateService
+  report: ReportService
   openable: OpenableRegistry
 }): AppContext {
   return {
@@ -26,6 +29,7 @@ export function createContext(deps: {
     settings: deps.settings,
     updater: deps.updater,
     translate: deps.translate,
+    report: deps.report,
     openable: deps.openable,
     dialog: dialogService
   }

@@ -162,12 +162,33 @@
     "translationCounters": "已翻译 {{translated}}，免费 {{cached}}，保留原样 {{failed}}"
   },
   "modal.status.": "",
+  "report": {
+    "cardHint": "发现错误或有建议？",
+    "cardTitle": "报告问题",
+    "contactLabel": "联系方式（可选）",
+    "contactPlaceholder": "邮箱或 Discord 用户名，如需回复",
+    "description": "直接向开发者发送反馈或错误报告。始终会包含你当前所在的页面和所选设置；只有在你勾选下方选项时才会发送文件路径。",
+    "discordLink": "加入 Discord",
+    "error": "无法发送报告：{{message}}",
+    "includeTechnical": "包含技术信息（文件夹路径和最近的任务详情）以帮助排查问题",
+    "messageLabel": "发生了什么？",
+    "messagePlaceholder": "描述问题或你的建议…",
+    "open": "报告问题",
+    "reportBug": "报告错误",
+    "send": "发送报告",
+    "success": "谢谢！你的报告已发送。",
+    "title": "报告问题"
+  },
   "settings": {
     "allowedFolders": {
       "empty": "尚未授权自定义文件夹。",
       "hint": "通过授权提示明确允许的非典型 Paradox 位置文件夹。可移除不再信任的项。",
       "remove": "从已授权文件夹中移除",
       "title": "已授权的文件夹"
+    },
+    "community": {
+      "hint": "有问题、需要支持或想反馈？加入 Discord 服务器。",
+      "title": "社区"
     },
     "defaultMode": "默认模式",
     "diagnostics": {

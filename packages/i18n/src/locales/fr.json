@@ -208,12 +208,32 @@
     "translationCounters": "{{translated}} traduites, {{cached}} gratuites, {{failed}} laissées telles quelles"
   },
   "modal.status.": "",
+  "report": {
+    "cardHint": "Un bug ou une suggestion ?",
+    "cardTitle": "Signaler un problème",
+    "contactLabel": "Contact (optionnel)",
+    "contactPlaceholder": "Email ou pseudo Discord, si tu veux une réponse",
+    "discordLink": "Rejoindre le Discord",
+    "error": "Impossible d’envoyer le rapport : {{message}}",
+    "includeTechnical": "Inclure les infos techniques (chemins des dossiers et détails des jobs récents) pour aider au débogage",
+    "messageLabel": "Que s’est-il passé ?",
+    "messagePlaceholder": "Décris le problème ou ta suggestion…",
+    "open": "Signaler un problème",
+    "reportBug": "Signaler un bug",
+    "send": "Envoyer le rapport",
+    "success": "Merci ! Ton rapport a été envoyé.",
+    "title": "Signaler un problème"
+  },
   "settings": {
     "allowedFolders": {
       "empty": "Aucun dossier personnalisé autorisé pour l'instant.",
       "hint": "Dossiers en dehors des emplacements Paradox habituels que vous avez explicitement autorisés via la demande de confirmation. Retirez ceux que vous n'utilisez plus.",
       "remove": "Retirer des dossiers autorisés",
       "title": "Dossiers autorisés"
+    },
+    "community": {
+      "hint": "Questions, support ou retours ? Rejoins le serveur Discord.",
+      "title": "Communauté"
     },
     "defaultMode": "Mode par défaut",
     "diagnostics": {

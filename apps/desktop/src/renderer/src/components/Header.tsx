@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { SettingsIcon } from 'lucide-react'
+import { Bug, SettingsIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { UI_LANGUAGES, type UiLanguage, isUiLanguage } from '@ptt/i18n'
@@ -12,6 +12,7 @@ import {
 } from '@ptt/ui/components/select'
 import { cn } from '@ptt/ui/lib/utils'
 
+import { ReportProblemDialog } from '@renderer/components/ReportProblemDialog'
 import { trpc } from '@renderer/lib/trpc'
 
 const links = [
@@ -51,6 +52,32 @@ function UiLanguageSelect() {
   )
 }
 
+function ReportButton() {
+  const { t } = useTranslation()
+  const { data: enabled } = trpc.report.isEnabled.useQuery()
+
+  if (!enabled) return null
+
+  return (
+    <ReportProblemDialog
+      trigger={open => (
+        <button
+          type="button"
+          onClick={open}
+          aria-label={t('report.reportBug')}
+          title={t('report.reportBug')}
+          className={cn(
+            'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+            'text-muted-foreground hover:text-foreground hover:bg-accent'
+          )}
+        >
+          <Bug className="h-5 w-5" />
+        </button>
+      )}
+    />
+  )
+}
+
 export function Header() {
   const { t } = useTranslation()
   return (
@@ -74,6 +101,7 @@ export function Header() {
           </Link>
         ))}
         <UiLanguageSelect />
+        <ReportButton />
         <Link
           to={'/settings'}
           className={cn(

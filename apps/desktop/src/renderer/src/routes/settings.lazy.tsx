@@ -1,5 +1,5 @@
 import { createLazyRoute } from '@tanstack/react-router'
-import { FileText, Trash2 } from 'lucide-react'
+import { Bug, FileText, MessagesSquare, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -9,7 +9,9 @@ import { Card, CardContent } from '@ptt/ui/components/card'
 import { Label } from '@ptt/ui/components/label'
 import { Switch } from '@ptt/ui/components/switch'
 
+import { ReportProblemDialog } from '@renderer/components/ReportProblemDialog'
 import { formatPath } from '@renderer/lib/format-path'
+import { DISCORD_INVITE_URL } from '@renderer/lib/links'
 import { trpc } from '@renderer/lib/trpc'
 
 const THEMES = [
@@ -106,6 +108,10 @@ function SettingsPage() {
 
       <DiagnosticsCard />
 
+      <ReportProblemCard />
+
+      <CommunityCard />
+
       <Card>
         <CardContent>
           <Button
@@ -138,6 +144,54 @@ function DiagnosticsCard() {
         <Button variant="outline" onClick={() => openLogs.mutate()}>
           <FileText className="w-4 h-4 mr-2" />
           {t('settings.diagnostics.openLogs')}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function ReportProblemCard() {
+  const { t } = useTranslation()
+  const { data: enabled } = trpc.report.isEnabled.useQuery()
+
+  if (!enabled) return null
+
+  return (
+    <Card>
+      <CardContent className="space-y-3">
+        <div>
+          <Label>{t('report.cardTitle')}</Label>
+          <p className="text-xs text-muted-foreground mt-1">{t('report.cardHint')}</p>
+        </div>
+        <ReportProblemDialog
+          trigger={open => (
+            <Button variant="outline" onClick={open}>
+              <Bug className="w-4 h-4 mr-2" />
+              {t('report.open')}
+            </Button>
+          )}
+        />
+      </CardContent>
+    </Card>
+  )
+}
+
+function CommunityCard() {
+  const { t } = useTranslation()
+
+  return (
+    <Card>
+      <CardContent className="space-y-3">
+        <div>
+          <Label>{t('settings.community.title')}</Label>
+          <p className="text-xs text-muted-foreground mt-1">{t('settings.community.hint')}</p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => window.open(DISCORD_INVITE_URL, '_blank', 'noreferrer')}
+        >
+          <MessagesSquare className="w-4 h-4 mr-2" />
+          {t('report.discordLink')}
         </Button>
       </CardContent>
     </Card>
@@ -200,6 +254,7 @@ function UpdaterCard() {
   const utils = trpc.useUtils()
   const { data: state } = trpc.updater.getState.useQuery()
   const { data: settings } = trpc.settings.getAll.useQuery()
+  const { data: reportEnabled } = trpc.report.isEnabled.useQuery()
   const check = trpc.updater.check.useMutation()
   const update = trpc.settings.update.useMutation({
     onSuccess: () => utils.settings.getAll.invalidate()
@@ -221,6 +276,20 @@ function UpdaterCard() {
           <Label>{t('updater.title')}</Label>
           <p className="text-sm text-muted-foreground mt-1">
             {t('updater.currentVersion', { version: state.currentVersion })}
+            {reportEnabled ? (
+              <ReportProblemDialog
+                trigger={open => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="ml-2 inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline"
+                  >
+                    <Bug className="w-3 h-3" />
+                    {t('report.reportBug')}
+                  </button>
+                )}
+              />
+            ) : null}
           </p>
           <p className="text-sm text-muted-foreground">{statusLine}</p>
         </div>

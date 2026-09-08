@@ -185,12 +185,32 @@
     "translationCounters": "{{translated}} translated, {{cached}} free, {{failed}} left alone"
   },
   "modal.status.": "",
+  "report": {
+    "cardHint": "Found a bug or have a suggestion?",
+    "cardTitle": "Report a problem",
+    "contactLabel": "Contact (optional)",
+    "contactPlaceholder": "Email or Discord handle, if you want a reply",
+    "discordLink": "Join the Discord",
+    "error": "Could not send the report: {{message}}",
+    "includeTechnical": "Include technical info (folder paths and recent job details) to help debugging",
+    "messageLabel": "What happened?",
+    "messagePlaceholder": "Describe the problem or your suggestion…",
+    "open": "Report a problem",
+    "reportBug": "Report a bug",
+    "send": "Send report",
+    "success": "Thanks! Your report was sent.",
+    "title": "Report a problem"
+  },
   "settings": {
     "allowedFolders": {
       "empty": "No custom folders allowed yet.",
       "hint": "Folders outside typical Paradox locations that you've explicitly allowed via the authorisation prompt. Remove any you no longer trust.",
       "remove": "Remove from allowed folders",
       "title": "Allowed folders"
+    },
+    "community": {
+      "hint": "Questions, support, or feedback? Join the Discord server.",
+      "title": "Community"
     },
     "defaultMode": "Default mode",
     "diagnostics": {
