@@ -17,6 +17,7 @@
     "lint": "turbo run lint && oxlint vitest.shared.ts",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck && tsc --noEmit -p tsconfig.json",
+    "postinstall": "node scripts/fix-bin-modes.mjs",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "clean": "turbo run clean && rimraf node_modules",

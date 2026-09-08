@@ -53,7 +53,7 @@ pnpm --filter @ptt/parser test
 pnpm --filter @ptt/desktop dev
 ```
 
-For installer builds, see [docs/building.md](./docs/building.md).
+For installer builds, see [docs/building.md](./docs/building.md). If `pnpm dev` fails right after a `pnpm install` (`electron-vite: Permission denied` or `Error: Electron uninstall`), see the [troubleshooting section](./docs/building.md#troubleshooting) there.
 
 ---
 

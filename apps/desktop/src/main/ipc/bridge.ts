@@ -98,7 +98,7 @@ async function handleMessage<TRouter extends AnyRouter>(
       cause instanceof TRPCError ? cause : new TRPCError({ code: 'INTERNAL_SERVER_ERROR', cause })
 
     const shape = getTRPCErrorShape({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any no-underscore-dangle
       config: (opts.router as any)._def._config,
       error,
       type: method,

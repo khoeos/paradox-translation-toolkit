@@ -40,11 +40,11 @@ Each `build:*` command runs three steps:
 
 Installers land in `apps/desktop/dist/`:
 
-| Target  | Files                                                     |
-| ------- | --------------------------------------------------------- |
-| Windows | `.exe` (NSIS installer), `.exe.blockmap`                  |
-| Linux   | `.AppImage`, `.deb`                                       |
-| macOS   | `.dmg`, `.zip` (universal arm64/x64), blockmaps           |
+| Target  | Files                                           |
+| ------- | ----------------------------------------------- |
+| Windows | `.exe` (NSIS installer), `.exe.blockmap`        |
+| Linux   | `.AppImage`, `.deb`                             |
+| macOS   | `.dmg`, `.zip` (universal arm64/x64), blockmaps |
 
 The `.blockmap` files are used by `electron-updater` for differential downloads, leave them alongside the installer.
 
@@ -90,3 +90,17 @@ Local builds are unsigned by default. The signing strategy (Windows Certum certi
 
 **The icon doesn't appear in the installer**
 → Check `apps/desktop/resources/` for the platform-specific icon files referenced in `electron-builder.yml`.
+
+**`pnpm dev` or `pnpm build` fails with `electron-vite: Permission denied` (exit 126)**
+→ The `electron-vite` tarball ships `bin/electron-vite.js` without the executable bit, and pnpm 11 links `node_modules/.bin/*` as plain symlinks (pnpm 10 used shell shims, which hid the problem). Every `pnpm install` that re-imports the package from the store brings the `644` mode back. The root `postinstall` script (`scripts/fix-bin-modes.mjs`) restores the bit on every real install pass ; if you hit the error anyway, run it by hand :
+
+```bash
+node scripts/fix-bin-modes.mjs
+```
+
+**`pnpm dev` fails with `Error: Electron uninstall`**
+→ `node_modules/electron/dist` (the Electron binary) is missing : electron's own `postinstall`, which downloads it, did not run. pnpm skips it when it considers the package already built, typically after a reinstall that relinked `node_modules/electron`. `pnpm rebuild electron` is a no-op with `nodeLinker: hoisted`, run the installer directly :
+
+```bash
+node node_modules/electron/install.js
+```
