@@ -5,6 +5,12 @@ import { join } from 'node:path'
 
 import { IPC_CHANNELS } from '@ptt/shared'
 
+import {
+  getLinuxPackageKind,
+  isAutoUpdateSupported,
+  isElevatedInstallRequired
+} from './updater-platform.js'
+
 const { autoUpdater } = electronUpdater
 
 const RELEASES_URL = 'https://github.com/khoeos/paradox-translation-toolkit/releases/latest'
@@ -27,6 +33,7 @@ export interface UpdaterState {
   errorMessage: string | null
   releaseNotes: string | null
   autoUpdateSupported: boolean
+  requiresElevatedInstall: boolean
   releaseUrl: string
 }
 
@@ -44,7 +51,12 @@ export class UpdaterService {
   private readonly autoUpdateSupported: boolean
 
   constructor() {
-    this.autoUpdateSupported = process.platform === 'win32'
+    const linuxPackage = getLinuxPackageKind(
+      process.platform,
+      process.resourcesPath,
+      process.env.APPIMAGE
+    )
+    this.autoUpdateSupported = isAutoUpdateSupported(process.platform, linuxPackage)
 
     this.state = {
       status: 'idle',
@@ -54,6 +66,7 @@ export class UpdaterService {
       errorMessage: null,
       releaseNotes: null,
       autoUpdateSupported: this.autoUpdateSupported,
+      requiresElevatedInstall: isElevatedInstallRequired(process.platform, linuxPackage),
       releaseUrl: RELEASES_URL
     }
 

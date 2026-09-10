@@ -259,6 +259,31 @@ Settings → Diagnostics has an "Open log folder" button that opens
 attach the latest log files to a bug report without hunting through
 `%APPDATA%`.
 
+## Updates
+
+### macOS has no in-app update
+
+On macOS the app tells you a new version exists and opens the GitHub
+Releases page, but it cannot install anything itself. You download the
+`.dmg` and replace the app by hand, as you did for the first install.
+
+### The `.deb` update asks for your administrator password
+
+Applying an update on a `.deb` install runs `dpkg -i` through `pkexec`, so
+a system password prompt appears when you click **Restart now**. Declining
+the prompt leaves the current version in place; nothing is half-installed.
+
+### An extracted AppImage does not self-update
+
+Auto-update on Linux is only offered when the app can tell how it was
+installed: an AppImage running as an AppImage, or a `.deb`/`.rpm`/`.pacman`
+install identified by the `package-type` marker inside the package. Running
+an AppImage you extracted to a folder (or any other repackaging) falls back
+to the manual path, the same one macOS gets.
+
+**Workaround:** run the `.AppImage` file directly, from a folder you can
+write to.
+
 ## Reporting issues
 
 ### Where to find logs and crash dumps
@@ -308,12 +333,6 @@ reason is recorded in the log file. Re-set the affected field from the
 Settings page; nothing else needs doing.
 
 ## Builds
-
-### macOS builds are unsigned
-
-The macOS `.dmg` / `.zip` artifacts are built in CI but not code-signed.
-Gatekeeper will refuse to launch them on first run; you will need to
-right-click → Open and explicitly confirm. Community testing only.
 
 ### Linux Wayland session
 

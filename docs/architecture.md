@@ -181,9 +181,12 @@ Uploading is disabled - attach the dump file to a GitHub issue manually.
 ### Auto-update on launch
 
 1. App boots, reads settings via `electron-store` (channel: `latest` or `beta`)
-2. After 5s, `electron-updater` checks the GitHub Releases manifest (`latest.yml` / `beta.yml`)
-3. If a newer version exists, it's downloaded differentially (NSIS blockmap on Windows, zsync on Linux AppImage)
-4. User is prompted to restart and apply
+2. After 5s, `electron-updater` checks this platform's GitHub Releases manifest (`latest.yml` / `latest-linux.yml` / `latest-mac.yml`, or their `beta` variant)
+3. What can be done with a newer version depends on the platform, resolved at boot by [`updater-platform.ts`](../apps/desktop/src/main/services/updater-platform.ts):
+   - Windows and Linux AppImage: differential download from the blockmap, then in-place install
+   - Linux deb/rpm/pacman: full download, installed by the package manager behind a `pkexec` password prompt
+   - macOS: no in-app install, the release page opens in the browser instead
+4. Where the install is possible, the user is prompted to restart and apply
 
 ---
 

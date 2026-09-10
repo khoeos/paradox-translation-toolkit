@@ -81,15 +81,14 @@ If you find an issue with a specific game, please [open an issue](https://github
 
 Get the latest installer from the [release page](https://github.com/khoeos/paradox-translation-toolkit/releases).
 
-| Platform | Format                                    | Notes                                                                                               |
-| -------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Windows  | `.exe` (NSIS installer)                   | Primary target, fully tested. Auto-update (in progress).                                            |
-| Linux    | `.AppImage` / `.deb`                      | Unsigned. Manual update, the app notifies you, downloads happen from Releases.                      |
-| macOS    | `.dmg` / `.zip` (universal arm64/x64)     | Unsigned. Right-click → Open the first time. Manual update, the app notifies you, install yourself. |
+| Platform | Format                                    | Notes                                                                                                  |
+| -------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Windows  | `.exe` (installer) or `.zip` (standalone) | Primary target, fully tested. Unsigned, so SmartScreen warns on first run. Updates in place.           |
+| Linux    | `.AppImage` or `.deb`                     | Unsigned, which costs nothing here. Updates in place, the `.deb` asks for your password to install.    |
+| macOS    | `.dmg`                                    | Unsigned. Gatekeeper blocks the first launch, and updates have to be downloaded and installed by hand. |
 
-The installer version creates a shortcut on your desktop and in your start menu.
 
-> **Auto-update status**: until a Windows code-signing certificate is in place, every platform shows a notification when a new version is available and links you to the GitHub release page. No silent in-place upgrade happens, by design. See [`docs/publishing.md`](./docs/publishing.md#code-signing-strategy) for the rationale.
+> **Auto-update status**: Working on Windows and Linux, unsupported on macOs, you need to update manually
 
 ## How to use
 

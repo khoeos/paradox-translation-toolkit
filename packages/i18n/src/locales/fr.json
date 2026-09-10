@@ -93,8 +93,7 @@
       "editor": "Éditeur",
       "explorer": "Explorateur",
       "settings": "Paramètres"
-    },
-    "subtitle": "v3.0.0"
+    }
   },
   "languages": {
     "de": "Allemand",
@@ -298,6 +297,7 @@
     "betaChannelLabel": "Recevoir les versions bêta",
     "checkForUpdates": "Vérifier les mises à jour",
     "currentVersion": "Version actuelle : {{version}}",
+    "elevatedInstallHint": "L'installation de la mise à jour passe par ton gestionnaire de paquets, le système te demandera donc ton mot de passe administrateur.",
     "manualUpdateBanner": "Mises à jour manuelles uniquement sur cette plateforme. On te prévient quand une nouvelle version est disponible, le téléchargement se fait via GitHub Releases.",
     "statuses": {
       "available": "Mise à jour disponible : {{version}}",

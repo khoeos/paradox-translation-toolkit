@@ -1,7 +1,7 @@
 appId: com.ptt.app
 productName: Paradox Translation Toolkit
 copyright: Copyright © 2026 Khoeos
-artifactName: paradox-translation-toolkit-${version}-${os}-${arch}.${ext}
+artifactName: ptt-${version}-${os}-${arch}.${ext}
 asar: true
 compression: normal
 electronLanguages:
@@ -34,6 +34,8 @@ win:
   target:
     - target: nsis
       arch: [x64]
+    - target: zip
+      arch: [x64]
   signtoolOptions:
     signingHashAlgorithms:
       - sha256
@@ -44,14 +46,10 @@ mac:
   category: public.app-category.utilities
   executableName: paradox-translation-toolkit
   target:
-    - target: zip
-      arch: [x64, arm64]
     - target: dmg
       arch: [x64, arm64]
 
 linux:
-  # Without this, electron-builder derives the binary name from the package name
-  # (@ptt/desktop -> @pttdesktop) and the `@` breaks the AppImage file path.
   executableName: paradox-translation-toolkit
   target:
     - AppImage
@@ -62,8 +60,11 @@ linux:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  artifactName: paradox-translation-toolkit-${version}-setup.${ext}
+  artifactName: ptt-${version}-win-installer.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
   differentialPackage: true
+
+zip:
+  artifactName: ptt-${version}-win-standalone.${ext}

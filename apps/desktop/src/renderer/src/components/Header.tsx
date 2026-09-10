@@ -84,7 +84,7 @@ export function Header() {
     <header className="fixed top-0 right-0 left-0 z-50 flex items-center justify-between border-b bg-background/80 px-6 py-3 backdrop-blur">
       <div>
         <h1 className="text-base font-semibold tracking-wide">Paradox Translation Toolkit</h1>
-        <p className="text-xs text-muted-foreground">{t('header.subtitle')}</p>
+        <p className="text-xs text-muted-foreground">v{__PTT_VERSION__}</p>
       </div>
       <nav className="flex items-center gap-2">
         {links.map(link => (

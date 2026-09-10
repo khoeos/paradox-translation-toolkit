@@ -14,9 +14,9 @@ This guide covers building local installers for development and smoke testing. F
 ## Build commands
 
 ```bash
-pnpm --filter @ptt/desktop build:win      # NSIS installer
+pnpm --filter @ptt/desktop build:win      # NSIS installer + standalone zip
 pnpm --filter @ptt/desktop build:linux    # AppImage + deb
-pnpm --filter @ptt/desktop build:mac      # zip + dmg (universal arm64/x64)
+pnpm --filter @ptt/desktop build:mac      # dmg, one per architecture
 pnpm --filter @ptt/desktop build:unpack   # unpacked app dir (for quick smoke testing)
 ```
 
@@ -40,13 +40,15 @@ Each `build:*` command runs three steps:
 
 Installers land in `apps/desktop/dist/`:
 
-| Target  | Files                                           |
-| ------- | ----------------------------------------------- |
-| Windows | `.exe` (NSIS installer), `.exe.blockmap`        |
-| Linux   | `.AppImage`, `.deb`                             |
-| macOS   | `.dmg`, `.zip` (universal arm64/x64), blockmaps |
+| Target  | Files                                                                                   |
+| ------- | --------------------------------------------------------------------------------------- |
+| Windows | `ptt-<version>-win-installer.exe` + `.blockmap`, `ptt-<version>-win-standalone-x64.zip` |
+| Linux   | `ptt-<version>-linux-x86_64.AppImage`, `ptt-<version>-linux-amd64.deb`                  |
+| macOS   | `ptt-<version>-mac-arm64.dmg` and `-mac-x64.dmg`, each with a `.blockmap`               |
 
-The `.blockmap` files are used by `electron-updater` for differential downloads, leave them alongside the installer.
+`.blockmap` files carry the differential-download data. Windows uses its own, and the
+AppImage embeds one inside itself. The macOS ones are built but excluded from the release
+upload, being unreadable by a platform that cannot install an update in-app.
 
 ---
 
@@ -71,12 +73,6 @@ pnpm --filter @ptt/desktop build:unpack
 ```
 
 This produces `apps/desktop/dist/<platform>-unpacked/` which you can launch directly. Useful when you need to test a production-mode build but don't want to wait for installer generation.
-
----
-
-## Code signing
-
-Local builds are unsigned by default. The signing strategy (Windows Certum certificate plan, macOS intentionally unsigned, Linux intentionally manual) and how to inject the secrets in CI are documented in [publishing.md → Code signing strategy](./publishing.md#code-signing-strategy).
 
 ---
 

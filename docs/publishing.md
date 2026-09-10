@@ -138,35 +138,10 @@ git push origin main --tags
 
 - `build` matrix: `windows-latest`, `ubuntu-latest`, `macos-latest` by default, narrowable (below), `fail-fast: false`
 - Per runner: install (`pnpm install --frozen-lockfile`), `pnpm typecheck`, `pnpm test`, then `pnpm --filter @ptt/desktop run dist`
-- The `dist` script runs `electron-vite build && pnpm deploy --prod ./dist-deploy && electron-builder --publish never`, then `actions/upload-artifact` ships each platform's installers + manifests
+- The `dist` script runs `electron-vite build && pnpm deploy --prod ./dist-deploy && electron-builder --publish never`, then `actions/upload-artifact` ships each platform's installers + manifests, minus two exclusions: `builder-debug.yml` (an electron-builder dump, no audience) and `*.dmg.blockmap` (differential-download data for a platform that cannot install an update in-app). `latest-mac.yml` is deliberately **not** excluded, it is what tells a mac user a new version exists
 - The single `publish` job (`needs: [platforms, build]`, `if: !cancelled()`) downloads all artifacts and writes the release with `gh release create` / `edit`. Being the only writer, it cannot race into duplicate releases, and running under `if: !cancelled()` means a failed platform still produces a release (with the platforms that succeeded) and its changelog
 - `GH_TOKEN` is the standard `secrets.GITHUB_TOKEN`; no manual setup needed
 - Splitting build from publish is deliberate: three runners each calling `--publish always` on the same tag used to race and create duplicate GitHub Releases with partial assets
-
-### Where the release notes come from
-
-`changeset version` writes one `## <version>` section per release into
-`apps/desktop/CHANGELOG.md`. Nothing carries that text further on its own, so the release
-job is followed by a `notes` job that extracts the section for the tag being released and
-sets it as the GitHub release description:
-
-```bash
-node scripts/release-notes.mjs            # the version in apps/desktop/package.json
-node scripts/release-notes.mjs 3.0.0-beta.2
-```
-
-The script exits 1 when the section is missing or empty, so a release never publishes with
-silently empty notes.
-
-This is also where the app's "what's new" comes from: electron-updater's `GitHubProvider`
-reads the release body through the releases atom feed when the channel file carries no notes
-(`computeReleaseNotes`). An empty description therefore costs the notes twice, on the page
-and in the app. Note that `releaseNotes` is carried from the main process into the renderer
-store but no component renders it yet.
-
-The job runs after the platform jobs (`needs: release`) rather than inside them: the release
-has to exist before it can be edited, and three platform jobs would otherwise race to write
-the same body. It is skipped on a `workflow_dispatch` run, which has no tag.
 
 ### Building only some platforms
 
@@ -187,8 +162,6 @@ workflow input because the release runs on a **tag push**, where `inputs` does n
 For a one-off manual run, `workflow_dispatch` takes a `platforms` input which overrides the
 variable, so no settings change is needed. A value matching none of the three tokens fails
 the run loudly rather than publishing an empty release.
-
----
 
 ## Troubleshooting
 

@@ -1,11 +1,16 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'electron-vite'
+import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { loadEnv } from 'vite'
 import tsconfigPaths from 'vite-tsconfig-paths'
 
 const TSCONFIG_PATHS_OPTS = { ignoreConfigErrors: true } as const
+
+const packageJson: { version: string } = JSON.parse(
+  readFileSync(resolve(__dirname, 'package.json'), 'utf-8')
+)
 
 export default defineConfig(({ mode }) => {
   // PTT_-prefixed vars come from a local `.env` (dev) or process.env (CI build).
@@ -64,6 +69,9 @@ export default defineConfig(({ mode }) => {
         dedupe: ['react', 'react-dom']
       },
       plugins: [tsconfigPaths(TSCONFIG_PATHS_OPTS), react(), tailwindcss()],
+      define: {
+        __PTT_VERSION__: JSON.stringify(packageJson.version)
+      },
       build: {
         sourcemap: false,
         rollupOptions: {

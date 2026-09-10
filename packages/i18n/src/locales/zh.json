@@ -79,8 +79,7 @@
       "editor": "编辑器",
       "explorer": "浏览器",
       "settings": "设置"
-    },
-    "subtitle": "v3.0.0"
+    }
   },
   "languages": {
     "de": "德语",
@@ -253,6 +252,7 @@
     "betaChannelLabel": "订阅 Beta 版",
     "checkForUpdates": "检查更新",
     "currentVersion": "当前版本:{{version}}",
+    "elevatedInstallHint": "安装更新会调用系统包管理器,因此系统会要求输入管理员密码。",
     "manualUpdateBanner": "此平台仅支持手动更新。我们会在新版本可用时提醒你,但需要从 GitHub Releases 手动下载。",
     "statuses": {
       "available": "有可用更新:{{version}}",

@@ -300,6 +300,12 @@ function UpdaterCard() {
           </div>
         ) : null}
 
+        {state.requiresElevatedInstall ? (
+          <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            {t('updater.elevatedInstallHint')}
+          </div>
+        ) : null}
+
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col">
             <Label htmlFor="auto-check-updates">{t('updater.autoCheckLabel')}</Label>

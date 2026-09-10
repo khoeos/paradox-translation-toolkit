@@ -88,6 +88,10 @@ jobs:
           name: installers-${{ matrix.os }}
           if-no-files-found: error
           retention-days: 3
+          # macOS cannot install an update in-app (unsigned, see docs/publishing.md),
+          # so its blockmaps would never be read. `latest-mac.yml` still ships: it is
+          # what tells a mac user a new version exists. builder-debug.yml is an
+          # electron-builder dump with no audience.
           path: |
             apps/desktop/dist/*.exe
             apps/desktop/dist/*.dmg
@@ -96,6 +100,8 @@ jobs:
             apps/desktop/dist/*.deb
             apps/desktop/dist/*.blockmap
             apps/desktop/dist/*.yml
+            !apps/desktop/dist/*.dmg.blockmap
+            !apps/desktop/dist/builder-debug.yml
 
   publish:
     name: Publish release
@@ -129,7 +135,8 @@ jobs:
           version="$(node -p "require('./apps/desktop/package.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           case "$version" in *-*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac >> "$GITHUB_OUTPUT"
-          node scripts/release-notes.mjs "$version" > release-notes.md
+          node scripts/release-assets.mjs "$version" dist > release-notes.md
+          node scripts/release-notes.mjs "$version" >> release-notes.md
           echo "--- notes ---"
           cat release-notes.md
 

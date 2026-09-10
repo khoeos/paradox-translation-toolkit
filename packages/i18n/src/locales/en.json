@@ -86,8 +86,7 @@
       "editor": "Editor",
       "explorer": "Explorer",
       "settings": "Settings"
-    },
-    "subtitle": "v3.0.0"
+    }
   },
   "languages": {
     "de": "German",
@@ -275,6 +274,7 @@
     "betaChannelLabel": "Subscribe to beta releases",
     "checkForUpdates": "Check for updates",
     "currentVersion": "Current version: {{version}}",
+    "elevatedInstallHint": "Installing the update goes through your package manager, so the system will ask for your administrator password.",
     "manualUpdateBanner": "Manual updates only on this platform. We'll tell you when a new version is available, but downloads happen via GitHub Releases.",
     "statuses": {
       "available": "Update available: {{version}}",
