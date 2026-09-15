@@ -29,6 +29,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@ptt/converter": "workspace:*",
     "@ptt/fs-node": "workspace:*",
+    "@ptt/game-locator": "workspace:*",
     "@ptt/games": "workspace:*",
     "@ptt/i18n": "workspace:*",
     "@ptt/parser": "workspace:*",

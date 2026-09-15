@@ -1,4 +1,5 @@
 import { FolderIcon } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 import { cn } from '@ptt/ui/lib/utils'
 
@@ -12,6 +13,7 @@ interface FolderInputProps {
 }
 
 export function FolderInput({ value, onChange, placeholder, className }: FolderInputProps) {
+  const { t } = useTranslation()
   const pickFolder = trpc.fs.pickFolder.useMutation()
 
   const handlePick = async (): Promise<void> => {
@@ -31,13 +33,13 @@ export function FolderInput({ value, onChange, placeholder, className }: FolderI
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="grow bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        className="grow bg-background px-3 py-2 text-sm placeholder:text-muted-foreground outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
       />
       <button
         type="button"
         onClick={handlePick}
-        className="px-3 hover:bg-accent text-muted-foreground hover:text-foreground h-full transition-all duration-75"
-        aria-label="Pick folder"
+        className="px-3 hover:bg-accent text-muted-foreground hover:text-foreground h-full transition-all duration-75 outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+        aria-label={t('folderPicker.browse')}
       >
         <FolderIcon className="w-5 h-5" />
       </button>

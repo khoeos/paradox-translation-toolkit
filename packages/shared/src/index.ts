@@ -53,4 +53,12 @@ export const TargetContentSchema = z.enum(TARGET_CONTENTS)
 
 export type TargetContent = (typeof TARGET_CONTENTS)[number]
 export { IPC_CHANNELS, type IpcChannel } from './ipc-channels.js'
-export type { FsDirEntry, FsLike, FetchLike, FetchInit, FetchResponse } from './ports.js'
+export type {
+  FsDirEntry,
+  FsLike,
+  FetchLike,
+  FetchInit,
+  FetchResponse,
+  RegistryHive,
+  RegistryLike
+} from './ports.js'

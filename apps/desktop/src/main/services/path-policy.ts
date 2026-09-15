@@ -1,10 +1,35 @@
+import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 import { getAllGames } from '@ptt/games'
 
+function resolveExistingAncestor(resolved: string): string {
+  let current = resolved
+  const trailingSegments: string[] = []
+  for (;;) {
+    try {
+      const real = realpathSync(current)
+      return trailingSegments.length > 0 ? join(real, ...trailingSegments.toReversed()) : real
+    } catch {
+      const parent = dirname(current)
+      if (parent === current) return resolved
+      trailingSegments.push(basename(current))
+      current = parent
+    }
+  }
+}
+
 export function canonicalize(p: string): string {
-  return resolve(p).replaceAll('\\', '/').toLowerCase()
+  const resolved = resolve(p)
+  const real = resolveExistingAncestor(resolved)
+  return real.replaceAll('\\', '/').toLowerCase()
+}
+
+export function canonicalizeCasePreserving(p: string): string {
+  const resolved = resolve(p)
+  const real = resolveExistingAncestor(resolved)
+  return real.replaceAll('\\', '/')
 }
 
 function segmentsOf(canonical: string): string[] {
@@ -53,6 +78,7 @@ const WIN_CRITICAL_EXACT = new Set([
 
 const MAC_CRITICAL_DEEP_PREFIXES = ['/system', '/private']
 const MAC_CRITICAL_EXACT = new Set(['/applications', '/users', '/library'])
+const MAC_PRIVATE_EXEMPT_PREFIXES = ['/private/var/folders', '/private/tmp']
 
 const LINUX_CRITICAL_DEEP_PREFIXES = [
   '/etc',
@@ -87,6 +113,10 @@ export function isCriticalFolder(absPath: string): boolean {
   }
   if (platform === 'darwin') {
     if (MAC_CRITICAL_EXACT.has(canonical)) return true
+    const isExemptFromPrivate = MAC_PRIVATE_EXEMPT_PREFIXES.some(
+      prefix => canonical === prefix || canonical.startsWith(`${prefix}/`)
+    )
+    if (isExemptFromPrivate) return false
     return MAC_CRITICAL_DEEP_PREFIXES.some(
       prefix => canonical === prefix || canonical.startsWith(`${prefix}/`)
     )

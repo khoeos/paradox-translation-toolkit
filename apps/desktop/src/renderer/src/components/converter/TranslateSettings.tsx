@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -7,11 +8,13 @@ import { Input } from '@ptt/ui/components/input'
 import { Label } from '@ptt/ui/components/label'
 import { Switch } from '@ptt/ui/components/switch'
 
+import { KnownPathsPicker } from '@renderer/components/converter/KnownPathsPicker'
 import { trpc } from '@renderer/lib/trpc'
 import { runTranslateConfig, useConverterFormStore } from '@renderer/store/converter-form'
 
 export function TranslateSettings() {
   const { t } = useTranslation()
+  const gamePathInputId = useId()
   const translate = useConverterFormStore(s => s.translate)
   const apiKey = useConverterFormStore(s => s.apiKey)
   const setTranslate = useConverterFormStore(s => s.setTranslate)
@@ -33,12 +36,6 @@ export function TranslateSettings() {
   const clearMemory = trpc.translate.clearMemory.useMutation({
     onSuccess: () => toast.success(t('translate.memoryCleared')),
     onError: error => toast.error(error.message)
-  })
-
-  const pickGamePath = trpc.translate.pickGamePath.useMutation({
-    onSuccess: path => {
-      if (path) setTranslate({ gamePath: path })
-    }
   })
 
   const firstTarget = [...targetLanguages][0]
@@ -126,18 +123,18 @@ export function TranslateSettings() {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="translate-game-path">{t('translate.gamePath')}</Label>
-            <div className="flex gap-2">
-              <Input
-                id="translate-game-path"
+            <Label htmlFor={gamePathInputId}>{t('translate.gamePath')}</Label>
+            {gameId === null ? (
+              <Input id={gamePathInputId} value="" disabled placeholder={t('translate.gamePathPlaceholder')} />
+            ) : (
+              <KnownPathsPicker
+                id={gamePathInputId}
+                gameId={gameId}
+                kind="gameInstall"
                 value={translate.gamePath ?? ''}
-                onChange={event => setTranslate({ gamePath: event.target.value })}
-                placeholder={t('translate.gamePathPlaceholder')}
+                onChange={gamePath => setTranslate({ gamePath })}
               />
-              <Button type="button" variant="outline" onClick={() => pickGamePath.mutate()}>
-                {t('translate.browse')}
-              </Button>
-            </div>
+            )}
             <p className="text-xs text-muted-foreground">{t('translate.gamePathHint')}</p>
           </div>
 

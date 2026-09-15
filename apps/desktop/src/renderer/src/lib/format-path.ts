@@ -1,32 +1,55 @@
 // Both spellings covered so the truncation works across Paradox games
 // (CK3 / EU5 / Imperator / Vic3 use "localization", others use "localisation").
 const LOCALISATION_DIRS = new Set(['localisation', 'localization'])
+const PATH_SEPARATORS = /\\/g
+const HEAD_SEGMENT_COUNT = 2
+const GENERIC_TAIL_SEGMENT_COUNT = 3
+const GENERIC_FALLBACK_MIN_SEGMENTS = 6
+export const TRUNCATION_ELLIPSIS = '…'
+
+export interface FormatPathParts {
+  head: string
+  tail: string
+  truncated: boolean
+}
 
 /**
- * Trims long paths around the localisation segment. Example:
+ * Splits a path into the segments kept around the localisation dir (or the
+ * generic head/tail fallback), without baking the truncation marker into the
+ * text so callers can tell a real elision apart from a literal `…` segment.
+ * Example:
  *   `C:/Steam/.../localisation/english/foo_l_english.yml` keeps
  *   the first 2 segments + everything from 2 above the localisation dir.
  */
-export function formatPath(path: string): string {
-  const segments = path.split('/')
-  const locIdx = segments.findIndex(s => LOCALISATION_DIRS.has(s.toLowerCase()))
+export const formatPathParts = (path: string): FormatPathParts => {
+  const normalized = path.replace(PATH_SEPARATORS, '/')
+  const segments = normalized.split('/')
+  const locIdx = segments.findIndex(segment => LOCALISATION_DIRS.has(segment.toLowerCase()))
 
   if (locIdx !== -1) {
-    const headEnd = 2
-    const tailStart = Math.max(0, locIdx - 2)
+    const headEnd = HEAD_SEGMENT_COUNT
+    const tailStart = Math.max(0, locIdx - HEAD_SEGMENT_COUNT)
     if (tailStart > headEnd) {
-      const head = segments.slice(0, headEnd).join('/')
-      const tail = segments.slice(tailStart).join('/')
-      return `${head}/…/${tail}`
+      return {
+        head: segments.slice(0, headEnd).join('/'),
+        tail: segments.slice(tailStart).join('/'),
+        truncated: true
+      }
     }
-    return path
+    return { head: '', tail: normalized, truncated: false }
   }
 
-  // Generic fallback: keep the 2 first and 3 last segments if path has > 6 segments
-  if (segments.length > 6) {
-    const head = segments.slice(0, 2).join('/')
-    const tail = segments.slice(-3).join('/')
-    return `${head}/…/${tail}`
+  if (segments.length > GENERIC_FALLBACK_MIN_SEGMENTS) {
+    return {
+      head: segments.slice(0, HEAD_SEGMENT_COUNT).join('/'),
+      tail: segments.slice(-GENERIC_TAIL_SEGMENT_COUNT).join('/'),
+      truncated: true
+    }
   }
-  return path
+  return { head: '', tail: normalized, truncated: false }
+}
+
+export const formatPath = (path: string): string => {
+  const { head, tail, truncated } = formatPathParts(path)
+  return truncated ? `${head}/${TRUNCATION_ELLIPSIS}/${tail}` : tail
 }

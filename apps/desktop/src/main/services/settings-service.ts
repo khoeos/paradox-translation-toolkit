@@ -13,10 +13,25 @@ import {
 } from '@ptt/shared'
 
 import { log } from '../log.js'
+import { canonicalizeCasePreserving } from './path-policy.js'
 
 const GameIdSchema = z.enum(getAllGameIds())
 
+const MAX_RECENT_PATHS_PER_GAME = 5
+
 export type UpdateChannel = 'stable' | 'beta'
+
+export const KNOWN_PATH_KINDS = ['modFolder', 'gameInstall'] as const
+
+export type KnownPathKind = (typeof KNOWN_PATH_KINDS)[number]
+
+export interface KnownPathEntry {
+  path: string
+  gameId: string
+  kind: KnownPathKind
+  lastUsedAt: string
+  pinned: boolean
+}
 
 export interface SettingsSchema {
   lastModFolder: Partial<Record<string, string>>
@@ -33,6 +48,7 @@ export interface SettingsSchema {
   autoCheckUpdates: boolean
   updateChannel: UpdateChannel
   userAllowedFolders: string[]
+  knownPaths: KnownPathEntry[]
 }
 
 export type SettingsPatch = {
@@ -53,8 +69,19 @@ export const DEFAULTS: SettingsSchema = {
   lastGameId: null,
   autoCheckUpdates: true,
   updateChannel: 'stable',
-  userAllowedFolders: []
+  userAllowedFolders: [],
+  knownPaths: []
 }
+
+export const KnownPathKindSchema = z.enum(KNOWN_PATH_KINDS)
+
+export const KnownPathEntrySchemaZod = z.object({
+  path: z.string(),
+  gameId: GameIdSchema,
+  kind: KnownPathKindSchema.default('modFolder'),
+  lastUsedAt: z.iso.datetime(),
+  pinned: z.boolean()
+})
 
 export const SettingsSchemaZod = z.object({
   lastModFolder: z.partialRecord(GameIdSchema, z.string()),
@@ -70,7 +97,8 @@ export const SettingsSchemaZod = z.object({
   lastGameId: GameIdSchema.nullable(),
   autoCheckUpdates: z.boolean(),
   updateChannel: z.enum(['stable', 'beta']),
-  userAllowedFolders: z.array(z.string())
+  userAllowedFolders: z.array(z.string()),
+  knownPaths: z.array(KnownPathEntrySchemaZod)
 })
 
 interface LegacyKeyStore {
@@ -82,6 +110,227 @@ export const migrateSettings = (raw: unknown): SettingsPatch => {
   const legacy = raw.overwrite
   if (typeof legacy !== 'boolean') return {}
   return { targetContent: legacy ? 'complete-file' : 'missing-keys' }
+}
+
+export interface FilterKnownPathsResult {
+  entries: KnownPathEntry[]
+  droppedCount: number
+  migratedCount: number
+}
+
+export const foldKnownPath = (platform: NodeJS.Platform, path: string): string =>
+  platform === 'linux' ? path : path.toLowerCase()
+
+export const mergeDuplicateKnownPaths = (
+  platform: NodeJS.Platform,
+  entries: KnownPathEntry[]
+): KnownPathEntry[] => {
+  const byKey = new Map<string, KnownPathEntry>()
+  for (const entry of entries) {
+    const key = `${entry.gameId} ${entry.kind} ${foldKnownPath(platform, entry.path)}`
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, entry)
+      continue
+    }
+    const newer = entry.lastUsedAt.localeCompare(existing.lastUsedAt) >= 0 ? entry : existing
+    byKey.set(key, { ...newer, pinned: entry.pinned || existing.pinned })
+  }
+  return [...byKey.values()]
+}
+
+const mergeDuplicateKnownPathsOnCurrentPlatform = (entries: KnownPathEntry[]): KnownPathEntry[] =>
+  mergeDuplicateKnownPaths(process.platform, entries)
+
+const hasOwnKindField = (item: unknown): boolean =>
+  typeof item === 'object' && item !== null && 'kind' in item
+
+export const filterKnownPaths = (raw: unknown): FilterKnownPathsResult => {
+  if (!Array.isArray(raw)) return { entries: [], droppedCount: 0, migratedCount: 0 }
+  const entries: KnownPathEntry[] = []
+  let droppedCount = 0
+  let migratedCount = 0
+  for (const item of raw) {
+    try {
+      const parsed = KnownPathEntrySchemaZod.safeParse(item)
+      if (parsed.success) {
+        entries.push(parsed.data)
+        if (!hasOwnKindField(item)) migratedCount++
+      } else {
+        droppedCount++
+      }
+    } catch {
+      droppedCount++
+    }
+  }
+  return {
+    entries: mergeDuplicateKnownPathsOnCurrentPlatform(entries),
+    droppedCount,
+    migratedCount
+  }
+}
+
+export const pruneKnownPaths = (entries: KnownPathEntry[]): KnownPathEntry[] => {
+  const unpinnedByGameAndKind = new Map<string, KnownPathEntry[]>()
+  for (const entry of entries) {
+    if (entry.pinned) continue
+    const bucketKey = `${entry.gameId} ${entry.kind}`
+    const bucket = unpinnedByGameAndKind.get(bucketKey)
+    if (bucket) {
+      bucket.push(entry)
+    } else {
+      unpinnedByGameAndKind.set(bucketKey, [entry])
+    }
+  }
+
+  const toDrop = new Set<KnownPathEntry>()
+  for (const bucket of unpinnedByGameAndKind.values()) {
+    const oldestFirst = bucket.toSorted((a, b) => a.lastUsedAt.localeCompare(b.lastUsedAt))
+    const overflow = Math.max(0, oldestFirst.length - MAX_RECENT_PATHS_PER_GAME)
+    for (const entry of oldestFirst.slice(0, overflow)) toDrop.add(entry)
+  }
+
+  return entries.filter(entry => entry.pinned || !toDrop.has(entry))
+}
+
+export const sameKnownPathOn = (
+  platform: NodeJS.Platform,
+  entry: KnownPathEntry,
+  path: string,
+  gameId: string,
+  kind: KnownPathKind
+): boolean =>
+  entry.gameId === gameId &&
+  entry.kind === kind &&
+  foldKnownPath(platform, canonicalizeCasePreserving(entry.path)) ===
+    foldKnownPath(platform, canonicalizeCasePreserving(path))
+
+const sameKnownPath = (
+  entry: KnownPathEntry,
+  path: string,
+  gameId: string,
+  kind: KnownPathKind
+): boolean => sameKnownPathOn(process.platform, entry, path, gameId, kind)
+
+export const addKnownPathEntry = (
+  entries: KnownPathEntry[],
+  entry: { path: string; gameId: string; kind: KnownPathKind; pinned?: boolean | undefined },
+  now: string
+): KnownPathEntry[] => {
+  const requestedPinned = entry.pinned ?? false
+  const existingIndex = entries.findIndex(existing =>
+    sameKnownPath(existing, entry.path, entry.gameId, entry.kind)
+  )
+  const updated =
+    existingIndex === -1
+      ? [
+          ...entries,
+          {
+            path: entry.path,
+            gameId: entry.gameId,
+            kind: entry.kind,
+            lastUsedAt: now,
+            pinned: requestedPinned
+          }
+        ]
+      : entries.map((existing, index) =>
+          index === existingIndex
+            ? { ...existing, lastUsedAt: now, pinned: existing.pinned || requestedPinned }
+            : existing
+        )
+  return pruneKnownPaths(updated)
+}
+
+export const togglePinKnownPathEntry = (
+  entries: KnownPathEntry[],
+  path: string,
+  gameId: string,
+  kind: KnownPathKind
+): KnownPathEntry[] =>
+  entries.map(entry =>
+    sameKnownPath(entry, path, gameId, kind) ? { ...entry, pinned: !entry.pinned } : entry
+  )
+
+export const removeKnownPathEntry = (
+  entries: KnownPathEntry[],
+  path: string,
+  gameId: string,
+  kind: KnownPathKind
+): KnownPathEntry[] => entries.filter(entry => !sameKnownPath(entry, path, gameId, kind))
+
+export const clearKnownPathEntries = (
+  entries: KnownPathEntry[],
+  gameId: string,
+  kind: KnownPathKind
+): KnownPathEntry[] =>
+  entries.filter(entry => entry.gameId !== gameId || entry.kind !== kind || entry.pinned)
+
+export interface SettingsReconciliation {
+  repaired: SettingsSchema
+  changed: boolean
+  logs: string[]
+}
+
+export const reconcileSettingsState = (raw: SettingsSchema): SettingsReconciliation => {
+  const repaired: SettingsSchema = { ...raw }
+  const invalidKeys: string[] = []
+  const logs: string[] = []
+
+  for (const key of Object.keys(SettingsSchemaZod.shape)) {
+    if (!isSettingsKey(key) || key === 'knownPaths') continue
+    if (SettingsSchemaZod.shape[key].safeParse(raw[key]).success) continue
+    invalidKeys.push(key)
+    resetField(repaired, key)
+  }
+
+  const knownPathsWasArray = Array.isArray(raw.knownPaths)
+  const { entries: filteredKnownPaths, droppedCount, migratedCount } = filterKnownPaths(
+    raw.knownPaths
+  )
+  const mergedCount = knownPathsWasArray
+    ? raw.knownPaths.length - droppedCount - filteredKnownPaths.length
+    : 0
+  const prunedKnownPaths = pruneKnownPaths(filteredKnownPaths)
+  const cappedCount = filteredKnownPaths.length - prunedKnownPaths.length
+  let knownPathsChanged = false
+
+  if (!knownPathsWasArray) {
+    invalidKeys.push('knownPaths')
+    knownPathsChanged = true
+  } else {
+    if (droppedCount > 0) {
+      logs.push(
+        `[settings] knownPaths: dropped ${droppedCount} invalid entr${droppedCount === 1 ? 'y' : 'ies'}, ${filteredKnownPaths.length} kept`
+      )
+      knownPathsChanged = true
+    }
+    if (mergedCount > 0) {
+      logs.push(
+        `[settings] knownPaths: merged ${mergedCount} duplicate entr${mergedCount === 1 ? 'y' : 'ies'}`
+      )
+      knownPathsChanged = true
+    }
+    if (migratedCount > 0) {
+      logs.push(
+        `[settings] knownPaths: migrated ${migratedCount} entr${migratedCount === 1 ? 'y' : 'ies'} without a kind to modFolder`
+      )
+      knownPathsChanged = true
+    }
+    if (cappedCount > 0) {
+      logs.push(
+        `[settings] knownPaths: capped ${cappedCount} entr${cappedCount === 1 ? 'y' : 'ies'} over the per-game recent limit`
+      )
+      knownPathsChanged = true
+    }
+  }
+  if (knownPathsChanged) repaired.knownPaths = prunedKnownPaths
+
+  const changed = invalidKeys.length > 0 || knownPathsChanged
+  if (invalidKeys.length > 0) {
+    logs.push(`[settings] invalid setting(s) reset to defaults: ${invalidKeys.join(', ')}`)
+  }
+
+  return { repaired, changed, logs }
 }
 
 export class SettingsService {
@@ -122,6 +371,35 @@ export class SettingsService {
     return this.store.store
   }
 
+  addKnownPath(entry: {
+    path: string
+    gameId: string
+    kind: KnownPathKind
+    pinned?: boolean | undefined
+  }): SettingsSchema {
+    const current = this.store.get('knownPaths')
+    this.store.set('knownPaths', addKnownPathEntry(current, entry, new Date().toISOString()))
+    return this.store.store
+  }
+
+  togglePinKnownPath(path: string, gameId: string, kind: KnownPathKind): SettingsSchema {
+    const current = this.store.get('knownPaths')
+    this.store.set('knownPaths', togglePinKnownPathEntry(current, path, gameId, kind))
+    return this.store.store
+  }
+
+  removeKnownPath(path: string, gameId: string, kind: KnownPathKind): SettingsSchema {
+    const current = this.store.get('knownPaths')
+    this.store.set('knownPaths', removeKnownPathEntry(current, path, gameId, kind))
+    return this.store.store
+  }
+
+  clearKnownPaths(gameId: string, kind: KnownPathKind): SettingsSchema {
+    const current = this.store.get('knownPaths')
+    this.store.set('knownPaths', clearKnownPathEntries(current, gameId, kind))
+    return this.store.store
+  }
+
   private migrateLegacyKeys(): void {
     const raw = this.store.store
     this.update(migrateSettings(raw))
@@ -132,19 +410,9 @@ export class SettingsService {
   }
 
   private ensureValidStore(): void {
-    const raw = this.store.store
-    const repaired: SettingsSchema = { ...raw }
-    const invalidKeys: string[] = []
-
-    for (const key of Object.keys(SettingsSchemaZod.shape)) {
-      if (!isSettingsKey(key)) continue
-      if (SettingsSchemaZod.shape[key].safeParse(raw[key]).success) continue
-      invalidKeys.push(key)
-      resetField(repaired, key)
-    }
-
-    if (invalidKeys.length === 0) return
-    log.warn(`[settings] invalid setting(s) reset to defaults: ${invalidKeys.join(', ')}`)
+    const { repaired, changed, logs } = reconcileSettingsState(this.store.store)
+    for (const message of logs) log.warn(message)
+    if (!changed) return
     this.store.store = repaired
   }
 }

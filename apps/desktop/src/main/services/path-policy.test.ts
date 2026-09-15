@@ -1,10 +1,76 @@
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { canonicalize, isCriticalFolder, isWellKnownParadoxPath } from './path-policy.js'
 
+const probeSymlinkSupport = (): boolean => {
+  const probe = mkdtempSync(join(tmpdir(), 'ptt-path-policy-probe-'))
+  try {
+    symlinkSync(probe, join(probe, 'link'), 'dir')
+    return true
+  } catch {
+    return false
+  } finally {
+    rmSync(probe, { recursive: true, force: true })
+  }
+}
+
+const canSymlink = probeSymlinkSupport()
+
+const criticalTargetForCurrentPlatform = (): string | null => {
+  if (process.platform === 'win32') return 'C:\\Windows'
+  if (process.platform === 'darwin') return '/System'
+  if (process.platform === 'linux') return '/etc'
+  return null
+}
+
 describe('canonicalize', () => {
   it('resolves relative segments', () => {
     expect(canonicalize('foo/./bar/../baz').endsWith('foo/baz')).toBe(true)
+  })
+
+  it('does not throw on a path that does not exist yet', () => {
+    const missing = join(tmpdir(), 'ptt-path-policy-does-not-exist', 'nested', 'nope')
+    expect(() => canonicalize(missing)).not.toThrow()
+  })
+
+  it('does not resolve a fully nonexistent path under an anodyne existing ancestor as critical', () => {
+    const missing = join(tmpdir(), 'ptt-path-policy-nonexistent-anodyne-xyz', 'nested')
+    expect(isCriticalFolder(missing)).toBe(false)
+  })
+
+  describe.runIf(canSymlink)('with a nonexistent leaf under a symlinked ancestor', () => {
+    it('still resolves the symlinked ancestor and detects the critical target', () => {
+      const target = criticalTargetForCurrentPlatform()
+      if (target === null) return
+      const dir = mkdtempSync(join(tmpdir(), 'ptt-path-policy-symlink-nonexistent-'))
+      const link = join(dir, 'link')
+      symlinkSync(target, link, 'dir')
+      try {
+        const nonexistentUnderLink = join(link, 'does-not-exist-xyz123', 'nested')
+        expect(isCriticalFolder(nonexistentUnderLink)).toBe(true)
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+  })
+})
+
+describe.runIf(canSymlink)('isCriticalFolder through a symlink', () => {
+  it('detects a critical folder reached via a symlinked directory', () => {
+    const target = criticalTargetForCurrentPlatform()
+    if (target === null) return
+    const dir = mkdtempSync(join(tmpdir(), 'ptt-path-policy-symlink-'))
+    const link = join(dir, 'link')
+    symlinkSync(target, link, 'dir')
+    try {
+      expect(isCriticalFolder(link)).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 
@@ -98,6 +164,35 @@ describe('isCriticalFolder', () => {
       expect(isCriticalFolder('/Library/Application Support/Steam')).toBe(false)
       expect(isCriticalFolder('/Applications/Steam.app/Contents')).toBe(false)
       expect(isCriticalFolder('/Users/foo/Documents/mods')).toBe(false)
+    })
+
+    it('exempts /private/var and /private/tmp from the /private deep block', () => {
+      const tempDir = mkdtempSync(join(tmpdir(), 'ptt-path-policy-mac-tmp-'))
+      try {
+        expect(isCriticalFolder(tempDir)).toBe(false)
+      } finally {
+        rmSync(tempDir, { recursive: true, force: true })
+      }
+      expect(isCriticalFolder('/tmp')).toBe(false)
+    })
+
+    it('still refuses /etc, keeping the fix for the deep-block gap it closed', () => {
+      expect(isCriticalFolder('/etc')).toBe(true)
+    })
+
+    it('still refuses /private itself and the rest of the deep block', () => {
+      expect(isCriticalFolder('/private')).toBe(true)
+    })
+
+    it('does not exempt by bare string prefix of /private/var', () => {
+      expect(isCriticalFolder('/private/variable')).toBe(true)
+      expect(isCriticalFolder('/private/variable/foo')).toBe(true)
+    })
+
+    it('narrows the /private/var exemption to /private/var/folders, keeping the rest of /private/var critical', () => {
+      expect(isCriticalFolder('/private/var')).toBe(true)
+      expect(isCriticalFolder('/private/var/root')).toBe(true)
+      expect(isCriticalFolder('/private/var/db/dslocal')).toBe(true)
     })
   })
 

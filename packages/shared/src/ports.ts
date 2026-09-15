@@ -39,3 +39,8 @@ export interface FetchResponse {
   text(): Promise<string>
   json(): Promise<unknown>
 }
+
+export type RegistryHive = 'HKLM' | 'HKCU'
+export interface RegistryLike {
+  readValue(hive: RegistryHive, key: string, name: string): Promise<string | undefined>
+}

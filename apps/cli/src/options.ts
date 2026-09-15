@@ -53,7 +53,7 @@ export interface CliOptions {
   csvOut?: string
 }
 
-export function buildOptions(args: Args): CliOptions {
+export async function buildOptions(args: Args): Promise<CliOptions> {
   const config = readConfig(asString(args.flags.config))
   const flags = { ...config, ...args.flags }
 
@@ -87,6 +87,7 @@ export function buildOptions(args: Args): CliOptions {
   }
 
   const userDataPath = resolveUserData(asString(flags['user-data']))
+  const documentsPath = await resolveDocuments(asString(flags.documents))
   const outputDir = asString(flags.out)
   const modFilter = asString(flags.mod)
   const jsonOut = asString(flags.json)
@@ -103,7 +104,7 @@ export function buildOptions(args: Args): CliOptions {
     mode,
     targetContent,
     modName: asString(flags['mod-name']) ?? DEFAULT_MOD_NAME,
-    documentsPath: resolveDocuments(asString(flags.documents)),
+    documentsPath,
     userDataPath,
     reportsDir: posixJoin(userDataPath, 'reports'),
     limit: asNumber(flags.limit, DEFAULT_ROWS),

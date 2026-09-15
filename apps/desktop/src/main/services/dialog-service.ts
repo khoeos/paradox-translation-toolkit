@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server'
-import { BrowserWindow, dialog, shell } from 'electron'
+import { BrowserWindow, clipboard, dialog, shell } from 'electron'
 import { promises as fs } from 'node:fs'
 import { dirname } from 'node:path'
 
@@ -7,7 +7,20 @@ import type { OpenableRegistry } from './openable-registry.js'
 import { canonicalize, isCriticalFolder, isWellKnownParadoxPath } from './path-policy.js'
 import type { SettingsService } from './settings-service.js'
 
-async function isExistingDirectory(path: string): Promise<boolean> {
+const CLIPBOARD_TEXT_MAX_LENGTH = 4096
+
+export const readClipboardText = async (): Promise<string | null> => {
+  let raw: string
+  try {
+    raw = await clipboard.readText()
+  } catch {
+    return null
+  }
+  if (raw.length === 0) return null
+  return raw.slice(0, CLIPBOARD_TEXT_MAX_LENGTH)
+}
+
+export async function isExistingDirectory(path: string): Promise<boolean> {
   try {
     const s = await fs.stat(path)
     return s.isDirectory()

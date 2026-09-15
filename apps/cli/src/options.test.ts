@@ -39,118 +39,128 @@ describe('parseLanguages', () => {
 })
 
 describe('buildOptions - required flags', () => {
-  it('requires --path for the commands that read mods', () => {
-    expect(() => build(['scan'])).toThrow(/--path is required/)
-    expect(() => build(['audit'])).toThrow(/--path is required/)
-    expect(() => build(['convert'])).toThrow(/--path is required/)
+  it('requires --path for the commands that read mods', async () => {
+    await expect(build(['scan'])).rejects.toThrow(/--path is required/)
+    await expect(build(['audit'])).rejects.toThrow(/--path is required/)
+    await expect(build(['convert'])).rejects.toThrow(/--path is required/)
   })
 
-  it('does not require --path for the commands that only read app data', () => {
-    expect(() => build(['memory'])).not.toThrow()
-    expect(() => build(['reports'])).not.toThrow()
+  it('does not require --path for the commands that only read app data', async () => {
+    await expect(build(['memory'])).resolves.not.toThrow()
+    await expect(build(['reports'])).resolves.not.toThrow()
   })
 })
 
 describe('buildOptions - games and modes', () => {
-  it('defaults to ck3', () => {
-    expect(build(['memory']).game.id).toBe('ck3')
+  it('defaults to ck3', async () => {
+    expect((await build(['memory'])).game.id).toBe('ck3')
   })
 
-  it('reads a registered game', () => {
-    expect(build(['memory', '--game', 'stellaris']).game.id).toBe('stellaris')
+  it('reads a registered game', async () => {
+    expect((await build(['memory', '--game', 'stellaris'])).game.id).toBe('stellaris')
   })
 
-  it('refuses a game the registry does not know', () => {
-    expect(() => build(['memory', '--game', 'victoria-2'])).toThrow(/Unknown game/)
+  it('refuses a game the registry does not know', async () => {
+    await expect(build(['memory', '--game', 'victoria-2'])).rejects.toThrow(/Unknown game/)
   })
 
-  it('maps the short mode names', () => {
-    expect(build(['memory', '--mode', 'mod']).mode).toBe('create-translation-mod')
-    expect(build(['memory', '--mode', 'add']).mode).toBe('add-to-current')
-    expect(build(['memory', '--mode', 'extract']).mode).toBe('extract-to-folder')
+  it('maps the short mode names', async () => {
+    expect((await build(['memory', '--mode', 'mod'])).mode).toBe('create-translation-mod')
+    expect((await build(['memory', '--mode', 'add'])).mode).toBe('add-to-current')
+    expect((await build(['memory', '--mode', 'extract'])).mode).toBe('extract-to-folder')
   })
 
-  it('accepts the full mode name too', () => {
-    expect(build(['memory', '--mode', 'add-to-current']).mode).toBe('add-to-current')
+  it('accepts the full mode name too', async () => {
+    expect((await build(['memory', '--mode', 'add-to-current'])).mode).toBe('add-to-current')
   })
 
-  it('defaults to the generated translation mod', () => {
-    expect(build(['memory']).mode).toBe('create-translation-mod')
+  it('defaults to the generated translation mod', async () => {
+    expect((await build(['memory'])).mode).toBe('create-translation-mod')
   })
 
-  it('refuses an unknown mode', () => {
-    expect(() => build(['memory', '--mode', 'delete'])).toThrow(/Unknown --mode/)
+  it('refuses an unknown mode', async () => {
+    await expect(build(['memory', '--mode', 'delete'])).rejects.toThrow(/Unknown --mode/)
   })
 })
 
 describe('buildOptions - target content', () => {
-  it('defaults to missing-keys when --content is absent', () => {
-    expect(build(['memory']).targetContent).toBe('missing-keys')
+  it('defaults to missing-keys when --content is absent', async () => {
+    expect((await build(['memory'])).targetContent).toBe('missing-keys')
   })
 
-  it('maps the short content names', () => {
-    expect(build(['memory', '--content', 'missing']).targetContent).toBe('missing-keys')
-    expect(build(['memory', '--content', 'complete']).targetContent).toBe('complete-file')
-    expect(build(['memory', '--content', 'regenerate']).targetContent).toBe('regenerate-file')
+  it('maps the short content names', async () => {
+    expect((await build(['memory', '--content', 'missing'])).targetContent).toBe('missing-keys')
+    expect((await build(['memory', '--content', 'complete'])).targetContent).toBe(
+      'complete-file'
+    )
+    expect((await build(['memory', '--content', 'regenerate'])).targetContent).toBe(
+      'regenerate-file'
+    )
   })
 
-  it('accepts the full content name too', () => {
-    expect(build(['memory', '--content', 'missing-keys']).targetContent).toBe('missing-keys')
-    expect(build(['memory', '--content', 'complete-file']).targetContent).toBe('complete-file')
-    expect(build(['memory', '--content', 'regenerate-file']).targetContent).toBe('regenerate-file')
+  it('accepts the full content name too', async () => {
+    expect((await build(['memory', '--content', 'missing-keys'])).targetContent).toBe(
+      'missing-keys'
+    )
+    expect((await build(['memory', '--content', 'complete-file'])).targetContent).toBe(
+      'complete-file'
+    )
+    expect((await build(['memory', '--content', 'regenerate-file'])).targetContent).toBe(
+      'regenerate-file'
+    )
   })
 
-  it('refuses an unknown content value, naming the accepted ones', () => {
-    expect(() => build(['memory', '--content', 'wipe'])).toThrow(
+  it('refuses an unknown content value, naming the accepted ones', async () => {
+    await expect(build(['memory', '--content', 'wipe'])).rejects.toThrow(
       /Unknown --content "wipe", expected one of missing, complete, regenerate/
     )
   })
 })
 
 describe('buildOptions - translation', () => {
-  it('is off unless asked for', () => {
-    expect(build(['memory']).translate).toBeUndefined()
+  it('is off unless asked for', async () => {
+    expect((await build(['memory'])).translate).toBeUndefined()
   })
 
-  it('uses the shared defaults, so the UI and the CLI cannot drift', () => {
-    const translate = build(['memory', '--translate']).translate
+  it('uses the shared defaults, so the UI and the CLI cannot drift', async () => {
+    const translate = (await build(['memory', '--translate'])).translate
     expect(translate?.concurrency).toBe(TRANSLATE_DEFAULTS.concurrency)
     expect(translate?.timeout).toBe(TRANSLATE_DEFAULTS.timeout)
     expect(translate?.batchSize).toBe(TRANSLATE_DEFAULTS.batchSize)
   })
 
-  it('carries the game description, which is what stops a trait becoming a common noun', () => {
-    expect(build(['memory', '--translate', '--game', 'ck3']).translate?.domain).toContain(
-      'Crusader Kings III'
-    )
+  it('carries the game description, which is what stops a trait becoming a common noun', async () => {
+    expect(
+      (await build(['memory', '--translate', '--game', 'ck3'])).translate?.domain
+    ).toContain('Crusader Kings III')
   })
 
-  it('refuses an unknown provider', () => {
-    expect(() => build(['memory', '--translate', '--provider', 'deepl'])).toThrow(
+  it('refuses an unknown provider', async () => {
+    await expect(build(['memory', '--translate', '--provider', 'deepl'])).rejects.toThrow(
       /Unknown --provider/
     )
   })
 
-  it('takes the endpoint and model of the chosen provider by default', () => {
-    const translate = build(['memory', '--translate', '--provider', 'openai']).translate
+  it('takes the endpoint and model of the chosen provider by default', async () => {
+    const translate = (await build(['memory', '--translate', '--provider', 'openai'])).translate
     expect(translate?.baseUrl).toContain('openai.com')
   })
 
-  it('reads the key from the environment, which keeps it out of the shell history', () => {
+  it('reads the key from the environment, which keeps it out of the shell history', async () => {
     process.env.PTT_API_KEY = 'sk-from-env'
     try {
-      expect(build(['memory', '--translate']).translate?.apiKey).toBe('sk-from-env')
+      expect((await build(['memory', '--translate'])).translate?.apiKey).toBe('sk-from-env')
     } finally {
       delete process.env.PTT_API_KEY
     }
   })
 
-  it('lets an explicit flag win over the environment', () => {
+  it('lets an explicit flag win over the environment', async () => {
     process.env.PTT_API_KEY = 'sk-from-env'
     try {
-      expect(build(['memory', '--translate', '--api-key', 'sk-flag']).translate?.apiKey).toBe(
-        'sk-flag'
-      )
+      expect(
+        (await build(['memory', '--translate', '--api-key', 'sk-flag'])).translate?.apiKey
+      ).toBe('sk-flag')
     } finally {
       delete process.env.PTT_API_KEY
     }
@@ -172,29 +182,31 @@ describe('buildOptions - config file', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  it('reads ptt.config.json from the working directory', () => {
+  it('reads ptt.config.json from the working directory', async () => {
     writeFileSync(join(dir, 'ptt.config.json'), JSON.stringify({ game: 'stellaris', limit: 5 }))
-    const options = build(['memory'])
+    const options = await build(['memory'])
     expect(options.game.id).toBe('stellaris')
     expect(options.limit).toBe(5)
   })
 
-  it('honours a numeric value from the config file', () => {
+  it('honours a numeric value from the config file', async () => {
     writeFileSync(join(dir, 'ptt.config.json'), JSON.stringify({ translate: true, batch: 150 }))
-    expect(build(['memory']).translate?.batchSize).toBe(150)
+    expect((await build(['memory'])).translate?.batchSize).toBe(150)
   })
 
-  it('lets a command line flag beat the config file', () => {
+  it('lets a command line flag beat the config file', async () => {
     writeFileSync(join(dir, 'ptt.config.json'), JSON.stringify({ limit: 5 }))
-    expect(build(['memory', '--limit', '99']).limit).toBe(99)
+    expect((await build(['memory', '--limit', '99'])).limit).toBe(99)
   })
 
-  it('is happy with no config file at all', () => {
-    expect(() => build(['memory'])).not.toThrow()
+  it('is happy with no config file at all', async () => {
+    await expect(build(['memory'])).resolves.not.toThrow()
   })
 
-  it('stops on an explicit --config that cannot be read', () => {
-    expect(() => build(['memory', '--config', 'nope.json'])).toThrow(/Cannot read nope.json/)
+  it('stops on an explicit --config that cannot be read', async () => {
+    await expect(build(['memory', '--config', 'nope.json'])).rejects.toThrow(
+      /Cannot read nope.json/
+    )
   })
 
   it('stops on a config file that is not JSON', () => {
@@ -214,20 +226,20 @@ describe('buildOptions - config file', () => {
 })
 
 describe('buildOptions - outputs', () => {
-  it('puts reports under the app data folder', () => {
-    expect(build(['reports', '--user-data', '/data']).reportsDir).toBe('/data/reports')
+  it('puts reports under the app data folder', async () => {
+    expect((await build(['reports', '--user-data', '/data'])).reportsDir).toBe('/data/reports')
   })
 
-  it('defaults the row limit', () => {
-    expect(build(['memory']).limit).toBe(30)
+  it('defaults the row limit', async () => {
+    expect((await build(['memory'])).limit).toBe(30)
   })
 
-  it('carries the selected mods as a list', () => {
-    expect(build(['memory', '--mods', 'a, b']).selectedMods).toEqual(['a', 'b'])
+  it('carries the selected mods as a list', async () => {
+    expect((await build(['memory', '--mods', 'a, b'])).selectedMods).toEqual(['a', 'b'])
   })
 
-  it('leaves the optional outputs unset when not asked for', () => {
-    const options = build(['memory'])
+  it('leaves the optional outputs unset when not asked for', async () => {
+    const options = await build(['memory'])
     expect(options.jsonOut).toBeUndefined()
     expect(options.csvOut).toBeUndefined()
     expect(options.modFilter).toBeUndefined()

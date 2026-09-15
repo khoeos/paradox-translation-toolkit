@@ -69,7 +69,5 @@ export const translateRouter = router({
 
   clearMemory: publicProcedure
     .input(z.object({ gameId: GameIdSchema.optional() }))
-    .mutation(({ ctx, input }) => ctx.translate.clearMemory(input.gameId)),
-
-  pickGamePath: publicProcedure.mutation(({ ctx }) => ctx.dialog.pickFolder())
+    .mutation(({ ctx, input }) => ctx.translate.clearMemory(input.gameId))
 })

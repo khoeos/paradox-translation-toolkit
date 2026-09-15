@@ -1,10 +1,12 @@
 import { createRoute } from '@tanstack/react-router'
+import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { Card, CardContent } from '@ptt/ui/components/card'
 import { Input } from '@ptt/ui/components/input'
 import { Label } from '@ptt/ui/components/label'
 
+import { KnownPathsPicker } from '@renderer/components/converter/KnownPathsPicker'
 import { ModeToggle } from '@renderer/components/converter/ModeToggle'
 import { ModList } from '@renderer/components/converter/ModList'
 import { ProgressModal } from '@renderer/components/converter/ProgressModal'
@@ -21,6 +23,8 @@ import { rootRoute } from './__root'
 
 function ConverterPage() {
   const { t } = useTranslation()
+  const modFolderLabelId = useId()
+  const modFolderInputId = useId()
   const modFolder = useConverterFormStore(s => s.modFolder)
   const setModFolder = useConverterFormStore(s => s.setModFolder)
   const outputFolder = useConverterFormStore(s => s.outputFolder)
@@ -40,13 +44,17 @@ function ConverterPage() {
             <Card className="bg-card/70! col-span-5 bg-opacity-50 backdrop-blur-sm">
               <CardContent className="pt-6 space-y-5">
                 <div className="space-y-2">
-                  <Label>{t('converter.modFolder')}</Label>
-                  <FolderInput
-                    value={modFolder}
-                    onChange={setModFolder}
-                    placeholder={t('converter.modFolderPlaceholder')}
-                    className={modFolder === '' ? 'border-destructive/60' : ''}
-                  />
+                  <Label id={modFolderLabelId}>{t('converter.modFolder')}</Label>
+                  <div role="group" aria-labelledby={modFolderLabelId}>
+                    <KnownPathsPicker
+                      id={modFolderInputId}
+                      gameId={selectedGameId}
+                      kind="modFolder"
+                      value={modFolder}
+                      onChange={setModFolder}
+                      className={modFolder === '' ? 'border-destructive/60' : ''}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>{t('converter.mode')}</Label>

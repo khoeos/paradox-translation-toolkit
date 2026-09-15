@@ -1,6 +1,7 @@
 import { appProceduresRouter } from './procedures/app.js'
 import { converterRouter } from './procedures/converter.js'
 import { fsRouter } from './procedures/fs.js'
+import { gameLocatorRouter } from './procedures/game-locator.js'
 import { gamesRouter } from './procedures/games.js'
 import { reportRouter } from './procedures/report.js'
 import { settingsRouter } from './procedures/settings.js'
@@ -16,7 +17,8 @@ export const appRouter = router({
   translate: translateRouter,
   fs: fsRouter,
   updater: updaterRouter,
-  report: reportRouter
+  report: reportRouter,
+  gameLocator: gameLocatorRouter
 })
 
 export type AppRouter = typeof appRouter

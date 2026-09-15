@@ -1,10 +1,14 @@
 import { app } from 'electron'
 import { z } from 'zod'
 
+import { toPlatform } from '@ptt/game-locator'
+
 import { log } from '../../log.js'
 import { publicProcedure, router } from '../trpc.js'
 
 export const appProceduresRouter = router({
+  platform: publicProcedure.query(() => toPlatform(process.platform)),
+
   logRendererError: publicProcedure
     .input(
       z.object({

@@ -39,7 +39,7 @@ export async function run(argv: readonly string[]): Promise<number> {
   }
 
   const started = Date.now()
-  await command(buildOptions(args), args)
+  await command(await buildOptions(args), args)
   console.log(dim(`\n  done in ${((Date.now() - started) / MS_PER_SECOND).toFixed(1)} s`))
   return 0
 }

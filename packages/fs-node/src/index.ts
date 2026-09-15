@@ -2,6 +2,10 @@ import { promises as fs } from 'node:fs'
 
 import type { FetchLike, FsLike } from '@ptt/shared'
 
+export { nodeDocumentsPath, resolveDocumentsPath } from './documents-path.js'
+export { nodeParadoxDataHome, resolveParadoxDataHome } from './paradox-data-home.js'
+export { nodeRegistry } from './registry.js'
+
 export const nodeFs: FsLike = {
   async readFile(path, encoding) {
     return fs.readFile(path, encoding)

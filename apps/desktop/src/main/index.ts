@@ -1,12 +1,15 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { app, BrowserWindow, crashReporter, session } from 'electron'
 
+import { nodeParadoxDataHome } from '@ptt/fs-node'
+
 import { setupTrpcIpcBridge } from './ipc/bridge.js'
 import { createContext } from './ipc/context.js'
 import { appRouter } from './ipc/trpc-router.js'
 import { initializeLogger } from './log.js'
 import { createConverterService } from './services/converter-service.js'
 import { configureDialogService } from './services/dialog-service.js'
+import { createGameLocatorService } from './services/game-locator-service.js'
 import { OpenableRegistry } from './services/openable-registry.js'
 import { createReportService } from './services/report-service.js'
 import { SettingsService } from './services/settings-service.js'
@@ -58,16 +61,21 @@ void app.whenReady().then(() => {
   const openable = new OpenableRegistry()
   const settings = new SettingsService()
   const userDataPath = app.getPath('userData')
-  const converter = createConverterService(openable, userDataPath, app.getPath('documents'))
+  const converter = createConverterService(
+    openable,
+    userDataPath,
+    nodeParadoxDataHome(app.getPath('documents'))
+  )
   const updater = new UpdaterService()
   const translate = createTranslateService(userDataPath)
   const report = createReportService()
+  const gameLocator = createGameLocatorService()
   configureDialogService({ settings, openable })
   createMainWindow()
 
   setupTrpcIpcBridge({
     router: appRouter,
-    ctx: createContext({ converter, settings, updater, translate, report, openable })
+    ctx: createContext({ converter, settings, updater, translate, report, openable, gameLocator })
   })
 
   const settingsSnapshot = settings.getAll()

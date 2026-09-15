@@ -35,7 +35,7 @@ ${bold('Common flags')}
   --limit <n>           Rows to print, default 30
   --json <file>         Write the raw result as JSON
   --csv <file>          Write the key level rows as CSV
-  --documents <dir>     Override the Documents folder
+  --documents <dir>     Override the base folder holding Paradox Interactive/<game>/mod
   --user-data <dir>     Override the app data folder (memory, glossary, reports)
   --config <file>       Read flags from this file instead of ${DEFAULT_CONFIG_FILE}
 
