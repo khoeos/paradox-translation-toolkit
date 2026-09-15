@@ -1,7 +1,20 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('electron', () => ({ app: { getPath: vi.fn(() => '/tmp/ptt-test') } }))
+
+vi.mock('electron-log/main.js', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }
+}))
+
+vi.mock('electron-store', () => ({
+  default: class {
+    get = vi.fn()
+    set = vi.fn()
+  }
+}))
 
 import { assertAddableKnownPath, SettingsPatchSchema } from './settings.js'
 

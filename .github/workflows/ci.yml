@@ -38,7 +38,5 @@ jobs:
       - name: Test
         run: pnpm test
 
-      # Fails when new t('foo') usages aren't reflected in the locale JSONs.
-      # Dynamic-key calls only warn.
       - name: i18n extraction up-to-date
         run: pnpm --filter @ptt/i18n run extract:check

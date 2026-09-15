@@ -32,8 +32,21 @@ describe('resolveParadoxDataHome', () => {
 })
 
 describe('nodeParadoxDataHome', () => {
-  it('does not throw and returns the Documents path on the current platform (macOS)', () => {
+  it('does not throw on the current platform', () => {
     expect(() => nodeParadoxDataHome(DOCUMENTS)).not.toThrow()
-    expect(nodeParadoxDataHome(DOCUMENTS)).toBe(DOCUMENTS)
+  })
+
+  describe.runIf(process.platform !== 'linux')('outside Linux', () => {
+    it('returns the Documents path unchanged', () => {
+      expect(nodeParadoxDataHome(DOCUMENTS)).toBe(DOCUMENTS)
+    })
+  })
+
+  describe.runIf(process.platform === 'linux')('on Linux', () => {
+    it('diverts away from the Documents path, which the game never reads', () => {
+      const result = nodeParadoxDataHome(DOCUMENTS)
+      expect(result).not.toBe(DOCUMENTS)
+      expect(result.length).toBeGreaterThan(0)
+    })
   })
 })

@@ -1,7 +1,21 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+vi.mock('electron', () => ({ app: { getPath: vi.fn(() => '/tmp/ptt-test') } }))
+
+vi.mock('electron-log/main.js', () => ({
+  default: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }
+}))
+
+vi.mock('electron-store', () => ({
+  default: class {
+    get = vi.fn()
+    set = vi.fn()
+  }
+}))
 
 import {
   addKnownPathEntry,
+  addKnownPathEntryOn,
   clearKnownPathEntries,
   DEFAULTS,
   filterKnownPaths,
@@ -373,18 +387,29 @@ describe('addKnownPathEntry', () => {
     expect(result[0]).toEqual({ ...existing, lastUsedAt: '2024-06-01T00:00:00.000Z' })
   })
 
-  it('deduplicates two paths differing only by case', () => {
+  it('deduplicates two paths differing only by case on darwin and win32', () => {
+    const existing = makeEntry({ path: '/mods/CaseTest', lastUsedAt: '2024-01-01T00:00:00.000Z' })
+    const added = { path: '/MODS/casetest', gameId: 'stellaris', kind: 'modFolder' as const }
+
+    for (const platform of ['darwin', 'win32'] as const) {
+      const result = addKnownPathEntryOn(platform, [existing], added, '2024-06-01T00:00:00.000Z')
+      expect(result).toHaveLength(1)
+      expect(result[0]?.path).toBe('/mods/CaseTest')
+      expect(result[0]?.lastUsedAt).toBe('2024-06-01T00:00:00.000Z')
+    }
+  })
+
+  it('keeps two paths differing only by case distinct on linux', () => {
     const existing = makeEntry({ path: '/mods/CaseTest', lastUsedAt: '2024-01-01T00:00:00.000Z' })
 
-    const result = addKnownPathEntry(
+    const result = addKnownPathEntryOn(
+      'linux',
       [existing],
-      { path: '/MODS/casetest', gameId: 'stellaris', kind: 'modFolder' },
+      { path: '/mods/casetest', gameId: 'stellaris', kind: 'modFolder' },
       '2024-06-01T00:00:00.000Z'
     )
 
-    expect(result).toHaveLength(1)
-    expect(result[0]?.path).toBe('/mods/CaseTest')
-    expect(result[0]?.lastUsedAt).toBe('2024-06-01T00:00:00.000Z')
+    expect(result).toHaveLength(2)
   })
 
   it('purges unpinned entries beyond the cap, oldest first, leaving pinned ones untouched', () => {

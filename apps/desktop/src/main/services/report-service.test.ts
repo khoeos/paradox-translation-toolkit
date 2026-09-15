@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('electron', () => ({ app: { getVersion: vi.fn(() => '0.0.0-test') } }))
+
 import type { FetchLike } from '@ptt/shared'
 
 import { ReportService, type ReportInput } from './report-service.js'

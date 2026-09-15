@@ -212,14 +212,15 @@ const sameKnownPath = (
   kind: KnownPathKind
 ): boolean => sameKnownPathOn(process.platform, entry, path, gameId, kind)
 
-export const addKnownPathEntry = (
+export const addKnownPathEntryOn = (
+  platform: NodeJS.Platform,
   entries: KnownPathEntry[],
   entry: { path: string; gameId: string; kind: KnownPathKind; pinned?: boolean | undefined },
   now: string
 ): KnownPathEntry[] => {
   const requestedPinned = entry.pinned ?? false
   const existingIndex = entries.findIndex(existing =>
-    sameKnownPath(existing, entry.path, entry.gameId, entry.kind)
+    sameKnownPathOn(platform, existing, entry.path, entry.gameId, entry.kind)
   )
   const updated =
     existingIndex === -1
@@ -240,6 +241,12 @@ export const addKnownPathEntry = (
         )
   return pruneKnownPaths(updated)
 }
+
+export const addKnownPathEntry = (
+  entries: KnownPathEntry[],
+  entry: { path: string; gameId: string; kind: KnownPathKind; pinned?: boolean | undefined },
+  now: string
+): KnownPathEntry[] => addKnownPathEntryOn(process.platform, entries, entry, now)
 
 export const togglePinKnownPathEntry = (
   entries: KnownPathEntry[],

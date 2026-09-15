@@ -4,6 +4,8 @@ import type { LocatedPaths } from '@ptt/game-locator'
 import type { FsLike, RegistryLike } from '@ptt/shared'
 import { describe, expect, it, vi } from 'vitest'
 
+vi.mock('electron', () => ({ app: { getPath: vi.fn(() => '/tmp/ptt-test') } }))
+
 import { GameLocatorService, type LocateGamePathsFn } from './game-locator-service.js'
 
 const notImplemented = (): never => {
