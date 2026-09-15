@@ -2,13 +2,19 @@ import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { PROVIDER_DEFAULTS, TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate/defaults'
+import {
+  PROVIDER_DEFAULTS,
+  TRANSLATE_LIMITS,
+  TRANSLATE_PROVIDERS,
+  hasModelList
+} from '@ptt/translate/defaults'
 import { Button } from '@ptt/ui/components/button'
 import { Input } from '@ptt/ui/components/input'
 import { Label } from '@ptt/ui/components/label'
 import { Switch } from '@ptt/ui/components/switch'
 
 import { KnownPathsPicker } from '@renderer/components/converter/KnownPathsPicker'
+import { ModelPicker } from '@renderer/components/converter/ModelPicker'
 import { trpc } from '@renderer/lib/trpc'
 import { runTranslateConfig, useConverterFormStore } from '@renderer/store/converter-form'
 
@@ -82,12 +88,25 @@ export function TranslateSettings() {
           {defaults.fixedModel ? null : (
             <div className="space-y-1">
               <Label htmlFor="translate-model">{t('translate.model')}</Label>
-              <Input
-                id="translate-model"
-                value={translate.model}
-                onChange={event => setTranslate({ model: event.target.value })}
-                placeholder={defaults.model}
-              />
+              {hasModelList(translate.provider) ? (
+                <ModelPicker
+                  id="translate-model"
+                  provider={translate.provider}
+                  baseUrl={translate.baseUrl}
+                  apiKey={apiKey}
+                  value={translate.model}
+                  placeholder={defaults.model}
+                  onChange={model => setTranslate({ model })}
+                />
+              ) : (
+                <Input
+                  id="translate-model"
+                  value={translate.model}
+                  onChange={event => setTranslate({ model: event.target.value })}
+                  placeholder={defaults.model}
+                />
+              )}
+              <p className="text-xs text-muted-foreground">{t('translate.modelHint')}</p>
             </div>
           )}
 
@@ -125,7 +144,12 @@ export function TranslateSettings() {
           <div className="space-y-1">
             <Label htmlFor={gamePathInputId}>{t('translate.gamePath')}</Label>
             {gameId === null ? (
-              <Input id={gamePathInputId} value="" disabled placeholder={t('translate.gamePathPlaceholder')} />
+              <Input
+                id={gamePathInputId}
+                value=""
+                disabled
+                placeholder={t('translate.gamePathPlaceholder')}
+              />
             ) : (
               <KnownPathsPicker
                 id={gamePathInputId}

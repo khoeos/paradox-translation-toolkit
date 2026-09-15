@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { getAllGameIds, getGame } from '@ptt/games'
 import { LanguageCodeSchema } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
-import { TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate'
+import { MODEL_LIST_TIMEOUT, TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
 import { publicProcedure, router } from '../trpc.js'
 
@@ -66,6 +66,23 @@ export const translateRouter = router({
         ...(game?.domain !== undefined && { domain: game.domain })
       })
     }),
+
+  listModels: publicProcedure
+    .input(
+      z.object({
+        provider: z.enum(TRANSLATE_PROVIDERS),
+        baseUrl: z.string().min(1),
+        apiKey: z.string().optional()
+      })
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.translate.listModels({
+        provider: input.provider,
+        baseUrl: input.baseUrl,
+        timeout: MODEL_LIST_TIMEOUT,
+        ...(input.apiKey !== undefined && { apiKey: input.apiKey })
+      })
+    ),
 
   clearMemory: publicProcedure
     .input(z.object({ gameId: GameIdSchema.optional() }))

@@ -88,6 +88,7 @@ Optional machine translation, contributed by [PR #4](https://github.com/khoeos/p
 
 - `TranslationEngine` - batching, in-flight deduplication across mods, recursive batch splitting on failure, a circuit breaker after three consecutive single-string failures, and a mandatory markup check on every answer. A translation that lost a `$VARIABLE$` is refused, never written.
 - Three providers behind one `Provider` interface: Ollama, any OpenAI-compatible endpoint, and a RapidAPI hub. All take an injected `FetchLike`.
+- `getProviderModels` - the catalogue a provider advertises (`/models` for OpenAI-compatible endpoints, `/api/tags` for Ollama), so the desktop app can offer what LM Studio, Ollama or the API actually serves instead of asking for a typed model name. The path lives in `PROVIDER_DEFAULTS[provider].modelsPath`, which is also what `hasModelList` reads, so a provider with no catalogue never reaches the network.
 - `TranslationMemory` - one JSON per language, written through tmp + rename, scoped per game and per provider+model by the caller.
 - `buildGlossary` / `loadGlossary` - the wording read from the game's own localisation, which a model cannot guess.
 

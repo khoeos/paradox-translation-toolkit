@@ -28,7 +28,7 @@ export type FetchLike = (url: string, init: FetchInit) => Promise<FetchResponse>
 export interface FetchInit {
   method: string
   headers: Record<string, string>
-  body: string
+  body?: string
   signal?: AbortSignal
 }
 

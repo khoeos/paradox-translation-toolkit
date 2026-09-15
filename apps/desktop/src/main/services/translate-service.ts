@@ -1,12 +1,13 @@
 import { posixJoin } from '@ptt/converter'
 import { nodeFetch, nodeFs } from '@ptt/fs-node'
 import type { LanguageCode } from '@ptt/shared'
-import type { FetchLike, TranslateConfig } from '@ptt/translate'
+import type { FetchLike, TranslateConfig, TranslateProvider } from '@ptt/translate'
 import {
   LANGUAGE_DISPLAY_NAMES,
   TranslationMemory,
   clearMemoryFiles,
-  createProvider
+  createProvider,
+  getProviderModels
 } from '@ptt/translate'
 
 import { log } from '../log.js'
@@ -21,6 +22,19 @@ export interface TestProviderResult {
 
 export interface TestProviderInput extends TranslateConfig {
   targetLanguage: LanguageCode
+}
+
+export interface ListModelsInput {
+  provider: TranslateProvider
+  baseUrl: string
+  timeout: number
+  apiKey?: string
+}
+
+export interface ListModelsResult {
+  ok: boolean
+  models: string[]
+  error?: string
 }
 
 export class TranslateService {
@@ -43,6 +57,21 @@ export class TranslateService {
       return { ok: true, translated }
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  }
+
+  async listModels(input: ListModelsInput): Promise<ListModelsResult> {
+    try {
+      const models = await getProviderModels({
+        provider: input.provider,
+        baseUrl: input.baseUrl,
+        timeout: input.timeout,
+        fetchFn: this.fetchFn,
+        ...(input.apiKey !== undefined && { apiKey: input.apiKey })
+      })
+      return { ok: true, models }
+    } catch (err) {
+      return { ok: false, models: [], error: err instanceof Error ? err.message : String(err) }
     }
   }
 

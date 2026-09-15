@@ -19,6 +19,8 @@ export {
   TRANSLATE_DEFAULTS,
   TRANSLATE_LIMITS,
   isDefaultBaseUrl,
+  hasModelList,
+  MODEL_LIST_TIMEOUT,
   type ProviderDefaults
 } from './defaults.js'
 export { LANGUAGE_DISPLAY_NAMES, RAPIDAPI_CODES, MAPPED_LANGUAGE_CODES } from './language-codes.js'
@@ -31,6 +33,8 @@ export {
   trimTrailingSlash,
   type BaseUrlCheck
 } from './http.js'
+
+export { getProviderModels, readModelIds, type ModelListOptions } from './models.js'
 
 export { OllamaProvider } from './providers/ollama.js'
 export { OpenAiProvider } from './providers/openai.js'

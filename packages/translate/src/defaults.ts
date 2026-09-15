@@ -9,6 +9,7 @@ export interface ProviderDefaults {
   needsApiKey: boolean
   fixedModel: boolean
   linesPerSecond: number
+  modelsPath?: string
 }
 
 export const PROVIDER_DEFAULTS: Record<TranslateProvider, ProviderDefaults> = {
@@ -17,14 +18,16 @@ export const PROVIDER_DEFAULTS: Record<TranslateProvider, ProviderDefaults> = {
     model: 'qwen2.5:7b',
     needsApiKey: false,
     fixedModel: false,
-    linesPerSecond: 3
+    linesPerSecond: 3,
+    modelsPath: '/api/tags'
   },
   openai: {
     baseUrl: 'https://api.openai.com/v1',
     model: 'gpt-4o-mini',
     needsApiKey: true,
     fixedModel: false,
-    linesPerSecond: 3
+    linesPerSecond: 3,
+    modelsPath: '/models'
   },
   rapidapi: {
     baseUrl: 'https://ai-translate.p.rapidapi.com/translates_json',
@@ -54,6 +57,12 @@ export const TRANSLATE_LIMITS = {
   retries: { min: 1, max: 10 },
   timeout: { min: 5_000, max: 900_000 }
 } as const
+
+export const MODEL_LIST_TIMEOUT = 10_000
+
+export function hasModelList(provider: TranslateProvider): boolean {
+  return PROVIDER_DEFAULTS[provider].modelsPath !== undefined
+}
 
 export function isDefaultBaseUrl(baseUrl: string): boolean {
   return Object.values(PROVIDER_DEFAULTS).some(defaults => defaults.baseUrl === baseUrl)

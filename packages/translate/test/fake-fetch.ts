@@ -47,7 +47,8 @@ export function ollamaAnswering(translations: unknown): FakeFetch {
   }))
 }
 
-function safeParse(body: string): unknown {
+function safeParse(body: string | undefined): unknown {
+  if (body === undefined) return undefined
   try {
     return JSON.parse(body)
   } catch {
