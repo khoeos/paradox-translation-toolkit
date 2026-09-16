@@ -101,6 +101,36 @@ describe('buildRunReport', () => {
     })
     expect(built.request.targetContent).toBe('complete-file')
   })
+
+  it('marks the report cancelled only when the output says so', () => {
+    const cancelled = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'complete-file',
+      sourceLanguage: 'en',
+      targetLanguages: ['ru'],
+      output: { totals, mods: [modResult()], cancelled: true },
+      untranslated: []
+    })
+    expect(cancelled.cancelled).toBe(true)
+
+    const notCancelled = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'complete-file',
+      sourceLanguage: 'en',
+      targetLanguages: ['ru'],
+      output: { totals, mods: [modResult()], cancelled: false },
+      untranslated: []
+    })
+    expect('cancelled' in notCancelled).toBe(false)
+  })
 })
 
 describe('toStored', () => {
@@ -150,6 +180,25 @@ describe('toStored', () => {
 
   it('omits the translation counters of a mod that was only copied', () => {
     expect('translation' in (toStored(report()).mods[0] ?? {})).toBe(false)
+  })
+
+  it('stores the number of untranslated keys as a scalar beside the array', () => {
+    const key: KeyReport = {
+      modId: 'mymod',
+      modName: 'My Mod',
+      language: 'ru',
+      key: 'K',
+      file: 'a_l_english.yml',
+      source: 'text',
+      state: 'kept'
+    }
+    expect(toStored(report({ untranslated: [key, key] })).untranslatedCount).toBe(2)
+    expect(toStored(report()).untranslatedCount).toBe(0)
+  })
+
+  it('carries the cancelled flag through, and omits it when unset', () => {
+    expect(toStored(report({ cancelled: true })).cancelled).toBe(true)
+    expect('cancelled' in toStored(report())).toBe(false)
   })
 
   it('tallies the refusals rather than listing them twice', () => {
@@ -245,6 +294,15 @@ describe('StoredRunReportSchema', () => {
     const written = await writeRunReport('reports', report(), fs)
     const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
     raw.request.mode = 'delete-everything'
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(false)
+  })
+
+  it('accepts a cancelled report and rejects a non-boolean cancelled field', async () => {
+    const fs = new MemoryFs()
+    const written = await writeRunReport('reports', report({ cancelled: true }), fs)
+    const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
+    raw.cancelled = 'yes'
     expect(StoredRunReportSchema.safeParse(raw).success).toBe(false)
   })
 

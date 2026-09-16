@@ -12,6 +12,7 @@ import { configureDialogService } from './services/dialog-service.js'
 import { createGameLocatorService } from './services/game-locator-service.js'
 import { OpenableRegistry } from './services/openable-registry.js'
 import { createReportService } from './services/report-service.js'
+import { createRunReportsService } from './services/run-reports-service.js'
 import { SettingsService } from './services/settings-service.js'
 import { createTranslateService } from './services/translate-service.js'
 import { UpdaterService } from './services/updater-service.js'
@@ -70,12 +71,22 @@ void app.whenReady().then(() => {
   const translate = createTranslateService(userDataPath)
   const report = createReportService()
   const gameLocator = createGameLocatorService()
+  const runReports = createRunReportsService(openable, userDataPath)
   configureDialogService({ settings, openable })
   createMainWindow()
 
   setupTrpcIpcBridge({
     router: appRouter,
-    ctx: createContext({ converter, settings, updater, translate, report, openable, gameLocator })
+    ctx: createContext({
+      converter,
+      settings,
+      updater,
+      translate,
+      report,
+      runReports,
+      openable,
+      gameLocator
+    })
   })
 
   const settingsSnapshot = settings.getAll()

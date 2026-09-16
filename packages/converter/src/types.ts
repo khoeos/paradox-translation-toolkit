@@ -244,5 +244,6 @@ export interface ConversionOutput {
   translation?: { translated: number; cached: number; failed: number }
   cancelled?: boolean
   reportPath?: string
+  reportFile?: string
   totals: ConversionTotals
 }

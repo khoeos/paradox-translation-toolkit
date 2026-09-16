@@ -229,7 +229,10 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
       }),
       nodeFs
     )
-    if (written) output.reportPath = written.jsonPath
+    if (written) {
+      output.reportPath = written.jsonPath
+      output.reportFile = written.file
+    }
   }
 
   if (output.cancelled === true) {

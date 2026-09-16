@@ -129,6 +129,7 @@
       "converter": "Convertisseur",
       "editor": "Éditeur",
       "explorer": "Explorateur",
+      "runs": "Historique",
       "settings": "Paramètres"
     }
   },
@@ -161,7 +162,8 @@
       "pruned_other": "{{count}} fichiers générés supprimés, plus rien ne les nécessite",
       "skipped_one": "{{count}} fichier laissé intact, une traduction existait déjà",
       "skipped_many": "",
-      "skipped_other": "{{count}} fichiers laissés intacts, une traduction existait déjà"
+      "skipped_other": "{{count}} fichiers laissés intacts, une traduction existait déjà",
+      "viewReport": "Voir le rapport"
     },
     "doneToast": "Conversion terminée - {{count}} fichiers créés",
     "doneToast_one": "Conversion terminée - {{count}} fichier créé",
@@ -259,6 +261,254 @@
     "send": "Envoyer le rapport",
     "success": "Merci ! Ton rapport a été envoyé.",
     "title": "Signaler un problème"
+  },
+  "runs": {
+    "history": {
+      "actions": {
+        "delete": "Supprimer",
+        "open": "Ouvrir"
+      },
+      "badge": {
+        "cancelled": "Interrompu",
+        "latest": "Dernier"
+      },
+      "columns": {
+        "blocked": "Bloqués",
+        "created": "Créés",
+        "messages": "Messages",
+        "report": "Rapport",
+        "run": "Run",
+        "settings": "Paramètres",
+        "time": "Durée"
+      },
+      "day": {
+        "daysAgo_one": "Il y a {{count}} jour, {{date}}",
+        "daysAgo_many": "Il y a {{count}} jours, {{date}}",
+        "daysAgo_other": "Il y a {{count}} jours, {{date}}",
+        "on": "{{date}}",
+        "today": "Aujourd'hui, {{date}}",
+        "yesterday": "Hier, {{date}}"
+      },
+      "delete": {
+        "cancel": "Annuler",
+        "confirm": "Supprimer",
+        "description": "Ceci supprime le fichier de rapport du disque. Le mod généré et les fichiers convertis ne sont pas concernés. Cette action est irréversible.",
+        "title": "Supprimer ce rapport ?"
+      },
+      "details": {
+        "cancelledNote": "Ce run a été arrêté avant la fin. Les totaux ne couvrent que les mods traités jusque-là.",
+        "failedNote_one": "{{count}} fichier n'a pas pu être écrit.",
+        "failedNote_many": "{{count}} fichiers n'ont pas pu être écrits.",
+        "failedNote_other": "{{count}} fichiers n'ont pas pu être écrits.",
+        "finished": "Terminé",
+        "game": "Jeu",
+        "generatedMod": "Mod généré",
+        "languages": "Langues",
+        "messages": "Messages",
+        "mode": "Mode",
+        "modsConverted": "Mods convertis",
+        "noGeneratedMod": "Extrait dans un dossier",
+        "readErrors_one": "{{count}} erreur de lecture",
+        "readErrors_many": "{{count}} erreurs de lecture",
+        "readErrors_other": "{{count}} erreurs de lecture",
+        "written": "Ce qui a été écrit"
+      },
+      "empty": "Aucun run ne correspond à ce filtre.",
+      "filters": {
+        "all": "Tous",
+        "allGames": "Tous les jeux",
+        "clean": "Propres",
+        "issues": "Avec problèmes",
+        "searchPlaceholder": "Rechercher un jeu, un mode ou une langue…"
+      },
+      "list": {
+        "all_one": "{{count}} run",
+        "all_many": "{{count}} runs",
+        "all_other": "{{count}} runs",
+        "filtered": "{{shown}} runs sur {{total}}"
+      },
+      "loadError": "Impossible de charger l'historique des runs : {{message}}",
+      "loading": "Chargement de l'historique des runs…",
+      "noneYet": "Aucun run pour le moment. Convertissez quelque chose pour le voir ici.",
+      "openLatest": "Ouvrir le dernier rapport",
+      "outcome": {
+        "cancelled": "Interrompu",
+        "clean": "Propre",
+        "failed": "Écritures bloquées",
+        "issues": "Problèmes"
+      },
+      "pagination": {
+        "next": "Suivant",
+        "previous": "Précédent",
+        "summary_one": "Page {{page}} sur {{count}}",
+        "summary_many": "Page {{page}} sur {{count}}",
+        "summary_other": "Page {{page}} sur {{count}}"
+      },
+      "row": {
+        "modsSelected_one": "{{count}} mod sélectionné",
+        "modsSelected_many": "{{count}} mods sélectionnés",
+        "modsSelected_other": "{{count}} mods sélectionnés",
+        "modsSelectedAll": "Tous les mods sélectionnés",
+        "toggleHide": "Masquer les détails",
+        "toggleShow": "Afficher les détails"
+      },
+      "showFolder": "Afficher le dossier des rapports",
+      "sortedBy": "Trié par {{column}}, du plus élevé au plus faible",
+      "title": "Runs passés",
+      "toast": {
+        "deleted": "Rapport supprimé du disque.",
+        "deleteError": "Impossible de supprimer le rapport : {{message}}",
+        "revealError": "Impossible d'ouvrir le dossier : {{message}}"
+      },
+      "truncated_one": "Affichage du {{count}} rapport le plus récent, les plus anciens n'ont pas été chargés.",
+      "truncated_many": "Affichage des {{count}} rapports les plus récents, les plus anciens n'ont pas été chargés.",
+      "truncated_other": "Affichage des {{count}} rapports les plus récents, les plus anciens n'ont pas été chargés.",
+      "unreadable_one": "{{count}} rapport n'a pas pu être lu et a été ignoré.",
+      "unreadable_many": "{{count}} rapports n'ont pas pu être lus et ont été ignorés.",
+      "unreadable_other": "{{count}} rapports n'ont pas pu être lus et ont été ignorés."
+    },
+    "report": {
+      "actions": {
+        "copyAsJson": "Copier en JSON",
+        "delete": "Supprimer",
+        "revealCsv": "Afficher le fichier CSV",
+        "revealJson": "Afficher le fichier JSON"
+      },
+      "back": "Runs passés",
+      "cancelledNote": "Ce run a été arrêté avant la fin. Les totaux ne couvrent que ce qui a été traité.",
+      "categories": {
+        "blocked": {
+          "description": "La source anglaise n'a pas pu être analysée, donc le fichier cible correspondant n'a pas été créé. Ce sont les fichiers comptés comme échoués.",
+          "tag": "Non écrit",
+          "title": "Sortie bloquée par un fichier source illisible"
+        },
+        "header": {
+          "description": "Le fichier n'a pas d'en-tête de langue, donc aucune de ses clés ne peut être lue.",
+          "tag": "Pas d'en-tête",
+          "title": "En-tête `l_<language>:` manquant"
+        },
+        "other": {
+          "description": "Tout ce qui ne correspond à aucun motif connu.",
+          "tag": "Autre",
+          "title": "Autres messages"
+        },
+        "unterminated": {
+          "description": "Une valeur n'est jamais fermée avant la clé suivante, donc cette ligne est ignorée. Le fichier de l'auteur du mod est malformé, le run ne peut rien y faire.",
+          "tag": "Valeur non fermée",
+          "title": "Guillemets non fermés dans les fichiers du mod"
+        }
+      },
+      "errors": {
+        "blockedMessage": "La source {{file}} est illisible : {{detail}}",
+        "count_one": "{{count}} message",
+        "count_many": "{{count}} messages",
+        "count_other": "{{count}} messages",
+        "countPartial_one": "{{count}} message sur {{total}} affiché",
+        "countPartial_many": "{{count}} messages sur {{total}} affichés",
+        "countPartial_other": "{{count}} messages sur {{total}} affichés",
+        "title": "Ce qui n'a pas fonctionné"
+      },
+      "kpi": {
+        "created": {
+          "label": "Fichiers créés"
+        },
+        "duration": {
+          "label": "Durée",
+          "sub": "Terminé à {{time}}"
+        },
+        "messages": {
+          "label": "Messages",
+          "sub": "Erreurs de lecture dans les fichiers des mods"
+        },
+        "modsConverted": {
+          "label": "Mods convertis",
+          "sub_one": "{{count}} n'avait rien à ajouter",
+          "sub_many": "{{count}} n'avaient rien à ajouter",
+          "sub_other": "{{count}} n'avaient rien à ajouter"
+        },
+        "notWritten": {
+          "label": "N'ont pas pu être écrits",
+          "subBlocked_one": "Bloqué par {{count}} source illisible",
+          "subBlocked_many": "Bloqué par {{count}} sources illisibles",
+          "subBlocked_other": "Bloqué par {{count}} sources illisibles",
+          "subNone": "Rien de bloqué"
+        }
+      },
+      "languages": {
+        "count_one": "{{count}} message",
+        "count_many": "{{count}} messages",
+        "count_other": "{{count}} messages",
+        "none": "Aucune erreur de lecture",
+        "sourceNote": "Langue source lue : {{sourceLabel}}. Des erreurs de lecture peuvent aussi apparaître dans des langues que vous ne cibliez pas, elles n'affectent que ce qui a pu être lu dans les mods.",
+        "target": "cible",
+        "title": "Erreurs de lecture par dossier de langue",
+        "unknown": "Dossier inconnu"
+      },
+      "loadError": "Impossible de charger ce rapport : {{message}}",
+      "loading": "Chargement du rapport…",
+      "mods": {
+        "andMore_one": "et {{count}} message de plus",
+        "andMore_many": "et {{count}} messages de plus",
+        "andMore_other": "et {{count}} messages de plus",
+        "clearCategory": "Effacer le filtre de catégorie",
+        "columns": {
+          "created": "Créés",
+          "details": "Détails",
+          "messages": "Messages",
+          "mod": "Mod",
+          "notWritten": "Non écrits"
+        },
+        "createdLabel_one": "{{count}} créé",
+        "createdLabel_many": "{{count}} créés",
+        "createdLabel_other": "{{count}} créés",
+        "details": "Détails",
+        "empty": "Aucun mod ne correspond à ce filtre.",
+        "filters": {
+          "all": "Tous",
+          "clean": "Propres",
+          "failed": "Fichiers bloqués",
+          "issues": "Avec problèmes"
+        },
+        "header": "{{detailed}} détaillés sur {{total}} exécutés",
+        "headerFiltered": "{{shown}} affichés, {{detailed}} détaillés sur {{total}} exécutés",
+        "hide": "Masquer",
+        "messagesLabel_one": "{{count}} message",
+        "messagesLabel_many": "{{count}} messages",
+        "messagesLabel_other": "{{count}} messages",
+        "noMatchingErrors": "Aucun message ne correspond à ce filtre.",
+        "noMessage": "Aucun message",
+        "notWrittenLabel_one": "{{count}} non écrit",
+        "notWrittenLabel_many": "{{count}} non écrits",
+        "notWrittenLabel_other": "{{count}} non écrits",
+        "searchPlaceholder": "Rechercher un mod ou un fichier…"
+      },
+      "settings": {
+        "folder": "Dossier de l'atelier",
+        "game": "Jeu",
+        "gameVersion": "Version du jeu",
+        "generatedMod": "Mod généré",
+        "machineTranslation": "Traduction automatique",
+        "mode": "Mode",
+        "modPath": "Chemin du mod",
+        "modsSelected_one": "{{count}} mod sélectionné",
+        "modsSelected_many": "{{count}} mods sélectionnés",
+        "modsSelected_other": "{{count}} mods sélectionnés",
+        "modsSelectedAll": "Tous les mods",
+        "modsSelectedLabel": "Mods sélectionnés",
+        "sourceLanguage": "Langue source",
+        "targetLanguages": "Langues cibles",
+        "title": "Paramètres utilisés",
+        "translateOff": "Désactivée",
+        "whatToWrite": "Contenu à écrire"
+      },
+      "title": "Rapport de run",
+      "toast": {
+        "revealError": "Impossible d'ouvrir le dossier : {{message}}"
+      },
+      "untranslatedNote_one": "{{count}} clé a été écrite non traduite, avec le texte anglais de secours. Voir l'export CSV pour la liste complète.",
+      "untranslatedNote_many": "{{count}} clés ont été écrites non traduites, avec le texte anglais de secours. Voir l'export CSV pour la liste complète.",
+      "untranslatedNote_other": "{{count}} clés ont été écrites non traduites, avec le texte anglais de secours. Voir l'export CSV pour la liste complète."
+    }
   },
   "settings": {
     "allowedFolders": {

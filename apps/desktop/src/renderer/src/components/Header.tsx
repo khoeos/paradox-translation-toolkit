@@ -16,7 +16,8 @@ import { ReportProblemDialog } from '@renderer/components/ReportProblemDialog'
 import { trpc } from '@renderer/lib/trpc'
 
 const links = [
-  { to: '/', key: 'header.nav.converter' }
+  { to: '/', key: 'header.nav.converter' },
+  { to: '/runs', key: 'header.nav.runs' }
   // { to: '/explorer', key: 'header.nav.explorer' },
   // { to: '/edit', key: 'header.nav.editor' },
   // { to: '/settings', key: 'header.nav.settings' }

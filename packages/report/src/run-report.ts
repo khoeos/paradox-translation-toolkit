@@ -5,6 +5,7 @@ import type { Refusal, RefusalReason, TranslateProvider, TranslationCounters } f
 
 import { writeKeyCsv } from './csv.js'
 import { stamp } from './stamp.js'
+import { buildCsvSiblingPath } from './store.js'
 
 export interface RunReportRequest {
   path: string
@@ -32,6 +33,7 @@ export interface RunReport {
   mods: readonly ModResult[]
   untranslated: readonly KeyReport[]
   translationMod?: TranslationMod
+  cancelled?: boolean
 }
 
 export interface TranslateConfigLike {
@@ -52,7 +54,12 @@ export interface RunReportInputs {
   targetLanguages: readonly LanguageCode[]
   selectedMods?: readonly string[]
   translate?: TranslateConfigLike
-  output: { totals: ConversionTotals; mods: readonly ModResult[]; translationMod?: TranslationMod }
+  output: {
+    totals: ConversionTotals
+    mods: readonly ModResult[]
+    translationMod?: TranslationMod
+    cancelled?: boolean
+  }
   untranslated: readonly KeyReport[]
   counters?: TranslationCounters
   refusals?: { list: readonly Refusal[]; dropped: number }
@@ -86,7 +93,8 @@ export function buildRunReport(inputs: RunReportInputs): RunReport {
     ...(inputs.refusals !== undefined && { refusals: inputs.refusals }),
     ...(inputs.output.translationMod !== undefined && {
       translationMod: inputs.output.translationMod
-    })
+    }),
+    ...(inputs.output.cancelled === true && { cancelled: true })
   }
 }
 
@@ -102,6 +110,8 @@ export interface StoredRunReport {
   refusalsDropped: number
   mods: StoredModResult[]
   untranslated: readonly KeyReport[]
+  untranslatedCount: number
+  cancelled?: boolean
 }
 
 export interface StoredRunRequest extends Omit<RunReportRequest, 'selectedMods'> {
@@ -121,6 +131,7 @@ export interface StoredModResult {
 }
 
 export interface WrittenReport {
+  file: string
   jsonPath: string
   csvPath: string
   csvRows: number
@@ -132,15 +143,15 @@ export async function writeRunReport(
   report: RunReport,
   fs: FsLike
 ): Promise<WrittenReport | undefined> {
-  const base = posixJoin(directory, `run-${stamp(report.startedAt)}`)
-  const jsonPath = `${base}.json`
-  const csvPath = `${base}.csv`
+  const file = `run-${stamp(report.startedAt)}.json`
+  const jsonPath = posixJoin(directory, file)
+  const csvPath = buildCsvSiblingPath(jsonPath)
 
   try {
     await fs.mkdir(directory, { recursive: true })
     await fs.writeFile(jsonPath, `${JSON.stringify(toStored(report), null, 2)}\n`, 'utf-8')
     const csv = await writeKeyCsv(csvPath, report.untranslated, fs)
-    return { jsonPath, csvPath, csvRows: csv.rows, csvDropped: csv.dropped }
+    return { file, jsonPath, csvPath, csvRows: csv.rows, csvDropped: csv.dropped }
   } catch {
     return undefined
   }
@@ -171,7 +182,9 @@ export function toStored(report: RunReport): StoredRunReport {
       ...(mod.translation !== undefined && { translation: mod.translation }),
       errors: mod.errors
     })),
-    untranslated: report.untranslated
+    untranslated: report.untranslated,
+    untranslatedCount: report.untranslated.length,
+    ...(report.cancelled === true && { cancelled: true })
   }
 }
 

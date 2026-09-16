@@ -114,6 +114,7 @@
       "converter": "转换器",
       "editor": "编辑器",
       "explorer": "浏览器",
+      "runs": "运行记录",
       "settings": "设置"
     }
   },
@@ -138,7 +139,8 @@
       "openMod": "打开翻译模组",
       "openReport": "在文件夹中显示运行报告",
       "pruned_other": "已删除 {{count}} 个生成文件，不再需要",
-      "skipped_other": "{{count}} 个文件保持原样，已存在翻译"
+      "skipped_other": "{{count}} 个文件保持原样，已存在翻译",
+      "viewReport": "查看报告"
     },
     "doneToast": "转换完成 - 已创建 {{count}} 个文件",
     "doneToast_other": "转换完成 - 已创建 {{count}} 个文件",
@@ -213,6 +215,216 @@
     "send": "发送报告",
     "success": "谢谢！你的报告已发送。",
     "title": "报告问题"
+  },
+  "runs": {
+    "history": {
+      "actions": {
+        "delete": "删除",
+        "open": "打开"
+      },
+      "badge": {
+        "cancelled": "提前停止",
+        "latest": "最新"
+      },
+      "columns": {
+        "blocked": "被阻止",
+        "created": "已创建",
+        "messages": "消息",
+        "report": "报告",
+        "run": "运行",
+        "settings": "设置",
+        "time": "耗时"
+      },
+      "day": {
+        "daysAgo_other": "{{count}} 天前，{{date}}",
+        "on": "{{date}}",
+        "today": "今天，{{date}}",
+        "yesterday": "昨天，{{date}}"
+      },
+      "delete": {
+        "cancel": "取消",
+        "confirm": "删除",
+        "description": "这会从磁盘中删除报告文件。已生成的模组和已转换的文件不受影响。此操作无法撤销。",
+        "title": "删除此报告？"
+      },
+      "details": {
+        "cancelledNote": "此次运行在完成前被中止。统计数据仅包含已处理的模组。",
+        "failedNote_other": "{{count}} 个文件写入失败。",
+        "finished": "完成时间",
+        "game": "游戏",
+        "generatedMod": "生成的模组",
+        "languages": "语言",
+        "messages": "消息",
+        "mode": "模式",
+        "modsConverted": "已转换的模组",
+        "noGeneratedMod": "已提取到文件夹",
+        "readErrors_other": "{{count}} 个读取错误",
+        "written": "写入的内容"
+      },
+      "empty": "没有符合此筛选条件的运行记录。",
+      "filters": {
+        "all": "全部",
+        "allGames": "所有游戏",
+        "clean": "无问题",
+        "issues": "有问题",
+        "searchPlaceholder": "搜索游戏、模式或语言…"
+      },
+      "list": {
+        "all_other": "{{count}} 次运行",
+        "filtered": "{{total}} 次运行中的 {{shown}} 次"
+      },
+      "loadError": "无法加载运行历史记录：{{message}}",
+      "loading": "正在加载运行历史记录…",
+      "noneYet": "还没有运行记录。转换后将显示在此处。",
+      "openLatest": "打开最新报告",
+      "outcome": {
+        "cancelled": "提前停止",
+        "clean": "无问题",
+        "failed": "写入被阻止",
+        "issues": "有问题"
+      },
+      "pagination": {
+        "next": "下一页",
+        "previous": "上一页",
+        "summary_other": "第 {{page}} 页，共 {{count}} 页"
+      },
+      "row": {
+        "modsSelected_other": "已选择 {{count}} 个模组",
+        "modsSelectedAll": "已选择所有模组",
+        "toggleHide": "隐藏详情",
+        "toggleShow": "显示详情"
+      },
+      "showFolder": "显示报告文件夹",
+      "sortedBy": "按 {{column}} 排序，从高到低",
+      "title": "历史运行记录",
+      "toast": {
+        "deleted": "报告已从磁盘中删除。",
+        "deleteError": "无法删除报告：{{message}}",
+        "revealError": "无法打开文件夹：{{message}}"
+      },
+      "truncated_other": "仅显示最近的 {{count}} 个报告，更早的未被加载。",
+      "unreadable_other": "{{count}} 个报告无法读取，已被跳过。"
+    },
+    "report": {
+      "actions": {
+        "copyAsJson": "复制为 JSON",
+        "delete": "删除",
+        "revealCsv": "显示 CSV 文件",
+        "revealJson": "显示 JSON 文件"
+      },
+      "back": "历史运行记录",
+      "cancelledNote": "此次运行在完成前被中止。统计数据仅包含已处理的部分。",
+      "categories": {
+        "blocked": {
+          "description": "英文源文件无法解析，因此未创建对应的目标文件。这些文件被计入失败数。",
+          "tag": "未写入",
+          "title": "源文件无法读取，输出被阻止"
+        },
+        "header": {
+          "description": "文件没有语言标头，因此其所有键都无法读取。",
+          "tag": "缺少标头",
+          "title": "缺少 `l_<language>:` 标头"
+        },
+        "other": {
+          "description": "所有不符合已知规律的消息。",
+          "tag": "其他",
+          "title": "其他消息"
+        },
+        "unterminated": {
+          "description": "某个值在下一个键之前未闭合，因此该行被跳过。这是模组作者文件本身的问题，此次运行无法修复。",
+          "tag": "未闭合的值",
+          "title": "模组自身文件中存在未闭合的引号"
+        }
+      },
+      "errors": {
+        "blockedMessage": "源文件 {{file}} 无法读取：{{detail}}",
+        "count_other": "{{count}} 条消息",
+        "countPartial_other": "已显示 {{total}} 条消息中的 {{count}} 条",
+        "title": "出现的问题"
+      },
+      "kpi": {
+        "created": {
+          "label": "已创建文件"
+        },
+        "duration": {
+          "label": "用时",
+          "sub": "完成于 {{time}}"
+        },
+        "messages": {
+          "label": "消息",
+          "sub": "模组文件中的读取错误"
+        },
+        "modsConverted": {
+          "label": "已转换的模组",
+          "sub_other": "{{count}} 个没有需要补充的内容"
+        },
+        "notWritten": {
+          "label": "无法写入",
+          "subBlocked_other": "被 {{count}} 个无法读取的源文件阻止",
+          "subNone": "没有被阻止的内容"
+        }
+      },
+      "languages": {
+        "count_other": "{{count}} 条消息",
+        "none": "没有读取错误",
+        "sourceNote": "读取的源语言：{{sourceLabel}}。读取错误也可能出现在您未指定为目标的语言中，它们只影响模组中能读取到的内容。",
+        "target": "目标",
+        "title": "按语言文件夹统计的读取错误",
+        "unknown": "未知文件夹"
+      },
+      "loadError": "无法加载此报告：{{message}}",
+      "loading": "正在加载报告…",
+      "mods": {
+        "andMore_other": "还有 {{count}} 条消息",
+        "clearCategory": "清除分类筛选",
+        "columns": {
+          "created": "已创建",
+          "details": "详情",
+          "messages": "消息",
+          "mod": "模组",
+          "notWritten": "未写入"
+        },
+        "createdLabel_other": "已创建 {{count}} 个",
+        "details": "详情",
+        "empty": "没有符合此筛选条件的模组。",
+        "filters": {
+          "all": "全部",
+          "clean": "无问题",
+          "failed": "被阻止的文件",
+          "issues": "有问题"
+        },
+        "header": "共运行 {{total}} 个模组，其中 {{detailed}} 个有详情",
+        "headerFiltered": "已显示 {{shown}} 个，共运行 {{total}} 个模组中的 {{detailed}} 个有详情",
+        "hide": "隐藏",
+        "messagesLabel_other": "{{count}} 条消息",
+        "noMatchingErrors": "没有符合此筛选条件的消息。",
+        "noMessage": "无消息",
+        "notWrittenLabel_other": "{{count}} 个未写入",
+        "searchPlaceholder": "搜索模组或文件…"
+      },
+      "settings": {
+        "folder": "工坊文件夹",
+        "game": "游戏",
+        "gameVersion": "游戏版本",
+        "generatedMod": "生成的模组",
+        "machineTranslation": "机器翻译",
+        "mode": "模式",
+        "modPath": "模组路径",
+        "modsSelected_other": "已选择 {{count}} 个模组",
+        "modsSelectedAll": "所有模组",
+        "modsSelectedLabel": "已选择的模组",
+        "sourceLanguage": "源语言",
+        "targetLanguages": "目标语言",
+        "title": "使用的设置",
+        "translateOff": "已关闭",
+        "whatToWrite": "要写入的内容"
+      },
+      "title": "运行报告",
+      "toast": {
+        "revealError": "无法打开文件夹：{{message}}"
+      },
+      "untranslatedNote_other": "{{count}} 个键以未翻译状态写入，使用了英文回退文本。完整列表见 CSV 导出。"
+    }
   },
   "settings": {
     "allowedFolders": {

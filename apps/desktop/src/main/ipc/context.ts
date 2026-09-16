@@ -3,6 +3,7 @@ import { dialogService } from '../services/dialog-service.js'
 import type { GameLocatorService } from '../services/game-locator-service.js'
 import type { OpenableRegistry } from '../services/openable-registry.js'
 import type { ReportService } from '../services/report-service.js'
+import type { RunReportsService } from '../services/run-reports-service.js'
 import type { SettingsService } from '../services/settings-service.js'
 import type { TranslateService } from '../services/translate-service.js'
 import type { UpdaterService } from '../services/updater-service.js'
@@ -13,6 +14,7 @@ export interface AppContext {
   updater: UpdaterService
   translate: TranslateService
   report: ReportService
+  runReports: RunReportsService
   openable: OpenableRegistry
   gameLocator: GameLocatorService
   dialog: typeof dialogService
@@ -24,6 +26,7 @@ export function createContext(deps: {
   updater: UpdaterService
   translate: TranslateService
   report: ReportService
+  runReports: RunReportsService
   openable: OpenableRegistry
   gameLocator: GameLocatorService
 }): AppContext {
@@ -33,6 +36,7 @@ export function createContext(deps: {
     updater: deps.updater,
     translate: deps.translate,
     report: deps.report,
+    runReports: deps.runReports,
     openable: deps.openable,
     gameLocator: deps.gameLocator,
     dialog: dialogService

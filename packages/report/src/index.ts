@@ -24,4 +24,25 @@ export {
   type StoredModResult,
   type WrittenReport
 } from './run-report.js'
-export { StoredRunReportSchema, type ParsedRunReport } from './schema.js'
+export {
+  StoredRunReportSchema,
+  StoredRunReportMetaSchema,
+  type ParsedRunReport,
+  type ParsedRunReportMeta
+} from './schema.js'
+export {
+  RUN_REPORT_FILE_PATTERN,
+  isRunReportFileName,
+  buildCsvSiblingPath,
+  listRunReportFiles,
+  readRunReport,
+  readRunReportMeta,
+  getRunOutcome,
+  buildRunReportSummary,
+  type ListRunReportFilesOptions,
+  type RunOutcome,
+  type RunReportFile,
+  type RunReportFileList,
+  type RunReportMeta,
+  type RunReportSummary
+} from './store.js'

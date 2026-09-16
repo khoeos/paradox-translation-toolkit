@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -401,6 +402,8 @@ interface ConversionSummaryProps {
 
 function ConversionSummary({ output }: ConversionSummaryProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const setActive = useJobsStore(s => s.setActive)
   const openPath = trpc.fs.openPath.useMutation({
     onError: err => {
       toast.error(t('modal.openPathError', { message: err.message }))
@@ -449,6 +452,20 @@ function ConversionSummary({ output }: ConversionSummaryProps) {
           onClick={() => showItemInFolder.mutate({ path: output.reportPath ?? '' })}
         >
           {t('modal.conversionSummary.openReport')}
+        </Button>
+      ) : null}
+      {output.reportFile !== undefined ? (
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => {
+            const reportFile = output.reportFile
+            if (reportFile === undefined) return
+            setActive(null)
+            navigate({ to: '/runs/$file', params: { file: reportFile } })
+          }}
+        >
+          {t('modal.conversionSummary.viewReport')}
         </Button>
       ) : null}
     </div>

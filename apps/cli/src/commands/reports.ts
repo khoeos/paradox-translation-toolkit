@@ -1,6 +1,6 @@
-import { posixDirname, posixJoin } from '@ptt/converter'
+import { posixDirname } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
-import { StoredRunReportSchema, writeKeyCsv } from '@ptt/report'
+import { listRunReportFiles, readRunReport, writeKeyCsv } from '@ptt/report'
 import type { ParsedRunReport } from '@ptt/report'
 
 import type { Args } from '../args.js'
@@ -12,19 +12,20 @@ const BYTES_PER_KB = 1024
 export async function commandReports(options: CliOptions, args: Args): Promise<void> {
   section(`Run reports  ${dim(options.reportsDir)}`)
 
-  const files = await listReports(options.reportsDir)
+  const scanLimit = args.flags.last ? 1 : options.limit
+  const { files } = await listRunReportFiles(options.reportsDir, nodeFs, { limit: scanLimit })
   if (files.length === 0) {
     console.log(dim('  no report yet, run convert first'))
     return
   }
 
-  const chosen = args.flags.last ? files[files.length - 1] : undefined
+  const chosen = args.flags.last ? files[0] : undefined
   if (chosen === undefined) {
     table(
       [{ header: 'report' }, { header: 'size', right: true }],
       await Promise.all(
-        files.slice(-options.limit).map(async file => {
-          const stat = await nodeFs.stat(posixJoin(options.reportsDir, file))
+        files.toReversed().map(async ({ file, jsonPath }) => {
+          const stat = await nodeFs.stat(jsonPath)
           return [file, `${(stat.size / BYTES_PER_KB).toFixed(0)} KB`]
         })
       )
@@ -33,8 +34,9 @@ export async function commandReports(options: CliOptions, args: Args): Promise<v
     return
   }
 
-  const report = await readReport(posixJoin(options.reportsDir, chosen))
-  section(chosen)
+  const report = await readRunReport(chosen.jsonPath, nodeFs)
+  section(chosen.file)
+  const cancelledRow: [string, string] = ['cancelled', 'yes']
   facts([
     ['started', report.startedAt],
     ['seconds', report.seconds],
@@ -45,7 +47,8 @@ export async function commandReports(options: CliOptions, args: Args): Promise<v
     ['strings translated', report.counters?.translated ?? 0],
     ['strings from memory', report.counters?.cached ?? 0],
     ['strings refused', report.counters?.failed ?? 0],
-    ['keys left in the source language', report.untranslated.length]
+    ['keys left in the source language', report.untranslated.length],
+    ...(report.cancelled === true ? [cancelledRow] : [])
   ])
 
   const reasons = Object.entries(report.refusalsByReason)
@@ -73,38 +76,6 @@ export async function commandReports(options: CliOptions, args: Args): Promise<v
   )
 
   await writeOutputs(options, report)
-}
-
-async function listReports(directory: string): Promise<string[]> {
-  try {
-    const entries = await nodeFs.readdir(directory)
-    return entries
-      .filter(entry => entry.isFile && entry.name.endsWith('.json'))
-      .map(entry => entry.name)
-      .toSorted()
-  } catch {
-    return []
-  }
-}
-
-async function readReport(path: string): Promise<ParsedRunReport> {
-  const raw = await nodeFs.readFile(path, 'utf-8')
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(raw)
-  } catch (err) {
-    throw new Error(
-      `${path} is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
-      { cause: err }
-    )
-  }
-  const validated = StoredRunReportSchema.safeParse(parsed)
-  if (!validated.success) {
-    const first = validated.error.issues[0]
-    const where = first ? `${first.path.join('.')}: ${first.message}` : 'unknown field'
-    throw new Error(`${path} is not a run report this build understands (${where})`)
-  }
-  return validated.data
 }
 
 async function writeOutputs(options: CliOptions, report: ParsedRunReport): Promise<void> {

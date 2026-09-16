@@ -1,11 +1,7 @@
 import { z } from 'zod'
 
 import type { KeyState } from '@ptt/converter'
-import {
-  ConvertModeSchema,
-  LanguageCodeSchema,
-  TargetContentSchema
-} from '@ptt/shared'
+import { ConvertModeSchema, LanguageCodeSchema, TargetContentSchema } from '@ptt/shared'
 import { TRANSLATE_PROVIDERS } from '@ptt/translate'
 
 const KEY_STATES = ['own', 'patch', 'generated', 'english', 'kept', 'missing'] as const
@@ -97,7 +93,13 @@ export const StoredRunReportSchema = z.object({
       errors: z.array(z.string())
     })
   ),
-  untranslated: z.array(KeyReportSchema)
+  untranslated: z.array(KeyReportSchema),
+  untranslatedCount: z.number().optional(),
+  cancelled: z.boolean().optional()
 })
 
 export type ParsedRunReport = z.infer<typeof StoredRunReportSchema>
+
+export const StoredRunReportMetaSchema = StoredRunReportSchema.omit({ untranslated: true })
+
+export type ParsedRunReportMeta = z.infer<typeof StoredRunReportMetaSchema>

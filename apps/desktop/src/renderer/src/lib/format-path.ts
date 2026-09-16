@@ -1,6 +1,6 @@
 // Both spellings covered so the truncation works across Paradox games
 // (CK3 / EU5 / Imperator / Vic3 use "localization", others use "localisation").
-const LOCALISATION_DIRS = new Set(['localisation', 'localization'])
+export const LOCALISATION_DIRS = new Set(['localisation', 'localization'])
 const PATH_SEPARATORS = /\\/g
 const HEAD_SEGMENT_COUNT = 2
 const GENERIC_TAIL_SEGMENT_COUNT = 3

@@ -121,6 +121,7 @@
       "converter": "Converter",
       "editor": "Editor",
       "explorer": "Explorer",
+      "runs": "Runs",
       "settings": "Settings"
     }
   },
@@ -149,7 +150,8 @@
       "pruned_one": "{{count}} generated file removed, nothing needs it any more",
       "pruned_other": "{{count}} generated files removed, nothing needs them any more",
       "skipped_one": "{{count}} file left alone, an existing translation was there",
-      "skipped_other": "{{count}} files left alone, an existing translation was there"
+      "skipped_other": "{{count}} files left alone, an existing translation was there",
+      "viewReport": "View report"
     },
     "doneToast": "Conversion done - {{count}} files created",
     "doneToast_one": "Conversion done - {{count}} file created",
@@ -235,6 +237,235 @@
     "send": "Send report",
     "success": "Thanks! Your report was sent.",
     "title": "Report a problem"
+  },
+  "runs": {
+    "history": {
+      "actions": {
+        "delete": "Delete",
+        "open": "Open"
+      },
+      "badge": {
+        "cancelled": "Stopped early",
+        "latest": "Latest"
+      },
+      "columns": {
+        "blocked": "Blocked",
+        "created": "Created",
+        "messages": "Messages",
+        "report": "Report",
+        "run": "Run",
+        "settings": "Settings",
+        "time": "Time"
+      },
+      "day": {
+        "daysAgo_one": "{{count}} day ago, {{date}}",
+        "daysAgo_other": "{{count}} days ago, {{date}}",
+        "on": "{{date}}",
+        "today": "Today, {{date}}",
+        "yesterday": "Yesterday, {{date}}"
+      },
+      "delete": {
+        "cancel": "Cancel",
+        "confirm": "Delete",
+        "description": "This removes the report file from disk. The generated mod and converted files are not affected. This cannot be undone.",
+        "title": "Delete this report?"
+      },
+      "details": {
+        "cancelledNote": "This run was stopped before it finished. Totals only cover the mods processed so far.",
+        "failedNote_one": "{{count}} file could not be written.",
+        "failedNote_other": "{{count}} files could not be written.",
+        "finished": "Finished",
+        "game": "Game",
+        "generatedMod": "Generated mod",
+        "languages": "Languages",
+        "messages": "Messages",
+        "mode": "Mode",
+        "modsConverted": "Mods converted",
+        "noGeneratedMod": "Extracted to a folder",
+        "readErrors_one": "{{count}} read error",
+        "readErrors_other": "{{count}} read errors",
+        "written": "What was written"
+      },
+      "empty": "No run matches this filter.",
+      "filters": {
+        "all": "All",
+        "allGames": "All games",
+        "clean": "Clean",
+        "issues": "With issues",
+        "searchPlaceholder": "Search a game, mode or language…"
+      },
+      "list": {
+        "all_one": "{{count}} run",
+        "all_other": "{{count}} runs",
+        "filtered": "{{shown}} of {{total}} runs"
+      },
+      "loadError": "Could not load the run history: {{message}}",
+      "loading": "Loading run history…",
+      "noneYet": "No runs yet. Convert something to see it here.",
+      "openLatest": "Open the latest report",
+      "outcome": {
+        "cancelled": "Stopped early",
+        "clean": "Clean",
+        "failed": "Blocked writes",
+        "issues": "Issues"
+      },
+      "pagination": {
+        "next": "Next",
+        "previous": "Previous",
+        "summary_one": "Page {{page}} of {{count}}",
+        "summary_other": "Page {{page}} of {{count}}"
+      },
+      "row": {
+        "modsSelected_one": "{{count}} mod selected",
+        "modsSelected_other": "{{count}} mods selected",
+        "modsSelectedAll": "All mods selected",
+        "toggleHide": "Hide details",
+        "toggleShow": "Show details"
+      },
+      "showFolder": "Show reports folder",
+      "sortedBy": "Sorted by {{column}}, highest first",
+      "title": "Past runs",
+      "toast": {
+        "deleted": "Report deleted from disk.",
+        "deleteError": "Could not delete the report: {{message}}",
+        "revealError": "Could not open the folder: {{message}}"
+      },
+      "truncated_one": "Showing the {{count}} most recent report, older ones were not loaded.",
+      "truncated_other": "Showing the {{count}} most recent reports, older ones were not loaded.",
+      "unreadable_one": "{{count}} report could not be read and was skipped.",
+      "unreadable_other": "{{count}} reports could not be read and were skipped."
+    },
+    "report": {
+      "actions": {
+        "copyAsJson": "Copy as JSON",
+        "delete": "Delete",
+        "revealCsv": "Show CSV file",
+        "revealJson": "Show JSON file"
+      },
+      "back": "Past runs",
+      "cancelledNote": "This run was stopped before it finished. Totals only cover what was processed.",
+      "categories": {
+        "blocked": {
+          "description": "The English source could not be parsed, so the matching target file was not created. These are the files counted as failed.",
+          "tag": "Not written",
+          "title": "Output blocked by an unreadable source file"
+        },
+        "header": {
+          "description": "The file has no language header, so none of its keys can be read at all.",
+          "tag": "No header",
+          "title": "Missing `l_<language>:` header"
+        },
+        "other": {
+          "description": "Everything that did not match a known pattern.",
+          "tag": "Other",
+          "title": "Other messages"
+        },
+        "unterminated": {
+          "description": "A value string is never closed before the next key, so that line is skipped. The mod author's file is malformed, nothing the run can fix.",
+          "tag": "Unclosed value",
+          "title": "Unclosed quotes in the mod's own files"
+        }
+      },
+      "errors": {
+        "blockedMessage": "Source {{file}} is unreadable, {{detail}}",
+        "count_one": "{{count}} message",
+        "count_other": "{{count}} messages",
+        "countPartial_one": "{{count}} message of {{total}} shown",
+        "countPartial_other": "{{count}} messages of {{total}} shown",
+        "title": "What went wrong"
+      },
+      "kpi": {
+        "created": {
+          "label": "Files created"
+        },
+        "duration": {
+          "label": "Duration",
+          "sub": "Finished at {{time}}"
+        },
+        "messages": {
+          "label": "Messages",
+          "sub": "Read errors in the mods' files"
+        },
+        "modsConverted": {
+          "label": "Mods converted",
+          "sub_one": "{{count}} had nothing to add",
+          "sub_other": "{{count}} had nothing to add"
+        },
+        "notWritten": {
+          "label": "Could not be written",
+          "subBlocked_one": "Blocked by {{count}} unreadable source",
+          "subBlocked_other": "Blocked by {{count}} unreadable sources",
+          "subNone": "Nothing blocked"
+        }
+      },
+      "languages": {
+        "count_one": "{{count}} message",
+        "count_other": "{{count}} messages",
+        "none": "No read errors",
+        "sourceNote": "Source language read: {{sourceLabel}}. Read errors can also appear in languages you did not target, they only affect what could be read from the mods.",
+        "target": "target",
+        "title": "Read errors by language folder",
+        "unknown": "Unknown folder"
+      },
+      "loadError": "Could not load this report: {{message}}",
+      "loading": "Loading report…",
+      "mods": {
+        "andMore_one": "and {{count}} more message",
+        "andMore_other": "and {{count}} more messages",
+        "clearCategory": "Clear category filter",
+        "columns": {
+          "created": "Created",
+          "details": "Details",
+          "messages": "Messages",
+          "mod": "Mod",
+          "notWritten": "Not written"
+        },
+        "createdLabel_one": "{{count}} created",
+        "createdLabel_other": "{{count}} created",
+        "details": "Details",
+        "empty": "No mod matches this filter.",
+        "filters": {
+          "all": "All",
+          "clean": "Clean",
+          "failed": "Blocked files",
+          "issues": "With issues"
+        },
+        "header": "{{detailed}} detailed of {{total}} run",
+        "headerFiltered": "{{shown}} shown, {{detailed}} detailed of {{total}} run",
+        "hide": "Hide",
+        "messagesLabel_one": "{{count}} message",
+        "messagesLabel_other": "{{count}} messages",
+        "noMatchingErrors": "No message matches this filter.",
+        "noMessage": "No message",
+        "notWrittenLabel_one": "{{count}} not written",
+        "notWrittenLabel_other": "{{count}} not written",
+        "searchPlaceholder": "Search a mod or a file…"
+      },
+      "settings": {
+        "folder": "Workshop folder",
+        "game": "Game",
+        "gameVersion": "Game version",
+        "generatedMod": "Generated mod",
+        "machineTranslation": "Machine translation",
+        "mode": "Mode",
+        "modPath": "Mod path",
+        "modsSelected_one": "{{count}} mod selected",
+        "modsSelected_other": "{{count}} mods selected",
+        "modsSelectedAll": "All mods",
+        "modsSelectedLabel": "Mods selected",
+        "sourceLanguage": "Source language",
+        "targetLanguages": "Target languages",
+        "title": "Settings used",
+        "translateOff": "Off",
+        "whatToWrite": "What to write"
+      },
+      "title": "Run report",
+      "toast": {
+        "revealError": "Could not open the folder: {{message}}"
+      },
+      "untranslatedNote_one": "{{count}} key was written untranslated, in the English fallback. See the CSV export for the full list.",
+      "untranslatedNote_other": "{{count}} keys were written untranslated, in the English fallback. See the CSV export for the full list."
+    }
   },
   "settings": {
     "allowedFolders": {
