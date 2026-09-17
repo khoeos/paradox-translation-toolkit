@@ -175,13 +175,60 @@ of a string used in a different context wins anyway.
 Short terms injected into the prompt _are_ voted on, keeping the most common
 rendering across the whole game.
 
-### Translation retries have no backoff
+### A hard rate limit makes a run slow rather than short
 
-A failed batch is retried immediately, then split in half, then retried again.
-A `429 Too Many Requests` is therefore replayed at once and the `Retry-After`
-header is ignored. The retry count is bounded, so this cannot loop, but it is
-more aggressive than a hosted service would like. The circuit breaker stops
-everything after three consecutive single-string failures.
+A `429 Too Many Requests` or a `5xx` is now waited out before the batch is
+retried, with `Retry-After` honoured when the backend sends it, and concurrent
+batches share one wait rather than each backing off on their own. A rate-limited
+batch is no longer split in half either, since splitting multiplies the requests
+a rate limiter is already refusing.
+
+The consequence is deliberate: a rate limit no longer counts towards the circuit
+breaker, so a backend that answers `429` forever is never declared unavailable.
+The run finishes, slowly, with those strings listed as refusals, instead of
+being abandoned after three throttled batches. Other failures still trip the
+breaker after three consecutive single-string failures.
+
+Cancelling during a wait is honoured, but the wait itself is not interrupted:
+the run can take up to the current backoff delay (15 s at most) to stop.
+
+### An answer identical to the source is remembered
+
+When the model answers with the source text unchanged, that answer is accepted
+and written to the translation memory, exactly as before. It is now also
+reported, as a `Why keys were not translated` entry naming that reason, so you
+can see which keys came back untranslated.
+
+Because it is remembered, a later run serves those keys from memory without
+asking the model again, and they stop being reported. The count dropping to zero
+on a re-run does not mean they were translated in between.
+
+**Why:** the memory holding source equals target is the only signal that tells a
+legitimately identical string (a proper name the game itself leaves alone) apart
+from one the model simply failed to translate. Refusing the answer would delete
+that signal and pay for those strings again on every run.
+
+**Workaround:** clear the translation memory for that language from
+Settings if you want those keys sent to the model again.
+
+### "Retranslate own keys" does nothing in "Add to current mod"
+
+The option sends an entry you translated yourself, but that still reads exactly
+like the English source, back to the model. It is off by default, and it is
+ignored with a warning in **Add to current mod**, whatever the content mode.
+
+**Why:** in that mode the retranslated key is written to the file derived from
+the source file's name, while your own copy stays where you wrote it. The game
+would load two definitions of the same key and pick one by load order. Rewriting
+your own files instead is a deliberate non-goal.
+
+**Workaround:** use **Create a translation mod** or **Extract to folder**, where
+the output is a separate mod that overrides cleanly.
+
+### A literal `{0}` in a source string breaks the RapidAPI provider
+
+That provider cannot be told to leave markup alone, so every markup token is
+replaced by a numbered placeholder before sending and put back afterwards. A
 
 ### A literal `{0}` in a source string breaks the RapidAPI provider
 
@@ -231,11 +278,11 @@ localisation for the target language. A target language the game does not
 ship at all has nothing to build it from, so translation for that language
 proceeds with an empty glossary rather than failing.
 
-A run builds one glossary, for the first target language the game does ship,
-and uses it for that language only. So a run with a built-in target and a
-free-text one keeps its hints for the built-in one and sends the free-text
-one to the model with none: the base game's strings for one language are
-never handed to another.
+A run builds one glossary per target language the game does ship, from a single
+read of the game's files, so each language gets the hints that belong to it. A
+free-text target is sent to the model with none: the base game's strings for one
+language are never handed to another. When no target at all can have a glossary,
+the run says so rather than translating silently without one.
 
 ### One target per language, per run
 
@@ -255,6 +302,17 @@ target's old output is orphaned on disk until you remove it yourself.
 A glossary built from a game installation is cached and reused as long as the
 game path is identical. Patching the game at the same path serves a stale term
 until the cache is cleared. Delete `<userData>/glossary` to force a rebuild.
+
+A cache written by a version before the install-root fix is rebuilt rather than
+reused, since it cannot say which folder it was actually read from.
+
+### Pointing at a translation mod gives an empty glossary
+
+The glossary is built by pairing the source and target strings of the same key,
+so it can only come from something that holds both. A folder that only holds
+translations, such as your own translation mod, yields files but no pairs. The
+run now warns when the glossary it built has no usable entry, instead of
+proceeding as if a custom glossary had been taken into account.
 
 ## UI
 

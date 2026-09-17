@@ -248,6 +248,53 @@ describe('planMod - shadowing', () => {
   })
 })
 
+describe('planMod - retranslateOwnKeys', () => {
+  const identicalOwn = {
+    'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'Colony Ship']]),
+    'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [['K', 'Colony Ship']])
+  }
+
+  it('moves an own key identical to the source from own to missing, flagged ownSource', async () => {
+    const withoutOption = new MemoryFs(identicalOwn)
+    const plainPlan = await planMod(mod, options({ detail: true }), withoutOption)
+    expect(stateOf(plainPlan.keyStates, 'K')).toBe('own')
+    expect(plainPlan.covered.ru).toBe(1)
+
+    const withOption = new MemoryFs(identicalOwn)
+    const plan = await planMod(mod, options({ detail: true, retranslateOwnKeys: true }), withOption)
+    expect(stateOf(plan.keyStates, 'K')).toBe('missing')
+    expect(plan.keyStates.find(s => s.key === 'K')?.ownSource).toBe(true)
+    expect(plan.covered.ru).toBe(0)
+  })
+
+  it('never touches a key already covered by a coverage mod, even when the mod also owns it', async () => {
+    const fs = new MemoryFs(identicalOwn)
+    const coverage: Coverage = {
+      byLanguage: new Map([['ru', new Set(['K'])]]),
+      sources: ['RU Patch']
+    }
+    const plan = await planMod(
+      mod,
+      options({ detail: true, coverage, retranslateOwnKeys: true }),
+      fs
+    )
+    expect(stateOf(plan.keyStates, 'K')).toBe('own')
+    expect(plan.covered.ru).toBe(1)
+  })
+
+  it('leaves a real own translation alone, since it is not identical to the source', async () => {
+    const fs = new MemoryFs({
+      'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K', 'Colony Ship']]),
+      'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [
+        ['K', 'Корабль-колония']
+      ])
+    })
+    const plan = await planMod(mod, options({ detail: true, retranslateOwnKeys: true }), fs)
+    expect(stateOf(plan.keyStates, 'K')).toBe('own')
+    expect(plan.covered.ru).toBe(1)
+  })
+})
+
 describe('planMod - target files', () => {
   it('rewrites only the segments below the localisation folder', async () => {
     const fs = new MemoryFs({

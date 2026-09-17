@@ -11,13 +11,21 @@ export type CsvValue = string | number | undefined
 
 export interface KeyReportLike extends Omit<
   KeyReport,
-  'fileToken' | 'provider' | 'reason' | 'markupOnly' | 'shadowed'
+  | 'fileToken'
+  | 'provider'
+  | 'reason'
+  | 'markupOnly'
+  | 'shadowed'
+  | 'ownSource'
+  | 'identicalToSource'
 > {
   fileToken?: string | undefined
   provider?: string | undefined
   reason?: string | undefined
   markupOnly?: boolean | undefined
   shadowed?: boolean | undefined
+  ownSource?: boolean | undefined
+  identicalToSource?: boolean | undefined
 }
 
 export function csvField(value: CsvValue): string {
@@ -45,7 +53,9 @@ export const KEY_COLUMNS = [
   'source',
   'provider',
   'file',
-  'fileToken'
+  'fileToken',
+  'ownSource',
+  'identicalToSource'
 ] as const
 
 export function keyRow(key: KeyReportLike): CsvValue[] {
@@ -61,7 +71,9 @@ export function keyRow(key: KeyReportLike): CsvValue[] {
     key.source,
     key.provider,
     key.file,
-    key.fileToken
+    key.fileToken,
+    key.ownSource ? 'yes' : '',
+    key.identicalToSource ? 'yes' : ''
   ]
 }
 

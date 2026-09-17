@@ -17,7 +17,8 @@ const scanModsBase = {
   gameId: 'hoi4',
   rootDir: '/mods',
   sourceLanguage: 'en',
-  targets: [{ language: 'fr', fileToken: 'french' }]
+  targets: [{ language: 'fr', fileToken: 'french' }],
+  mode: 'create-translation-mod'
 }
 
 const convertBase = {
@@ -92,6 +93,30 @@ describe('ScanModsInputSchema', () => {
     })
     expect(result.success).toBe(true)
   })
+
+  it('accepts retranslateOwnKeys', () => {
+    const result = ScanModsInputSchema.safeParse({ ...scanModsBase, retranslateOwnKeys: true })
+    expect(result.success).toBe(true)
+  })
+
+  it('defaults retranslateOwnKeys to absent when omitted', () => {
+    const result = ScanModsInputSchema.safeParse(scanModsBase)
+    expect(result.success && result.data.retranslateOwnKeys).toBeUndefined()
+  })
+
+  it('accepts mode and targetContent', () => {
+    const result = ScanModsInputSchema.safeParse({
+      ...scanModsBase,
+      mode: 'add-to-current',
+      targetContent: 'complete-file'
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects an unrecognized mode', () => {
+    const result = ScanModsInputSchema.safeParse({ ...scanModsBase, mode: 'nonsense' })
+    expect(result.success).toBe(false)
+  })
 })
 
 describe('ConvertInputSchema', () => {
@@ -163,5 +188,10 @@ describe('ConvertInputSchema', () => {
       translate: translateConfig('rapidapi')
     })
     expect(result.success).toBe(false)
+  })
+
+  it('accepts retranslateOwnKeys', () => {
+    const result = ConvertInputSchema.safeParse({ ...convertBase, retranslateOwnKeys: true })
+    expect(result.success).toBe(true)
   })
 })

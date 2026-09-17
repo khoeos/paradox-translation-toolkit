@@ -3,10 +3,16 @@ import { isLanguageCode, normalizeTargetLanguage } from '@ptt/shared/languages'
 import type { LanguageCode } from '@ptt/shared/languages'
 
 import { TranslationEngine } from './engine.js'
-import { glossaryCacheDir, glossaryCacheKey, loadGlossary } from './glossary-cache.js'
+import { glossaryCacheDir, loadGlossaries } from './glossary-cache.js'
 import type { TranslationMemory } from './memory.js'
 import { createProvider } from './providers/factory.js'
-import type { FetchLike, TranslateConfig, TranslationCounters } from './types.js'
+import type {
+  FetchLike,
+  Glossary,
+  GlossarySkipReason,
+  TranslateConfig,
+  TranslationCounters
+} from './types.js'
 
 export interface EngineForRunOptions {
   config: TranslateConfig
@@ -34,22 +40,28 @@ export async function createEngineForRun(
     throw new Error('Translation needs at least one target language other than the source one')
   }
 
-  const glossaryTarget = translatable.find(isLanguageCode)
-  const glossary =
-    glossaryTarget !== undefined &&
-    config.gamePath !== undefined &&
-    config.gamePath.length > 0 &&
-    userDataPath !== undefined
-      ? await loadGlossary(
-          glossaryCacheDir(userDataPath),
-          config.gamePath,
-          glossaryCacheKey(game.id, sourceLanguage, glossaryTarget),
-          game,
-          sourceLanguage,
-          glossaryTarget,
-          fs
-        )
-      : undefined
+  const glossaryTargets = translatable.filter(isLanguageCode)
+
+  let glossarySkipReason: GlossarySkipReason | undefined
+  let glossaries: ReadonlyMap<LanguageCode, Glossary> | undefined
+
+  if (config.gamePath === undefined || config.gamePath.length === 0) {
+    glossarySkipReason = 'no-game-path'
+  } else if (glossaryTargets.length === 0) {
+    glossarySkipReason = 'no-glossary-target'
+  } else if (userDataPath === undefined) {
+    glossarySkipReason = 'no-user-data-path'
+  } else {
+    glossaries = await loadGlossaries(
+      glossaryCacheDir(userDataPath),
+      config.gamePath,
+      game.id,
+      game,
+      sourceLanguage,
+      glossaryTargets,
+      fs
+    )
+  }
 
   return new TranslationEngine({
     provider: createProvider({ domain: game.domain, ...config }, firstTarget, fetchFn),
@@ -60,6 +72,7 @@ export async function createEngineForRun(
     retries: config.retries,
     ...(options.signal !== undefined && { signal: options.signal }),
     ...(options.onProgress !== undefined && { onProgress: options.onProgress }),
-    ...(glossary !== undefined && { glossary })
+    ...(glossaries !== undefined && { glossaries }),
+    ...(glossarySkipReason !== undefined && { glossarySkipReason })
   })
 }

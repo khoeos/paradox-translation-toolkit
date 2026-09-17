@@ -200,12 +200,72 @@ describe('listRunReportFiles', () => {
   })
 })
 
+const V3_0_0_REPORT = {
+  startedAt: '2026-08-08T14:37:33.000Z',
+  finishedAt: '2026-08-08T14:38:38.000Z',
+  seconds: 65,
+  request: {
+    path: 'workshop',
+    game: 'stellaris',
+    mode: 'create-translation-mod',
+    targetContent: 'missing-keys',
+    sourceLanguage: 'en',
+    targetLanguages: ['ru'],
+    selectedMods: 'all'
+  },
+  totals: {
+    mods: 2,
+    modsWithFiles: 1,
+    created: 3,
+    skipped: 1,
+    unchanged: 0,
+    failed: 0,
+    pruned: 2,
+    errors: 0
+  },
+  refusalsByReason: {},
+  refusalsDropped: 0,
+  mods: [
+    {
+      id: 'mymod',
+      name: 'My Mod',
+      created: 3,
+      skipped: 1,
+      unchanged: 0,
+      failed: 0,
+      pruned: 2,
+      errors: []
+    }
+  ],
+  untranslated: [
+    {
+      modId: 'mymod',
+      modName: 'My Mod',
+      language: 'ru',
+      key: 'K',
+      file: 'a_l_english.yml',
+      source: 'text',
+      state: 'missing'
+    }
+  ],
+  untranslatedCount: 1
+}
+
 describe('readRunReport', () => {
   it('reads back a written report', async () => {
     const fs = new MemoryFs()
     const written = await writeRunReport('reports', report(), fs)
     const parsed = await readRunReport(written?.jsonPath ?? '', fs)
     expect(parsed.request.game).toBe('stellaris')
+  })
+
+  it('reads back a v3.0.0 report with none of the fields added since, without throwing', async () => {
+    const fs = new MemoryFs({ 'reports/run-v3.json': JSON.stringify(V3_0_0_REPORT) })
+    const parsed = await readRunReport('reports/run-v3.json', fs)
+    expect(parsed.request.game).toBe('stellaris')
+    expect(parsed.glossaries).toBeUndefined()
+    expect(parsed.identicalCount).toBeUndefined()
+    expect(parsed.request.retranslateOwnKeys).toBeUndefined()
   })
 
   it('throws a descriptive error for invalid JSON', async () => {
@@ -401,5 +461,49 @@ describe('buildRunReportSummary', () => {
     const summary = buildRunReportSummary(file, parsed)
     expect(summary.cancelled).toBe(true)
     expect(summary.outcome).toBe('cancelled')
+  })
+
+  it('carries the glossary counters when the report has glossary stats, and omits them otherwise', async () => {
+    const fs = new MemoryFs()
+    const withGlossaries = report({
+      glossaries: [
+        {
+          language: 'ru',
+          builtFrom: 'a.csv',
+          root: 'glossaries',
+          files: 2,
+          exact: 3,
+          terms: 12,
+          truncated: false
+        },
+        {
+          language: 'tr',
+          builtFrom: 'b.csv',
+          root: 'glossaries',
+          files: 1,
+          exact: 1,
+          terms: 5,
+          truncated: true
+        }
+      ]
+    })
+    const written = await writeRunReport('reports', withGlossaries, fs)
+    const parsed = await readRunReport(written?.jsonPath ?? '', fs)
+    const { files } = await listRunReportFiles('reports', fs)
+    const file = files[0]
+    if (!file) throw new Error('expected a file')
+    const summary = buildRunReportSummary(file, parsed)
+    expect(summary.glossaryFiles).toBe(3)
+    expect(summary.glossaryExact).toBe(4)
+
+    const withoutGlossaries = await writeRunReport('reports', report(), fs)
+    const parsedWithout = await readRunReport(withoutGlossaries?.jsonPath ?? '', fs)
+    const withoutFile = (await listRunReportFiles('reports', fs)).files.find(
+      f => f.jsonPath === withoutGlossaries?.jsonPath
+    )
+    if (!withoutFile) throw new Error('expected a file')
+    const summaryWithout = buildRunReportSummary(withoutFile, parsedWithout)
+    expect(summaryWithout.glossaryFiles).toBeUndefined()
+    expect(summaryWithout.glossaryExact).toBeUndefined()
   })
 })

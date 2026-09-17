@@ -22,6 +22,7 @@ import { runTranslateConfig, useConverterFormStore } from '@renderer/store/conve
 export function TranslateSettings() {
   const { t } = useTranslation()
   const gamePathInputId = useId()
+  const retranslateOwnKeysId = useId()
   const translate = useConverterFormStore(s => s.translate)
   const apiKey = useConverterFormStore(s => s.apiKey)
   const setTranslate = useConverterFormStore(s => s.setTranslate)
@@ -29,6 +30,8 @@ export function TranslateSettings() {
   const setApiKey = useConverterFormStore(s => s.setApiKey)
   const gameId = useConverterFormStore(s => s.selectedGameId)
   const targets = useConverterFormStore(s => s.targets)
+  const retranslateOwnKeys = useConverterFormStore(s => s.retranslateOwnKeys)
+  const setRetranslateOwnKeys = useConverterFormStore(s => s.setRetranslateOwnKeys)
 
   const defaults = PROVIDER_DEFAULTS[translate.provider]
 
@@ -162,6 +165,18 @@ export function TranslateSettings() {
             )}
             <p className="text-xs text-muted-foreground">{t('translate.gamePathHint')}</p>
           </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={retranslateOwnKeysId} className="font-normal">
+              {t('translate.retranslateOwnKeys')}
+            </Label>
+            <Switch
+              id={retranslateOwnKeysId}
+              checked={retranslateOwnKeys}
+              onCheckedChange={setRetranslateOwnKeys}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">{t('translate.retranslateOwnKeysHint')}</p>
 
           <div className="flex items-center gap-2">
             <Button

@@ -55,6 +55,7 @@ export const nodeFetch: FetchLike = async (url, init) => {
     status: response.status,
     statusText: response.statusText,
     text: () => response.text(),
-    json: () => response.json()
+    json: () => response.json(),
+    headers: response.headers
   }
 }

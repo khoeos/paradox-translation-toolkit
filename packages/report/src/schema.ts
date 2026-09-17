@@ -39,7 +39,19 @@ const KeyReportSchema = z.object({
   provider: z.string().optional(),
   reason: z.string().optional(),
   markupOnly: z.boolean().optional(),
-  shadowed: z.boolean().optional()
+  shadowed: z.boolean().optional(),
+  ownSource: z.boolean().optional(),
+  identicalToSource: z.boolean().optional()
+})
+
+const GlossaryStatsSchema = z.object({
+  language: z.string(),
+  builtFrom: z.string(),
+  root: z.string(),
+  files: z.number(),
+  exact: z.number(),
+  terms: z.number(),
+  truncated: z.boolean()
 })
 
 const TotalsSchema = z.object({
@@ -66,6 +78,7 @@ export const StoredRunReportSchema = z.object({
     targetLanguages: z.array(z.string()),
     targets: z.array(TranslationTargetSchema).optional(),
     selectedMods: z.union([z.number(), z.literal('all')]),
+    retranslateOwnKeys: z.boolean().optional(),
     translate: z
       .object({
         provider: z.enum(TRANSLATE_PROVIDERS),
@@ -102,7 +115,9 @@ export const StoredRunReportSchema = z.object({
   ),
   untranslated: z.array(KeyReportSchema),
   untranslatedCount: z.number().optional(),
-  cancelled: z.boolean().optional()
+  identicalCount: z.number().optional(),
+  cancelled: z.boolean().optional(),
+  glossaries: z.array(GlossaryStatsSchema).optional()
 })
 
 export type ParsedRunReport = z.infer<typeof StoredRunReportSchema>

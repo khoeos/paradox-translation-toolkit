@@ -3,7 +3,8 @@
     "cancel": "取消",
     "close": "关闭",
     "error": "错误",
-    "loading": "加载中…"
+    "loading": "加载中…",
+    "warning": "警告"
   },
   "converter": {
     "convert": "转换翻译",
@@ -283,6 +284,8 @@
         "finished": "完成时间",
         "game": "游戏",
         "generatedMod": "生成的模组",
+        "glossary": "术语表",
+        "glossaryValue": "{{files}} 个文件，{{exact}} 个条目",
         "languages": "语言",
         "messages": "消息",
         "mode": "模式",
@@ -432,17 +435,35 @@
         "notWrittenLabel_other": "{{count}} 个未写入",
         "searchPlaceholder": "搜索模组或文件…"
       },
+      "refusals": {
+        "count_other": "{{count}} 个键",
+        "none": "没有拒绝记录",
+        "reasons": {
+          "backend": "翻译服务当前不可用",
+          "control": "模型的回答包含控制字符，已被拒绝",
+          "empty": "模型没有返回任何内容",
+          "identical": "模型原样返回了英文文本，未做任何修改",
+          "markup": "模型的回答丢失了部分游戏格式标签",
+          "unknown": "无法识别的原因：{{reason}}"
+        },
+        "title": "键未被翻译的原因"
+      },
       "settings": {
         "folder": "工坊文件夹",
         "game": "游戏",
         "gameVersion": "游戏版本",
         "generatedMod": "生成的模组",
+        "glossary": "术语表",
+        "glossaryValue": "{{files}} 个文件，{{exact}} 个条目",
         "machineTranslation": "机器翻译",
         "mode": "模式",
         "modPath": "模组路径",
         "modsSelected_other": "已选择 {{count}} 个模组",
         "modsSelectedAll": "所有模组",
         "modsSelectedLabel": "已选择的模组",
+        "retranslateOwnKeys": "重新翻译手动翻译过的键",
+        "retranslateOwnKeysOff": "已关闭",
+        "retranslateOwnKeysOn": "已启用",
         "sourceLanguage": "源语言",
         "targetLanguages": "目标语言",
         "title": "使用的设置",
@@ -515,6 +536,8 @@
       "openai": "兼容 OpenAI",
       "rapidapi": "RapidAPI"
     },
+    "retranslateOwnKeys": "重新翻译手动翻译过的键",
+    "retranslateOwnKeysHint": "把手动翻译、且内容仍与英文原文完全相同的键重新发送给模型；如果模型给出结果，将替换这些键。",
     "test": "测试服务",
     "testFailed": "服务失败：{{message}}",
     "testNeedsBuiltIn": "选择内置目标语言以测试连接。",

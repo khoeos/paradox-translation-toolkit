@@ -54,6 +54,8 @@ export interface RunReportSummary {
   modsWithErrors: number
   cancelled: boolean
   outcome: RunOutcome
+  glossaryFiles?: number
+  glossaryExact?: number
 }
 
 export const RUN_REPORT_FILE_PATTERN = /^run-[A-Za-z0-9._-]+\.json$/
@@ -189,6 +191,10 @@ export function buildRunReportSummary(
       failed: report.totals.failed,
       errors: report.totals.errors,
       cancelled
+    }),
+    ...(report.glossaries !== undefined && {
+      glossaryFiles: report.glossaries.reduce((sum, glossary) => sum + glossary.files, 0),
+      glossaryExact: report.glossaries.reduce((sum, glossary) => sum + glossary.exact, 0)
     })
   }
 }

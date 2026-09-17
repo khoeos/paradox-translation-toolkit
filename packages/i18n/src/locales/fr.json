@@ -3,7 +3,8 @@
     "cancel": "Annuler",
     "close": "Fermer",
     "error": "Erreur",
-    "loading": "Chargement…"
+    "loading": "Chargement…",
+    "warning": "Avertissement"
   },
   "converter": {
     "convert": "Convertir les traductions",
@@ -333,6 +334,8 @@
         "finished": "Terminé",
         "game": "Jeu",
         "generatedMod": "Mod généré",
+        "glossary": "Glossaire",
+        "glossaryValue": "{{files}} fichiers, {{exact}} entrées",
         "languages": "Langues",
         "messages": "Messages",
         "mode": "Mode",
@@ -512,11 +515,28 @@
         "notWrittenLabel_other": "{{count}} non écrits",
         "searchPlaceholder": "Rechercher un mod ou un fichier…"
       },
+      "refusals": {
+        "count_one": "{{count}} clé",
+        "count_many": "{{count}} clés",
+        "count_other": "{{count}} clés",
+        "none": "Aucun refus enregistré",
+        "reasons": {
+          "backend": "Le backend de traduction était indisponible",
+          "control": "La réponse du modèle contenait des caractères de contrôle et a été rejetée",
+          "empty": "Le modèle n'a rien renvoyé",
+          "identical": "Le modèle a renvoyé le texte anglais sans le modifier",
+          "markup": "La réponse du modèle a supprimé certaines balises de mise en forme du jeu",
+          "unknown": "Raison non reconnue : {{reason}}"
+        },
+        "title": "Pourquoi certaines clés n'ont pas été traduites"
+      },
       "settings": {
         "folder": "Dossier de l'atelier",
         "game": "Jeu",
         "gameVersion": "Version du jeu",
         "generatedMod": "Mod généré",
+        "glossary": "Glossaire",
+        "glossaryValue": "{{files}} fichiers, {{exact}} entrées",
         "machineTranslation": "Traduction automatique",
         "mode": "Mode",
         "modPath": "Chemin du mod",
@@ -525,6 +545,9 @@
         "modsSelected_other": "{{count}} mods sélectionnés",
         "modsSelectedAll": "Tous les mods",
         "modsSelectedLabel": "Mods sélectionnés",
+        "retranslateOwnKeys": "Retraduction des clés déjà traduites",
+        "retranslateOwnKeysOff": "Désactivée",
+        "retranslateOwnKeysOn": "Activée",
         "sourceLanguage": "Langue source",
         "targetLanguages": "Langues cibles",
         "title": "Paramètres utilisés",
@@ -599,6 +622,8 @@
       "openai": "Compatible OpenAI",
       "rapidapi": "RapidAPI"
     },
+    "retranslateOwnKeys": "Retraduire les clés que vous avez déjà traduites vous-même",
+    "retranslateOwnKeysHint": "Renvoie au modèle les clés que vous avez traduites vous-même et qui sont encore identiques au texte source anglais. Elles seront remplacées si le modèle répond.",
     "test": "Tester le provider",
     "testFailed": "Échec du backend : {{message}}",
     "testNeedsBuiltIn": "Choisissez une langue cible intégrée pour tester la connexion.",

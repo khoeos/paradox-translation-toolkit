@@ -2,7 +2,13 @@ import type { ConversionTotals, FsLike, KeyReport, ModResult, TranslationMod } f
 import { posixJoin } from '@ptt/converter'
 import { uniqueTargetLanguages } from '@ptt/shared'
 import type { ConvertMode, LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
-import type { Refusal, RefusalReason, TranslateProvider, TranslationCounters } from '@ptt/translate'
+import type {
+  GlossaryStats,
+  Refusal,
+  RefusalReason,
+  TranslateProvider,
+  TranslationCounters
+} from '@ptt/translate'
 
 import { writeKeyCsv } from './csv.js'
 import { stamp } from './stamp.js'
@@ -17,6 +23,7 @@ export interface RunReportRequest {
   targetLanguages: readonly string[]
   targets?: readonly TranslationTarget[]
   selectedMods?: readonly string[]
+  retranslateOwnKeys?: boolean
   translate?: {
     provider: TranslateProvider
     model: string
@@ -36,6 +43,7 @@ export interface RunReport {
   untranslated: readonly KeyReport[]
   translationMod?: TranslationMod
   cancelled?: boolean
+  glossaries?: readonly GlossaryStats[]
 }
 
 export interface TranslateConfigLike {
@@ -55,6 +63,7 @@ export interface RunReportInputs {
   sourceLanguage: LanguageCode
   targets: readonly TranslationTarget[]
   selectedMods?: readonly string[]
+  retranslateOwnKeys?: boolean
   translate?: TranslateConfigLike
   output: {
     totals: ConversionTotals
@@ -65,6 +74,7 @@ export interface RunReportInputs {
   untranslated: readonly KeyReport[]
   counters?: TranslationCounters
   refusals?: { list: readonly Refusal[]; dropped: number }
+  glossaries?: readonly GlossaryStats[]
 }
 
 export function buildRunReport(inputs: RunReportInputs): RunReport {
@@ -81,6 +91,9 @@ export function buildRunReport(inputs: RunReportInputs): RunReport {
       targetLanguages,
       targets: inputs.targets,
       ...(inputs.selectedMods !== undefined && { selectedMods: inputs.selectedMods }),
+      ...(inputs.retranslateOwnKeys !== undefined && {
+        retranslateOwnKeys: inputs.retranslateOwnKeys
+      }),
       ...(inputs.translate !== undefined && {
         translate: {
           provider: inputs.translate.provider,
@@ -98,7 +111,8 @@ export function buildRunReport(inputs: RunReportInputs): RunReport {
     ...(inputs.output.translationMod !== undefined && {
       translationMod: inputs.output.translationMod
     }),
-    ...(inputs.output.cancelled === true && { cancelled: true })
+    ...(inputs.output.cancelled === true && { cancelled: true }),
+    ...(inputs.glossaries !== undefined && { glossaries: inputs.glossaries })
   }
 }
 
@@ -115,7 +129,9 @@ export interface StoredRunReport {
   mods: StoredModResult[]
   untranslated: readonly KeyReport[]
   untranslatedCount: number
+  identicalCount?: number
   cancelled?: boolean
+  glossaries?: readonly GlossaryStats[]
 }
 
 export interface StoredRunRequest extends Omit<RunReportRequest, 'selectedMods'> {
@@ -188,7 +204,9 @@ export function toStored(report: RunReport): StoredRunReport {
     })),
     untranslated: report.untranslated,
     untranslatedCount: report.untranslated.length,
-    ...(report.cancelled === true && { cancelled: true })
+    identicalCount: report.untranslated.filter(key => key.identicalToSource === true).length,
+    ...(report.cancelled === true && { cancelled: true }),
+    ...(report.glossaries !== undefined && { glossaries: report.glossaries })
   }
 }
 

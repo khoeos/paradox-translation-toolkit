@@ -7,30 +7,63 @@ import { getCountClasses, getErrorCategoryClasses, getOutcomeClasses } from './r
 
 describe('getOutcomeClasses', () => {
   it('is green for a clean run', () => {
-    expect(getOutcomeClasses('clean')).toEqual({ text: 'text-success', dot: 'bg-success' })
+    expect(getOutcomeClasses('clean')).toEqual({
+      text: 'text-success',
+      dot: 'bg-success',
+      marker: ''
+    })
   })
 
   it('is amber for a run with issues', () => {
-    expect(getOutcomeClasses('issues')).toEqual({ text: 'text-warning', dot: 'bg-warning' })
+    expect(getOutcomeClasses('issues')).toEqual({
+      text: 'text-warning',
+      dot: 'bg-warning',
+      marker: '!'
+    })
   })
 
   it('is red for a failed run', () => {
     expect(getOutcomeClasses('failed')).toEqual({
       text: 'text-destructive',
-      dot: 'bg-destructive'
+      dot: 'bg-destructive',
+      marker: '×'
     })
   })
 
   it('is muted for a cancelled run', () => {
     expect(getOutcomeClasses('cancelled')).toEqual({
       text: 'text-muted-foreground',
-      dot: 'bg-muted-foreground'
+      dot: 'bg-muted-foreground',
+      marker: ''
     })
   })
 
   it('covers every RunOutcome', () => {
     const outcomes: readonly RunOutcome[] = ['clean', 'issues', 'failed', 'cancelled']
     for (const outcome of outcomes) expect(getOutcomeClasses(outcome).text).toMatch(/^text-/)
+  })
+
+  it('leaves a run with nothing wrong unmarked, so a marker always signals a problem', () => {
+    expect(getOutcomeClasses('clean').marker).toBe('')
+    expect(getOutcomeClasses('cancelled').marker).toBe('')
+  })
+
+  it('gives every problem outcome a marker, so colour is never the only signal', () => {
+    const problemOutcomes: readonly RunOutcome[] = ['issues', 'failed']
+    for (const outcome of problemOutcomes) {
+      expect(getOutcomeClasses(outcome).marker).not.toBe('')
+    }
+  })
+
+  it('gives issues and failed a distinct marker', () => {
+    expect(getOutcomeClasses('issues').marker).not.toBe(getOutcomeClasses('failed').marker)
+  })
+
+  it('reaches for design tokens rather than hardcoded colours', () => {
+    const outcomes: readonly RunOutcome[] = ['clean', 'issues', 'failed', 'cancelled']
+    for (const outcome of outcomes) {
+      expect(getOutcomeClasses(outcome).text).not.toMatch(/#|rgb|oklch/)
+    }
   })
 })
 

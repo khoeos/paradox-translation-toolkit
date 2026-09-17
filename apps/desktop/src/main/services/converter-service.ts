@@ -6,6 +6,7 @@ import { join } from 'node:path'
 
 import type { ConversionOutput, JobEvent, TranslationMod } from '@ptt/converter'
 import { isJobEvent } from '@ptt/converter/progress'
+import { retranslateOwnKeysHasNoEffect } from '@ptt/converter/retranslate'
 import { getGame } from '@ptt/games'
 import {
   IPC_CHANNELS,
@@ -28,8 +29,11 @@ interface ScanModsInput {
   rootDir: string
   sourceLanguage: LanguageCode
   targets: TranslationTarget[]
+  mode: ConvertMode
+  targetContent?: TargetContent | undefined
   modName?: string | undefined
   translate?: TranslateConfig | undefined
+  retranslateOwnKeys?: boolean | undefined
 }
 
 interface ConvertInput extends ScanModsInput {
@@ -68,6 +72,9 @@ export class ConverterService {
   ) {}
 
   scanMods(input: ScanModsInput): { jobId: string } {
+    const requestedRetranslateOwnKeys = input.retranslateOwnKeys ?? false
+    const retranslateOwnKeys =
+      requestedRetranslateOwnKeys && !retranslateOwnKeysHasNoEffect(input.mode)
     return this.startJob(input.gameId, (jobId, game) => {
       const generated = this.generatedModFor(game, input.modName)
       return {
@@ -79,6 +86,7 @@ export class ConverterService {
         targets: input.targets,
         userDataPath: this.userDataPath,
         ...(input.translate !== undefined && { translate: input.translate }),
+        ...(retranslateOwnKeys && { retranslateOwnKeys }),
         ...(generated !== undefined && { generatedMod: generated.mod })
       }
     })
@@ -100,6 +108,9 @@ export class ConverterService {
         ...(input.selectedMods !== undefined && { selectedMods: input.selectedMods }),
         ...(input.targetContent !== undefined && { targetContent: input.targetContent }),
         ...(input.translate !== undefined && { translate: input.translate }),
+        ...(input.retranslateOwnKeys !== undefined && {
+          retranslateOwnKeys: input.retranslateOwnKeys
+        }),
         ...(generated !== undefined && {
           generatedMod: generated.mod,
           generatedModsDir: generated.modsDir

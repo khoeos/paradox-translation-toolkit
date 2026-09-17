@@ -15,6 +15,7 @@ const game = { ...stellarisDef, id: 'stellaris', domain: 'Stellaris, a space gam
 const cachedGlossary = (source: string, target: string): Record<string, string> => ({
   [`${USER_DATA}/glossary/stellaris-${source}-${target}.json`]: JSON.stringify({
     builtFrom: GAME_PATH,
+    root: `${GAME_PATH}/game`,
     files: 1,
     exact: [['Colony Ship', 'Nau colonial']],
     terms: []
@@ -48,6 +49,74 @@ describe('createEngineForRun - the glossary follows the target language', () => 
     expect(fetch.calls).toHaveLength(0)
   })
 
+  it('keeps a single-target run exactly as before multi-language glossaries existed', async () => {
+    const fs = new MemoryFs(cachedGlossary('en', 'ru'))
+    const fetch = ollamaAnswering({ '0': 'never asked' })
+    const engine = await createEngineForRun(
+      { ...optionsFor(['ru']), memory: new TranslationMemory('mem', fs) },
+      fs,
+      fetch.fn
+    )
+
+    const { results, stats } = await engine.translate(['Colony Ship'], 'ru')
+    expect(results.get('Colony Ship')).toBe('Nau colonial')
+    expect(stats.cached).toBe(1)
+    expect(stats.translated).toBe(0)
+    expect(stats.failed).toBe(0)
+    expect(fetch.calls).toHaveLength(0)
+  })
+
+  it('builds a distinct glossary per recognized target language', async () => {
+    const fs = new MemoryFs({
+      ...cachedGlossary('en', 'ru'),
+      [`${USER_DATA}/glossary/stellaris-en-fr.json`]: JSON.stringify({
+        builtFrom: GAME_PATH,
+        root: `${GAME_PATH}/game`,
+        files: 1,
+        exact: [['Colony Ship', 'Vaisseau colonial']],
+        terms: []
+      })
+    })
+    const fetch = ollamaAnswering({})
+    const engine = await createEngineForRun(
+      { ...optionsFor(['ru', 'fr']), memory: new TranslationMemory('mem', fs) },
+      fs,
+      fetch.fn
+    )
+
+    const ru = await engine.translate(['Colony Ship'], 'ru')
+    expect(ru.results.get('Colony Ship')).toBe('Nau colonial')
+    const fr = await engine.translate(['Colony Ship'], 'fr')
+    expect(fr.results.get('Colony Ship')).toBe('Vaisseau colonial')
+    expect(fetch.calls).toHaveLength(0)
+  })
+
+  it('never reads the game install when every requested language is already cached', async () => {
+    const fs = new MemoryFs({
+      ...cachedGlossary('en', 'ru'),
+      [`${USER_DATA}/glossary/stellaris-en-fr.json`]: JSON.stringify({
+        builtFrom: GAME_PATH,
+        root: `${GAME_PATH}/game`,
+        files: 1,
+        exact: [['Colony Ship', 'Vaisseau colonial']],
+        terms: []
+      })
+    })
+    let installLookups = 0
+    const realReaddir = fs.readdir.bind(fs)
+    fs.readdir = async path => {
+      if (path === GAME_PATH || path === `${GAME_PATH}/game`) installLookups++
+      return realReaddir(path)
+    }
+    const fetch = ollamaAnswering({})
+    await createEngineForRun(
+      { ...optionsFor(['ru', 'fr']), memory: new TranslationMemory('mem', fs) },
+      fs,
+      fetch.fn
+    )
+    expect(installLookups).toBe(0)
+  })
+
   it('degrades to no glossary for a free-text label rather than throwing', async () => {
     const fs = new MemoryFs(cachedGlossary('en', 'ru'))
     const fetch = ollamaAnswering({ '0': 'Nau colonial' })
@@ -63,6 +132,18 @@ describe('createEngineForRun - the glossary follows the target language', () => 
     const body = JSON.stringify(fetch.calls[0]?.body)
     expect(body).toContain('from English to Catalan')
     expect(body).not.toContain('base game already')
+  })
+
+  it('builds a glossary for the recognized target and none for the free-text one, without failing', async () => {
+    const fs = new MemoryFs(cachedGlossary('en', 'ru'))
+    const fetch = ollamaAnswering({ '0': 'Nau colonial' })
+    await expect(
+      createEngineForRun(
+        { ...optionsFor(['ru', 'Catalan']), memory: new TranslationMemory('mem', fs) },
+        fs,
+        fetch.fn
+      )
+    ).resolves.toBeDefined()
   })
 })
 
@@ -134,5 +215,42 @@ describe('createEngineForRun - rapidapi', () => {
         fetch.fn
       )
     ).resolves.toBeDefined()
+  })
+})
+
+describe('createEngineForRun - when no glossary can be attempted', () => {
+  it('names the missing game path as the cause', async () => {
+    const fs = new MemoryFs()
+    const fetch = ollamaAnswering({})
+    const engine = await createEngineForRun(
+      { ...optionsFor(['ru'], { gamePath: '' }), memory: new TranslationMemory('mem', fs) },
+      fs,
+      fetch.fn
+    )
+    expect(engine.getGlossaryReport()).toEqual({ stats: [], skipReason: 'no-game-path' })
+  })
+
+  it('names the absence of a recognized target language as the cause', async () => {
+    const fs = new MemoryFs()
+    const fetch = ollamaAnswering({})
+    const engine = await createEngineForRun(
+      { ...optionsFor(['Catalan']), memory: new TranslationMemory('mem', fs) },
+      fs,
+      fetch.fn
+    )
+    expect(engine.getGlossaryReport()).toEqual({ stats: [], skipReason: 'no-glossary-target' })
+  })
+
+  it('carries no skip reason once a healthy glossary was actually built', async () => {
+    const fs = new MemoryFs(cachedGlossary('en', 'ru'))
+    const fetch = ollamaAnswering({})
+    const engine = await createEngineForRun(
+      { ...optionsFor(['ru']), memory: new TranslationMemory('mem', fs) },
+      fs,
+      fetch.fn
+    )
+    const report = engine.getGlossaryReport()
+    expect(report.skipReason).toBeUndefined()
+    expect(report.stats).toHaveLength(1)
   })
 })

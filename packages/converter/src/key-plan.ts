@@ -68,7 +68,17 @@ export async function planMod(
   options: KeyPlanOptions,
   fs: FsLike
 ): Promise<ModPlan> {
-  const { gameDef, sourceLanguage, targets, packed, coverage, generated, memory, detail } = options
+  const {
+    gameDef,
+    sourceLanguage,
+    targets,
+    packed,
+    coverage,
+    generated,
+    memory,
+    detail,
+    retranslateOwnKeys
+  } = options
   const targetContent = options.targetContent ?? 'missing-keys'
 
   const descriptor = await readDescriptor(mod.path, fs)
@@ -149,8 +159,7 @@ export async function planMod(
     const record = (
       entry: LocalisationEntry,
       state: KeyState,
-      provider?: string,
-      shadowedByUs?: boolean
+      extra?: { provider?: string; shadowed?: boolean; ownSource?: boolean }
     ): void => {
       if (!detail) return
       const report: KeyReport = {
@@ -163,8 +172,9 @@ export async function planMod(
         state,
         fileToken,
         markupOnly: !isTranslatable(entry.value),
-        ...(provider !== undefined && { provider }),
-        ...(shadowedByUs !== undefined && { shadowed: shadowedByUs })
+        ...(extra?.provider !== undefined && { provider: extra.provider }),
+        ...(extra?.shadowed !== undefined && { shadowed: extra.shadowed }),
+        ...(extra?.ownSource !== undefined && { ownSource: extra.ownSource })
       }
       plan.keyStates.push(report)
     }
@@ -173,16 +183,26 @@ export async function planMod(
       const ownEntry = own?.get(key)
       const isPatched = patched?.has(key) ?? false
       const isOwn = ownEntry !== undefined
-      if (isOwn || isPatched) {
+      const retranslateThisKey =
+        retranslateOwnKeys === true &&
+        ownEntry !== undefined &&
+        !isPatched &&
+        isUntranslated(ownEntry.value, entry.value) &&
+        isTranslatable(entry.value)
+      const recordKey = (
+        state: KeyState,
+        extra?: { provider?: string; shadowed?: boolean }
+      ): void => record(entry, state, { ...extra, ...(retranslateThisKey && { ownSource: true }) })
+
+      if ((isOwn || isPatched) && !retranslateThisKey) {
         covered++
         const hidden = ours?.has(key) ?? false
         if (hidden) shadowed++
-        record(
-          entry,
-          isOwn ? 'own' : 'patch',
-          isOwn ? plan.name : coverage?.sources.join(', '),
-          hidden
-        )
+        const provider = isOwn ? plan.name : coverage?.sources.join(', ')
+        recordKey(isOwn ? 'own' : 'patch', {
+          ...(provider !== undefined && { provider }),
+          shadowed: hidden
+        })
 
         if (isPatched) continue
         if (targetContent === 'missing-keys') continue
@@ -198,14 +218,14 @@ export async function planMod(
       group.keys.set(key, entry.value)
 
       if (!mine) {
-        record(entry, 'missing')
+        recordKey('missing')
         continue
       }
 
       const verbatim = isUntranslated(mine.value, entry.value) && isTranslatable(entry.value)
       if (verbatim && memory?.get(language, entry.value) !== entry.value) {
         english++
-        record(entry, 'english', mine.file)
+        recordKey('english', { provider: mine.file })
         continue
       }
 
@@ -213,9 +233,9 @@ export async function planMod(
       group.known.set(key, mine.value)
       if (verbatim) {
         kept++
-        record(entry, 'kept', mine.file)
+        recordKey('kept', { provider: mine.file })
       } else {
-        record(entry, 'generated', mine.file)
+        recordKey('generated', { provider: mine.file })
       }
     }
 

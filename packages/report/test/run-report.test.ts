@@ -173,6 +173,79 @@ describe('buildRunReport', () => {
     })
     expect('cancelled' in notCancelled).toBe(false)
   })
+
+  it('carries retranslateOwnKeys into the request only when set', () => {
+    const withFlag = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'complete-file',
+      sourceLanguage: 'en',
+      targets: [{ language: 'ru', fileToken: 'russian' }],
+      retranslateOwnKeys: true,
+      output: { totals, mods: [modResult()] },
+      untranslated: []
+    })
+    expect(withFlag.request.retranslateOwnKeys).toBe(true)
+
+    const withoutFlag = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'complete-file',
+      sourceLanguage: 'en',
+      targets: [{ language: 'ru', fileToken: 'russian' }],
+      output: { totals, mods: [modResult()] },
+      untranslated: []
+    })
+    expect('retranslateOwnKeys' in withoutFlag.request).toBe(false)
+  })
+
+  it('carries the glossary stats through only when provided', () => {
+    const glossaries = [
+      {
+        language: 'ru',
+        builtFrom: 'glossary.csv',
+        root: 'glossaries',
+        files: 1,
+        exact: 4,
+        terms: 10,
+        truncated: false
+      }
+    ]
+    const withGlossaries = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'complete-file',
+      sourceLanguage: 'en',
+      targets: [{ language: 'ru', fileToken: 'russian' }],
+      glossaries,
+      output: { totals, mods: [modResult()] },
+      untranslated: []
+    })
+    expect(withGlossaries.glossaries).toEqual(glossaries)
+
+    const withoutGlossaries = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'complete-file',
+      sourceLanguage: 'en',
+      targets: [{ language: 'ru', fileToken: 'russian' }],
+      output: { totals, mods: [modResult()] },
+      untranslated: []
+    })
+    expect('glossaries' in withoutGlossaries).toBe(false)
+  })
 })
 
 describe('toStored', () => {
@@ -241,6 +314,39 @@ describe('toStored', () => {
   it('carries the cancelled flag through, and omits it when unset', () => {
     expect(toStored(report({ cancelled: true })).cancelled).toBe(true)
     expect('cancelled' in toStored(report())).toBe(false)
+  })
+
+  it('tallies the keys identical to their source, including on an empty list', () => {
+    const identical: KeyReport = {
+      modId: 'mymod',
+      modName: 'My Mod',
+      language: 'ru',
+      key: 'K',
+      file: 'a_l_english.yml',
+      source: 'text',
+      state: 'missing',
+      identicalToSource: true
+    }
+    const kept: KeyReport = { ...identical, state: 'kept', identicalToSource: false }
+    expect(toStored(report({ untranslated: [identical, identical, kept] })).identicalCount).toBe(2)
+    expect(toStored(report({ untranslated: [kept] })).identicalCount).toBe(0)
+    expect(toStored(report()).identicalCount).toBe(0)
+  })
+
+  it('carries the glossary stats through only when the inputs provide them', () => {
+    const glossaries = [
+      {
+        language: 'ru',
+        builtFrom: 'glossary.csv',
+        root: 'glossaries',
+        files: 1,
+        exact: 4,
+        terms: 10,
+        truncated: false
+      }
+    ]
+    expect(toStored(report({ glossaries })).glossaries).toEqual(glossaries)
+    expect('glossaries' in toStored(report())).toBe(false)
   })
 
   it('tallies the refusals rather than listing them twice', () => {

@@ -9,7 +9,10 @@ export type {
   TranslationCounters,
   RefusalReason,
   Refusal,
-  Glossary
+  Glossary,
+  GlossaryStats,
+  GlossaryReport,
+  GlossarySkipReason
 } from './types.js'
 export { TRANSLATE_PROVIDERS } from './types.js'
 
@@ -32,8 +35,11 @@ export {
   describeFailure,
   checkBaseUrl,
   trimTrailingSlash,
+  HttpFailure,
+  httpFailure,
   type BaseUrlCheck
 } from './http.js'
+export { classifyRetry, backoffDelay, sleep, type RetryKind, type SleepLike } from './backoff.js'
 
 export { getProviderModels, readModelIds, type ModelListOptions } from './models.js'
 
@@ -57,17 +63,19 @@ export {
   describeTokenLoss,
   BACKEND_DOWN_AFTER,
   MAX_REMEMBERED_REFUSALS,
+  MAX_REASKS_PER_RUN,
   type EngineOptions,
   type TranslateResult
 } from './engine.js'
 export {
-  buildGlossary,
   collectHints,
   isUsableTerm,
   MAX_TERM_LENGTH,
   MAX_TERM_WORDS,
   MAX_HINTS_PER_BATCH,
   MIN_SINGLE_WORD,
-  STOP_WORDS
+  STOP_WORDS,
+  glossaryToStats,
+  describeGlossaryProblems
 } from './glossary.js'
-export { loadGlossary, glossaryCacheDir, glossaryCacheKey } from './glossary-cache.js'
+export { glossaryCacheDir } from './glossary-cache.js'

@@ -2,7 +2,7 @@ import { runConvert } from '@ptt/converter'
 import type { Cancellation, ConversionOutput, TranslationMod } from '@ptt/converter'
 import { nodeFetch, nodeFs } from '@ptt/fs-node'
 import { buildRunReport, writeRunReport } from '@ptt/report'
-import { createEngineForRun } from '@ptt/translate'
+import { createEngineForRun, describeGlossaryProblems } from '@ptt/translate'
 
 import { consolePort } from '../console-port.js'
 import type { CliOptions } from '../options.js'
@@ -53,6 +53,12 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       )
     : undefined
 
+  if (engine) {
+    for (const problem of describeGlossaryProblems(engine.getGlossaryReport())) {
+      port.emit({ type: 'log', jobId: 'cli', message: problem, severity: 'warning' })
+    }
+  }
+
   const translationMod: TranslationMod = {
     name: options.modName,
     folder: generated.folder,
@@ -69,6 +75,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       targets: options.targets,
       mode: options.mode,
       targetContent: options.targetContent,
+      retranslateOwnKeys: options.retranslateOwnKeys,
       cancellation,
       memory,
       ...(options.outputDir !== undefined && { outputDir: options.outputDir }),
@@ -101,9 +108,11 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       untranslated,
       ...(options.selectedMods !== undefined && { selectedMods: options.selectedMods }),
       ...(options.translate !== undefined && { translate: options.translate }),
+      ...(options.retranslateOwnKeys && { retranslateOwnKeys: options.retranslateOwnKeys }),
       ...(engine !== undefined && {
         counters: engine.getCounters(),
-        refusals: engine.getRefusals()
+        refusals: engine.getRefusals(),
+        glossaries: engine.getGlossaryStats()
       })
     }),
     nodeFs

@@ -13,11 +13,13 @@ import { mapWithConcurrency } from './concurrency.js'
 import { MOD_CONCURRENCY, MOD_CONCURRENCY_WITH_BACKEND } from './constants.js'
 import { buildCoverage } from './coverage.js'
 import { buildDescriptor, pickSupportedVersion } from './descriptor.js'
+import { reportModDiagnostics } from './diagnostics.js'
 import { discoverMods } from './discover-mods.js'
 import { dropOurOwnMod, readGeneratedMod } from './generated-mod.js'
 import { planMod } from './key-plan.js'
 import { posixJoin } from './path.js'
 import type { JobEvent, ProgressPort, TranslationProgress } from './progress.js'
+import { retranslateOwnKeysHasNoEffect } from './retranslate.js'
 import { describeInPlaceShadowing, resolveTargets } from './target.js'
 import type { ResolvedTarget } from './target.js'
 import type {
@@ -40,6 +42,7 @@ export interface TranslationEnginePort {
   ): Promise<{ results: Map<string, string>; stats: TranslationProgress }>
   refusalFor(language: string, value: string): { reason: string; detail?: string } | undefined
   getCounters(): TranslationProgress
+  isBackendDown(): boolean
 }
 
 export interface Cancellation {
@@ -60,6 +63,7 @@ export interface ConvertRunOptions {
   targetContent?: TargetContent
   engine?: TranslationEnginePort
   memory?: TranslationMemoryPort
+  retranslateOwnKeys?: boolean
   cancellation: Cancellation
 }
 
@@ -101,12 +105,29 @@ export async function runConvert(
   const emit = (event: JobEvent): void => port.emit(event)
   const isCancelled = (): boolean => cancellation.requested
   const untranslated: KeyReport[] = []
+  let backendDown = false
+  const isAbandoned = (): boolean => isCancelled() || backendDown
 
   const requestedTargets = normalizeTargets(options.targets)
 
   const destination = resolveDestination(mode, options)
   const targetContent = resolveTargetContent(mode, options)
   const resolved = resolveTargets(game, sourceLanguage, requestedTargets)
+
+  const requestedRetranslateOwnKeys = options.retranslateOwnKeys ?? false
+  const hasNoEffect = requestedRetranslateOwnKeys && retranslateOwnKeysHasNoEffect(mode)
+  const retranslateOwnKeys = requestedRetranslateOwnKeys && !hasNoEffect
+  if (hasNoEffect) {
+    emit({
+      type: 'log',
+      jobId,
+      severity: 'warning',
+      message:
+        'Retranslating own untranslated keys has no effect when adding to the current mod, ' +
+        'since the retranslated key would end up defined twice, once in the original file and ' +
+        'once in a new one next to it; skipped'
+    })
+  }
 
   const targets: ResolvedTarget[] = []
   for (const target of resolved.targets) {
@@ -156,7 +177,7 @@ export async function runConvert(
 
   let done = 0
   const results = await mapWithConcurrency(mods, concurrency, async mod => {
-    if (isCancelled()) return undefined
+    if (isAbandoned()) return undefined
     const coverageForMod = coverage.get(mod.id)
     const plan = await planMod(
       mod,
@@ -169,7 +190,8 @@ export async function runConvert(
         targetContent,
         ...(coverageForMod !== undefined && { coverage: coverageForMod }),
         ...(generated !== undefined && { generated }),
-        ...(memory !== undefined && { memory })
+        ...(memory !== undefined && { memory }),
+        ...(retranslateOwnKeys && { retranslateOwnKeys })
       },
       fs
     )
@@ -188,6 +210,18 @@ export async function runConvert(
         )
       : undefined
     if (isCancelled()) return undefined
+
+    if (engine !== undefined && engine.isBackendDown() && !backendDown) {
+      backendDown = true
+      emit({
+        type: 'log',
+        jobId,
+        severity: 'warning',
+        message: 'Translation backend reported unavailable; the rest of this run has been abandoned'
+      })
+    }
+
+    emitPlanErrors(emit, jobId, plan)
 
     const result = await applyModJobs(
       {
@@ -244,6 +278,14 @@ export async function runConvert(
   }
 }
 
+function emitPlanErrors(emit: (event: JobEvent) => void, jobId: string, plan: ModPlan): void {
+  reportModDiagnostics(
+    plan.name,
+    plan.errors.map(message => ({ severity: 'error' as const, message })),
+    (message, severity) => emit({ type: 'log', jobId, severity, message })
+  )
+}
+
 export function collectUntranslated(
   plan: ModPlan,
   mod: ModFolder,
@@ -255,18 +297,25 @@ export function collectUntranslated(
   const out: KeyReport[] = []
   for (const job of plan.jobs[language] ?? []) {
     for (const [key, value] of job.keys) {
-      if (job.known.has(key) || !isTranslatable(value) || translated.has(value)) continue
-      out.push({
+      if (job.known.has(key) || !isTranslatable(value)) continue
+      const base = {
         modId: mod.id,
         modName: plan.name,
         language,
         key,
         file: job.source,
         source: value,
-        state: 'english',
-        reason: describeRefusal(value),
+        state: 'english' as const,
         ...(fileToken !== undefined && { fileToken })
-      })
+      }
+      const response = translated.get(value)
+      if (response === undefined) {
+        out.push({ ...base, reason: describeRefusal(value) })
+        continue
+      }
+      if (response.trim() === value.trim()) {
+        out.push({ ...base, reason: 'identical', identicalToSource: true })
+      }
     }
   }
   return out

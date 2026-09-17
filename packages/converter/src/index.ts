@@ -113,4 +113,5 @@ export {
   type ConvertRunResult,
   type TranslationEnginePort
 } from './run.js'
+export { retranslateOwnKeysHasNoEffect } from './retranslate.js'
 export { pruneNamespace, canPrune, type PruneOptions, type PruneReport } from './prune.js'

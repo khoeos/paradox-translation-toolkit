@@ -25,6 +25,7 @@ interface ConverterFormState {
   targets: TranslationTarget[]
   mode: ConvertMode
   targetContent: TargetContent
+  retranslateOwnKeys: boolean
   modName: string
 
   scannedMods: ScannedMod[]
@@ -40,6 +41,7 @@ interface ConverterFormState {
   setMode: (mode: ConvertMode) => void
   setSourceLanguage: (lang: LanguageCode) => void
   setTargetContent: (targetContent: TargetContent) => void
+  setRetranslateOwnKeys: (retranslateOwnKeys: boolean) => void
   toggleTargetLanguage: (language: LanguageCode, fileToken: string) => void
   addCustomTarget: (target: TranslationTarget) => void
   removeTarget: (language: string) => void
@@ -73,6 +75,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   targets: [],
   mode: 'add-to-current',
   targetContent: 'missing-keys',
+  retranslateOwnKeys: false,
   modName: '',
   scannedMods: [],
   selectedMods: new Set<string>(),
@@ -100,6 +103,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       ...invalidateScan()
     })),
   setTargetContent: targetContent => set({ targetContent }),
+  setRetranslateOwnKeys: retranslateOwnKeys => set({ retranslateOwnKeys, ...invalidateScan() }),
   toggleTargetLanguage: (language, fileToken) =>
     set(state => {
       const withoutIt = withoutLanguage(state.targets, language)
@@ -155,6 +159,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       targets: [],
       mode: 'add-to-current',
       targetContent: 'missing-keys',
+      retranslateOwnKeys: false,
       modName: '',
       translate: { ...TRANSLATE_DEFAULTS },
       apiKey: '',

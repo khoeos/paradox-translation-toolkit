@@ -2,9 +2,9 @@ import type { LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared
 import { normalizeTargets } from '@ptt/shared/languages'
 
 import { mapWithConcurrency } from './concurrency.js'
-import { MOD_CONCURRENCY, SCAN_DIAGNOSTICS_PER_MOD } from './constants.js'
+import { MOD_CONCURRENCY } from './constants.js'
 import { buildCoverage } from './coverage.js'
-import type { DiagnosticSeverity, ModDiagnostic } from './diagnostics.js'
+import { reportModDiagnostics, type DiagnosticSeverity, type ModDiagnostic } from './diagnostics.js'
 import { discoverMods } from './discover-mods.js'
 import { dropOurOwnMod, readGeneratedMod, summariseGeneratedMod } from './generated-mod.js'
 import type { ScanPhase, ScanRunningTotals } from './progress.js'
@@ -30,6 +30,7 @@ export interface ScanModsOptions {
   generatedModFolder?: string
   memory?: TranslationMemoryPort
   targetContent?: TargetContent
+  retranslateOwnKeys?: boolean
   countLines?: boolean
   detail?: boolean
   onProgress?: (done: number, total: number, modName: string, totals: ScanRunningTotals) => void
@@ -78,11 +79,7 @@ const reportMod = (
     ...mod.errors.map(message => ({ severity: 'error' as const, message })),
     ...(mod.warnings ?? []).map(message => ({ severity: 'warning' as const, message }))
   ]
-  for (const problem of problems.slice(0, SCAN_DIAGNOSTICS_PER_MOD)) {
-    onDiagnostic(`${mod.name} : ${problem.message}`, problem.severity)
-  }
-  const hidden = problems.length - SCAN_DIAGNOSTICS_PER_MOD
-  if (hidden > 0) onDiagnostic(`${mod.name} : and ${hidden} more problem(s) not shown`, 'warning')
+  reportModDiagnostics(mod.name, problems, onDiagnostic)
 }
 
 export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<ScanOutput> {
@@ -95,6 +92,7 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
     generatedModFolder,
     memory,
     targetContent,
+    retranslateOwnKeys,
     countLines = false,
     detail = false,
     onProgress,
@@ -150,7 +148,8 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
         ...(targetContent !== undefined && { targetContent }),
         ...(coverageForMod !== undefined && { coverage: coverageForMod }),
         ...(generated !== undefined && { generated }),
-        ...(memory !== undefined && { memory })
+        ...(memory !== undefined && { memory }),
+        ...(retranslateOwnKeys !== undefined && { retranslateOwnKeys })
       },
       fs,
       countLines

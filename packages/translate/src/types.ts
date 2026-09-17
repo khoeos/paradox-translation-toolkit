@@ -54,6 +54,25 @@ export interface Glossary {
   exact: Map<string, string>
   terms: Map<string, Hint>
   builtFrom: string
+  root: string
   files: number
+  truncated: boolean
   forLanguage: LanguageCode
+}
+
+export interface GlossaryStats {
+  language: string
+  builtFrom: string
+  root: string
+  files: number
+  exact: number
+  terms: number
+  truncated: boolean
+}
+
+export type GlossarySkipReason = 'no-game-path' | 'no-glossary-target' | 'no-user-data-path'
+
+export interface GlossaryReport {
+  stats: readonly GlossaryStats[]
+  skipReason?: GlossarySkipReason
 }

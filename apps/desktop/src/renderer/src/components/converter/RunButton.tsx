@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import type { LanguageCode } from '@ptt/shared'
+import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
 import type { TranslationTarget } from '@ptt/shared/languages'
 import {
   AlertDialog,
@@ -27,8 +27,11 @@ function commonInput(): {
   rootDir: string
   sourceLanguage: LanguageCode
   targets: TranslationTarget[]
+  mode: ConvertMode
+  targetContent?: TargetContent
   modName?: string
   translate?: NonNullable<ReturnType<typeof runTranslateConfig>>
+  retranslateOwnKeys?: boolean
 } | null {
   const form = useConverterFormStore.getState()
   if (!canRun(form) || !form.selectedGameId) return null
@@ -38,8 +41,11 @@ function commonInput(): {
     rootDir: form.modFolder,
     sourceLanguage: form.sourceLanguage,
     targets: form.targets,
+    mode: form.mode,
+    ...(form.mode === 'add-to-current' && { targetContent: form.targetContent }),
     ...(form.modName.length > 0 && { modName: form.modName }),
-    ...(translate !== undefined && { translate })
+    ...(translate !== undefined && { translate }),
+    ...(form.retranslateOwnKeys && { retranslateOwnKeys: form.retranslateOwnKeys })
   }
 }
 
@@ -78,7 +84,8 @@ export function RunButton() {
 
   const handleScan = (): void => {
     const input = commonInput()
-    if (input) scanModsMutation.mutate(input)
+    if (!input) return
+    scanModsMutation.mutate(input)
   }
 
   const startConvert = (): void => {
@@ -87,8 +94,6 @@ export function RunButton() {
     const form = useConverterFormStore.getState()
     convertMutation.mutate({
       ...input,
-      mode: form.mode,
-      ...(form.mode === 'add-to-current' && { targetContent: form.targetContent }),
       ...(hasScan && { selectedMods: [...form.selectedMods] }),
       ...(form.mode === 'extract-to-folder' && { outputDir: form.outputFolder })
     })

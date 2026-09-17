@@ -50,6 +50,7 @@ export interface CliOptions {
   targets: TranslationTarget[]
   mode: ConvertMode
   targetContent: TargetContent
+  retranslateOwnKeys: boolean
   outputDir?: string
   modName: string
   selectedMods?: string[]
@@ -143,6 +144,7 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
     targets,
     mode,
     targetContent,
+    retranslateOwnKeys: asBool(flags['retranslate-own-keys']),
     modName: asString(flags['mod-name']) ?? DEFAULT_MOD_NAME,
     documentsPath,
     userDataPath,

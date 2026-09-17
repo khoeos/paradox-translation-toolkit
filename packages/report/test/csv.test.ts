@@ -111,9 +111,18 @@ describe('keyRow', () => {
     expect(withoutToken[KEY_COLUMNS.indexOf('fileToken')]).toBeUndefined()
   })
 
-  it('appends the new column, so every 3.0.0 column keeps its position', () => {
-    expect(KEY_COLUMNS.indexOf('fileToken')).toBe(KEY_COLUMNS.length - 1)
-    expect([...KEY_COLUMNS].slice(0, -1)).toEqual([
+  it('renders ownSource and identicalToSource as yes or empty, same convention as shadowed', () => {
+    const set = keyRow(key({ ownSource: true, identicalToSource: true }))
+    expect(set[KEY_COLUMNS.indexOf('ownSource')]).toBe('yes')
+    expect(set[KEY_COLUMNS.indexOf('identicalToSource')]).toBe('yes')
+    const unset = keyRow(key())
+    expect(unset[KEY_COLUMNS.indexOf('ownSource')]).toBe('')
+    expect(unset[KEY_COLUMNS.indexOf('identicalToSource')]).toBe('')
+  })
+
+  it('appends the new columns, so every 3.0.0 column keeps its position', () => {
+    expect(KEY_COLUMNS.indexOf('fileToken')).toBe(KEY_COLUMNS.length - 3)
+    expect([...KEY_COLUMNS].slice(0, -3)).toEqual([
       'mod',
       'modId',
       'language',

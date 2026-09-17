@@ -11,7 +11,7 @@ import type {
   TranslationTarget
 } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
-import { createEngineForRun, openTranslationMemory } from '@ptt/translate'
+import { createEngineForRun, describeGlossaryProblems, openTranslationMemory } from '@ptt/translate'
 
 interface ScanModsCommand {
   type: 'scan-mods'
@@ -24,6 +24,7 @@ interface ScanModsCommand {
   userDataPath?: string
   translate?: TranslateConfig
   detail?: boolean
+  retranslateOwnKeys?: boolean
 }
 
 interface ConvertCommand {
@@ -41,6 +42,7 @@ interface ConvertCommand {
   generatedModsDir?: string
   userDataPath?: string
   translate?: TranslateConfig
+  retranslateOwnKeys?: boolean
 }
 
 interface CancelCommand {
@@ -140,7 +142,8 @@ async function handleScanMods(cmd: ScanModsCommand): Promise<void> {
         generatedModPath: cmd.generatedMod.path,
         generatedModFolder: cmd.generatedMod.folder
       }),
-      ...(memory !== undefined && { memory })
+      ...(memory !== undefined && { memory }),
+      ...(cmd.retranslateOwnKeys !== undefined && { retranslateOwnKeys: cmd.retranslateOwnKeys })
     },
     nodeFs
   )
@@ -187,6 +190,12 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
         )
       : undefined
 
+  if (engine !== undefined) {
+    for (const message of describeGlossaryProblems(engine.getGlossaryReport())) {
+      emit({ type: 'log', jobId: cmd.jobId, severity: 'warning', message })
+    }
+  }
+
   const { output, untranslated } = await runConvert(
     {
       jobId: cmd.jobId,
@@ -202,7 +211,8 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
       ...(cmd.generatedMod !== undefined && { generatedMod: cmd.generatedMod }),
       ...(cmd.generatedModsDir !== undefined && { generatedModsDir: cmd.generatedModsDir }),
       ...(engine !== undefined && { engine }),
-      ...(memory !== undefined && { memory })
+      ...(memory !== undefined && { memory }),
+      ...(cmd.retranslateOwnKeys !== undefined && { retranslateOwnKeys: cmd.retranslateOwnKeys })
     },
     nodeFs,
     progress
@@ -228,8 +238,10 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
         ...(translate !== undefined && { translate }),
         ...(engine !== undefined && {
           counters: engine.getCounters(),
-          refusals: engine.getRefusals()
-        })
+          refusals: engine.getRefusals(),
+          glossaries: engine.getGlossaryStats()
+        }),
+        ...(cmd.retranslateOwnKeys !== undefined && { retranslateOwnKeys: cmd.retranslateOwnKeys })
       }),
       nodeFs
     )

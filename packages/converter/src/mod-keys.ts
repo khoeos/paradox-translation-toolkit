@@ -21,6 +21,7 @@ export async function readLocalisationEntries(
   }
 
   let budget = MAX_MOD_LOCALISATION_BYTES
+  let truncated = false
 
   for (const [index, described] of files.entries()) {
     let size: number
@@ -40,6 +41,7 @@ export async function readLocalisationEntries(
     }
 
     if (size > budget) {
+      truncated = true
       diagnostics.push({
         severity: 'error',
         message: `${modPath} declares more than ${MAX_MOD_LOCALISATION_BYTES} bytes of localisation : stopped at ${described.path}, ${files.length - index} file(s) left unread`
@@ -87,7 +89,7 @@ export async function readLocalisationEntries(
     }
   }
 
-  return { files: files.length, entries, otherSpelling, diagnostics }
+  return { files: files.length, entries, otherSpelling, diagnostics, truncated }
 }
 
 export async function readModKeys(
@@ -95,7 +97,7 @@ export async function readModKeys(
   gameDef: GameContextRef,
   fs: FsLike
 ): Promise<ModKeys> {
-  const { files, entries, otherSpelling, diagnostics } = await readLocalisationEntries(
+  const { files, entries, otherSpelling, diagnostics, truncated } = await readLocalisationEntries(
     modPath,
     gameDef,
     fs
@@ -114,5 +116,5 @@ export async function readModKeys(
     keys.set(entry.key, entry)
   }
 
-  return { files, byLanguage, otherSpelling, diagnostics }
+  return { files, byLanguage, otherSpelling, diagnostics, truncated }
 }

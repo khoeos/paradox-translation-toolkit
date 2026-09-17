@@ -96,6 +96,12 @@ describe('scan invalidation', () => {
     state().setModName('My Pack')
     expect(state().scannedMods).toHaveLength(1)
   })
+
+  it('drops the scan when retranslateOwnKeys is toggled', () => {
+    seed()
+    state().setRetranslateOwnKeys(true)
+    expect(state().scannedMods).toEqual([])
+  })
 })
 
 describe('the game installation folder', () => {
@@ -324,5 +330,29 @@ describe('canRun', () => {
     expect(canRun(state())).toBe(false)
     state().setOutputFolder('out')
     expect(canRun(state())).toBe(true)
+  })
+
+  it('never depends on retranslateOwnKeys, a per-run option with no bearing on readiness', () => {
+    state().setModFolder('workshop')
+    state().toggleTargetLanguage('ru', 'russian')
+    state().setRetranslateOwnKeys(true)
+    expect(canRun(state())).toBe(true)
+  })
+})
+
+describe('retranslateOwnKeys', () => {
+  it('defaults to false', () => {
+    expect(state().retranslateOwnKeys).toBe(false)
+  })
+
+  it('is set by its setter', () => {
+    state().setRetranslateOwnKeys(true)
+    expect(state().retranslateOwnKeys).toBe(true)
+  })
+
+  it('is put back to false by reset()', () => {
+    state().setRetranslateOwnKeys(true)
+    state().reset()
+    expect(state().retranslateOwnKeys).toBe(false)
   })
 })

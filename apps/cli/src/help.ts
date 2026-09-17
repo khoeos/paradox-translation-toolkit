@@ -68,6 +68,10 @@ ${bold('convert flags')}
   --retries <n>         Attempts before a batch is split, default ${TRANSLATE_DEFAULTS.retries}
   --timeout <ms>        Per request timeout, default ${TRANSLATE_DEFAULTS.timeout}
   --game-path <dir>     Game installation, its own localisation becomes the glossary
+  --retranslate-own-keys
+                        Send the mod's own keys back to the model even when they already
+                        match the source English text, instead of leaving them as is.
+                        Off by default
 
 ${bold('memory flags')}
   --clear               Forget every translation learnt so far

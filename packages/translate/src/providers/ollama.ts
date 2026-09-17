@@ -1,5 +1,5 @@
 import { parseAnswer } from '../answer.js'
-import { checkBaseUrl, describeFailure, trimTrailingSlash, withCancel } from '../http.js'
+import { checkBaseUrl, httpFailure, trimTrailingSlash, withCancel } from '../http.js'
 import { buildPrompt } from '../prompt.js'
 import type { FetchLike, Hint, Provider } from '../types.js'
 
@@ -41,7 +41,7 @@ export class OllamaProvider implements Provider {
       })
     })
 
-    if (!response.ok) throw new Error(await describeFailure(response))
+    if (!response.ok) throw await httpFailure(response)
 
     const data = await response.json()
     return parseAnswer(readContent(data), texts.length).slots

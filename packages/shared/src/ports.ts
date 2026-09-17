@@ -38,6 +38,7 @@ export interface FetchResponse {
   statusText: string
   text(): Promise<string>
   json(): Promise<unknown>
+  headers?: { get(name: string): string | null }
 }
 
 export type RegistryHive = 'HKLM' | 'HKCU'

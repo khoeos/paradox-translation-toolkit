@@ -201,6 +201,15 @@ describe('readModKeys', () => {
       severity: 'error',
       message: expect.stringContaining('1 file(s) left unread')
     })
+    expect(keys.truncated).toBe(true)
+  })
+
+  it('is not truncated when the localisation fits the memory budget', async () => {
+    const fs = new MemoryFs({
+      'mod/localisation/a_l_english.yml': localeFile('english', [['K', 'A']])
+    })
+    const keys = await readModKeys('mod', stellarisDef, fs)
+    expect(keys.truncated).toBe(false)
   })
 
   it('carries the other-spelling flag through', async () => {

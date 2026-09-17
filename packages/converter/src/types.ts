@@ -52,6 +52,7 @@ export interface ModEntries {
   entries: LocalisationEntry[]
   otherSpelling: boolean
   diagnostics: ModDiagnostic[]
+  truncated: boolean
 }
 
 export interface ModKeys {
@@ -59,6 +60,7 @@ export interface ModKeys {
   byLanguage: Map<LanguageCode, Map<string, LocalisationEntry>>
   otherSpelling: boolean
   diagnostics: ModDiagnostic[]
+  truncated: boolean
 }
 
 export interface Coverage {
@@ -100,6 +102,8 @@ export interface KeyReport {
   reason?: string
   markupOnly?: boolean
   shadowed?: boolean
+  identicalToSource?: boolean
+  ownSource?: boolean
 }
 
 export interface CreationJob {
@@ -144,6 +148,7 @@ export interface KeyPlanOptions {
   memory?: TranslationMemoryPort
   detail?: boolean
   targetContent?: TargetContent
+  retranslateOwnKeys?: boolean
 }
 
 export interface ScannedMod {

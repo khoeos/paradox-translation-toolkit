@@ -4,11 +4,20 @@ import { MemoryFs } from '@ptt/converter/test/memory-fs'
 
 import {
   BACKEND_DOWN_AFTER,
+  HttpFailure,
+  MAX_REASKS_PER_RUN,
   TranslationEngine,
   TranslationMemory,
   describeTokenLoss
 } from '../src/index.js'
-import type { EngineOptions, Glossary, Hint, Provider, TranslationCounters } from '../src/index.js'
+import type {
+  EngineOptions,
+  Glossary,
+  Hint,
+  Provider,
+  SleepLike,
+  TranslationCounters
+} from '../src/index.js'
 
 function tableProvider(
   table: Record<string, string | undefined>,
@@ -50,6 +59,44 @@ function flakyProvider(failures: number, table: Record<string, string>): Provide
     }
   }
 }
+
+function rateLimitedProvider(
+  failures: number,
+  table: Record<string, string>,
+  retryAfterMs?: number
+): Provider {
+  let seen = 0
+  return {
+    translate: async texts => {
+      if (seen++ < failures) throw new HttpFailure('too many requests', 429, retryAfterMs)
+      return texts.map(text => table[text])
+    }
+  }
+}
+
+function recordingSleep(): { sleep: SleepLike; waits: number[] } {
+  const waits: number[] = []
+  const sleep: SleepLike = async ms => {
+    waits.push(ms)
+  }
+  return { sleep, waits }
+}
+
+const deferredSleep = (): { sleep: SleepLike; waits: number[]; release: () => void } => {
+  const waits: number[] = []
+  const pending: Array<() => void> = []
+  const sleep: SleepLike = ms =>
+    new Promise<void>(resolve => {
+      waits.push(ms)
+      pending.push(resolve)
+    })
+  const release = (): void => {
+    while (pending.length > 0) pending.shift()?.()
+  }
+  return { sleep, waits, release }
+}
+
+const settleMacrotask = (): Promise<void> => new Promise<void>(resolve => setTimeout(resolve, 0))
 
 async function engineWith(over: Partial<EngineOptions> = {}): Promise<TranslationEngine> {
   const memory = over.memory ?? new TranslationMemory('mem', new MemoryFs())
@@ -134,14 +181,17 @@ describe('TranslationEngine - the glossary bypasses the backend', () => {
     exact: new Map([['Men-at-Arms', 'Профессионалы']]),
     terms: new Map([['men-at-arms', { source: 'men-at-arms', target: 'Профессионалы' }]]),
     builtFrom: '/game',
+    root: '/game/game',
     files: 1,
+    truncated: false,
     forLanguage: 'ru'
   }
+  const glossaries = new Map([['ru', glossary]])
 
   it('uses an official whole-string translation without asking a model', async () => {
     let called = false
     const engine = await engineWith({
-      glossary,
+      glossaries,
       provider: tableProvider({}, () => {
         called = true
       })
@@ -155,7 +205,7 @@ describe('TranslationEngine - the glossary bypasses the backend', () => {
   it('hands the model only the terms the batch actually uses', async () => {
     let hints: readonly Hint[] | undefined
     const engine = await engineWith({
-      glossary,
+      glossaries,
       provider: tableProvider({ 'Recruit men-at-arms now': 'x' }, (_texts, h) => {
         hints = h
       })
@@ -168,7 +218,7 @@ describe('TranslationEngine - the glossary bypasses the backend', () => {
     let asked: readonly string[] | undefined
     let hints: readonly Hint[] | undefined
     const engine = await engineWith({
-      glossary,
+      glossaries,
       provider: tableProvider({ 'Men-at-Arms': 'Homes d’armes' }, (texts, h) => {
         asked = texts
         hints = h
@@ -184,7 +234,7 @@ describe('TranslationEngine - the glossary bypasses the backend', () => {
   it('still serves its own language when it is spelled as a label', async () => {
     let called = false
     const engine = await engineWith({
-      glossary,
+      glossaries,
       provider: tableProvider({}, () => {
         called = true
       })
@@ -256,7 +306,7 @@ describe('TranslationEngine - refusals', () => {
   it('clears a refusal once the string finally lands', async () => {
     let attempt = 0
     const provider: Provider = {
-      translate: async texts => texts.map(() => (attempt++ === 0 ? 'Gagne' : 'Gagne $AMOUNT$'))
+      translate: async texts => texts.map(() => (attempt++ < 2 ? 'Gagne' : 'Gagne $AMOUNT$'))
     }
     const engine = await engineWith({ provider })
     await engine.translate(['Gain $AMOUNT$'], 'fr')
@@ -446,6 +496,27 @@ describe('TranslationEngine - concurrent mods', () => {
     expect(engine.getCounters().translated).toBe(2)
   })
 
+  it('frees the strings it claimed when a progress callback throws', async () => {
+    const memory = new TranslationMemory('mem', new MemoryFs())
+    await memory.load('fr')
+    await memory.set('fr', 'known', 'connu')
+    let reports = 0
+    const engine = await engineWith({
+      memory,
+      batchSize: 1,
+      provider: tableProvider({ fresh: 'frais' }),
+      onProgress: () => {
+        reports++
+        if (reports === 1) throw new Error('renderer blew up')
+      }
+    })
+
+    await expect(engine.translate(['known', 'fresh'], 'fr')).rejects.toThrow('renderer blew up')
+
+    const { results } = await engine.translate(['fresh'], 'fr')
+    expect(results.get('fresh')).toBe('frais')
+  })
+
   it('honours the concurrency limit', async () => {
     let running = 0
     let peak = 0
@@ -553,5 +624,340 @@ describe('describeTokenLoss', () => {
 
   it('falls back to the counts when the same token was duplicated', () => {
     expect(describeTokenLoss('a $X$', 'a $X$ $X$')).toBe('token count 1 became 2')
+  })
+})
+
+describe('TranslationEngine - backoff', () => {
+  it('waits before retrying a rate-limited call, then lands the translation', async () => {
+    const { sleep, waits } = recordingSleep()
+    const engine = await engineWith({
+      retries: 3,
+      sleep,
+      provider: rateLimitedProvider(1, { one: 'un' })
+    })
+    const { results } = await engine.translate(['one'], 'fr')
+    expect(results.get('one')).toBe('un')
+    expect(waits).toHaveLength(1)
+    expect(waits[0]!).toBeGreaterThan(0)
+  })
+
+  it('never waits on an ordinary connection error', async () => {
+    const { sleep, waits } = recordingSleep()
+    const engine = await engineWith({
+      retries: 3,
+      sleep,
+      provider: flakyProvider(2, { one: 'un' })
+    })
+    const { results } = await engine.translate(['one'], 'fr')
+    expect(results.get('one')).toBe('un')
+    expect(waits).toEqual([])
+  })
+
+  it('honours Retry-After over its own curve', async () => {
+    const { sleep, waits } = recordingSleep()
+    const engine = await engineWith({
+      retries: 3,
+      sleep,
+      provider: rateLimitedProvider(1, { one: 'un' }, 1234)
+    })
+    await engine.translate(['one'], 'fr')
+    expect(waits).toEqual([1234])
+  })
+
+  it('holds a second batch until the wait a rate-limited batch started has resolved', async () => {
+    const { sleep, waits, release } = deferredSleep()
+    let released = false
+    const calls: Array<{ text: string; released: boolean }> = []
+    const provider: Provider = {
+      translate: async texts => {
+        const text = texts[0] ?? ''
+        calls.push({ text, released })
+        if (text === 'a') throw new HttpFailure('too many requests', 429)
+        if (calls.filter(call => call.text === text).length === 1) {
+          throw new Error('connection refused')
+        }
+        return texts.map(() => 'B')
+      }
+    }
+    const engine = await engineWith({ batchSize: 1, concurrency: 2, retries: 2, sleep, provider })
+    const run = engine.translate(['a', 'b'], 'fr')
+
+    await settleMacrotask()
+    expect(waits).toHaveLength(1)
+    expect(calls).toEqual([
+      { text: 'a', released: false },
+      { text: 'b', released: false }
+    ])
+
+    released = true
+    release()
+    const { results } = await run
+
+    expect(results.get('b')).toBe('B')
+    expect(calls.filter(call => call.text === 'b')).toEqual([
+      { text: 'b', released: false },
+      { text: 'b', released: true }
+    ])
+  })
+
+  it('does not count a rate limit as evidence that the backend is down', async () => {
+    const { sleep } = recordingSleep()
+    let calls = 0
+    const provider: Provider = {
+      translate: async () => {
+        calls++
+        throw new HttpFailure('too many requests', 429)
+      }
+    }
+    const engine = await engineWith({ batchSize: 1, concurrency: 1, retries: 1, sleep, provider })
+    const values = Array.from({ length: BACKEND_DOWN_AFTER + 2 }, (_, index) => `s${index}`)
+    await expect(engine.translate(values, 'fr')).rejects.toThrow()
+
+    expect(engine.isBackendDown()).toBe(false)
+    expect(calls).toBe(values.length)
+    expect(engine.refusalFor('fr', 's0')?.detail).not.toContain('already declared down')
+
+    await expect(engine.translate(['later'], 'fr')).rejects.toThrow()
+    expect(calls).toBe(values.length + 1)
+  })
+
+  it('keeps a burst of rate-limited batches near the base delay instead of the cap', async () => {
+    const { sleep, waits } = recordingSleep()
+    const provider: Provider = {
+      translate: async () => {
+        throw new HttpFailure('too many requests', 429)
+      }
+    }
+    const engine = await engineWith({ batchSize: 1, concurrency: 8, retries: 2, sleep, provider })
+    const values = Array.from({ length: 8 }, (_, index) => `s${index}`)
+    await expect(engine.translate(values, 'fr')).rejects.toThrow()
+
+    expect(waits).toHaveLength(16)
+    expect(Math.min(...waits)).toBeLessThanOrEqual(2_500)
+    expect(Math.max(...waits)).toBeLessThanOrEqual(5_000)
+  })
+
+  it('grows the wait of a rate-limited sequence even when a sibling batch succeeds', async () => {
+    const { sleep, waits } = recordingSleep()
+    const provider: Provider = {
+      translate: async texts => {
+        if (texts[0] === 'ok') return texts.map(() => 'bien')
+        throw new HttpFailure('too many requests', 429)
+      }
+    }
+    const engine = await engineWith({ batchSize: 1, concurrency: 2, retries: 3, sleep, provider })
+    await engine.translate(['bad', 'ok'], 'fr')
+
+    expect(waits).toHaveLength(3)
+    expect(waits[1]!).toBeGreaterThan(waits[0]!)
+    expect(waits[2]!).toBeGreaterThan(waits[1]!)
+  })
+
+  it('still posts the shared cooldown when it is allowed a single attempt', async () => {
+    const { sleep, waits, release } = deferredSleep()
+    let calls = 0
+    const provider: Provider = {
+      translate: async () => {
+        calls++
+        throw new HttpFailure('too many requests', 429)
+      }
+    }
+    const engine = await engineWith({ batchSize: 1, concurrency: 1, retries: 1, sleep, provider })
+    await expect(engine.translate(['one'], 'fr')).rejects.toThrow()
+    expect(waits).toHaveLength(1)
+    expect(waits[0]!).toBeGreaterThan(0)
+    expect(calls).toBe(1)
+
+    const later = engine.translate(['two'], 'fr')
+    await settleMacrotask()
+    expect(calls).toBe(1)
+
+    release()
+    await expect(later).rejects.toThrow()
+    expect(calls).toBe(2)
+  })
+
+  it('waits on its own curve when the server sent an immediate Retry-After', async () => {
+    const { sleep, waits } = recordingSleep()
+    const engine = await engineWith({
+      retries: 3,
+      sleep,
+      provider: rateLimitedProvider(1, { one: 'un' }, 0)
+    })
+    await engine.translate(['one'], 'fr')
+    expect(waits).toHaveLength(1)
+    expect(waits[0]!).toBeGreaterThan(0)
+  })
+
+  it('does not split a rate-limited batch in half', async () => {
+    const { sleep } = recordingSleep()
+    let calls = 0
+    const provider: Provider = {
+      translate: async () => {
+        calls++
+        throw new HttpFailure('too many requests', 429)
+      }
+    }
+    const engine = await engineWith({ batchSize: 4, retries: 1, sleep, provider })
+    await expect(engine.translate(['a', 'b', 'c', 'd'], 'fr')).rejects.toThrow()
+    expect(calls).toBe(1)
+    expect(engine.refusalFor('fr', 'd')?.reason).toBe('backend')
+  })
+
+  it('calls the backend no more once the wait was cancelled', async () => {
+    const controller = new AbortController()
+    let calls = 0
+    const provider: Provider = {
+      translate: async () => {
+        calls++
+        throw new HttpFailure('too many requests', 429)
+      }
+    }
+    const engine = await engineWith({
+      batchSize: 1,
+      retries: 3,
+      signal: controller.signal,
+      sleep: async () => {
+        controller.abort()
+      },
+      provider
+    })
+    await expect(engine.translate(['one'], 'fr')).rejects.toThrow()
+    expect(calls).toBe(1)
+  })
+})
+
+describe('TranslationEngine - asking a refused string again', () => {
+  it('asks a markup refusal again and keeps the second answer', async () => {
+    let calls = 0
+    const provider: Provider = {
+      translate: async texts => texts.map(() => (calls++ === 0 ? 'Gagne' : 'Gagne $AMOUNT$'))
+    }
+    const engine = await engineWith({ provider })
+    const { results, stats } = await engine.translate(['Gain $AMOUNT$'], 'fr')
+    expect(results.get('Gain $AMOUNT$')).toBe('Gagne $AMOUNT$')
+    expect(engine.refusalFor('fr', 'Gain $AMOUNT$')).toBeUndefined()
+    expect(stats).toEqual({ translated: 1, cached: 0, failed: 0 })
+    expect(engine.getCounters().failed).toBe(0)
+  })
+
+  it('asks a given string again only once in the life of the engine', async () => {
+    let calls = 0
+    const provider: Provider = {
+      translate: async texts => {
+        calls++
+        return texts.map(() => 'Gagne')
+      }
+    }
+    const engine = await engineWith({ provider })
+    await engine.translate(['Gain $AMOUNT$'], 'fr')
+    expect(calls).toBe(2)
+    await engine.translate(['Gain $AMOUNT$'], 'fr')
+    expect(calls).toBe(3)
+    expect(engine.refusalFor('fr', 'Gain $AMOUNT$')?.reason).toBe('markup')
+  })
+
+  it('never asks a backend refusal again', async () => {
+    let calls = 0
+    const provider: Provider = {
+      translate: async () => {
+        calls++
+        throw new Error('connection refused')
+      }
+    }
+    const engine = await engineWith({ batchSize: 1, retries: 1, provider })
+    await expect(engine.translate(['one'], 'fr')).rejects.toThrow()
+    expect(calls).toBe(1)
+    expect(engine.refusalFor('fr', 'one')?.reason).toBe('backend')
+  })
+
+  it('stops asking again once the run-wide cap is reached', async () => {
+    let calls = 0
+    const provider: Provider = {
+      translate: async texts => {
+        calls++
+        return texts.map(() => 'Gagne')
+      }
+    }
+    const engine = await engineWith({ batchSize: 1000, provider })
+    const values = Array.from({ length: MAX_REASKS_PER_RUN + 5 }, (_, i) => `Gain $A${i}$`)
+    await engine.translate(values, 'fr')
+    expect(calls).toBe(1 + MAX_REASKS_PER_RUN)
+  })
+
+  it('still counts a string refused twice only once', async () => {
+    const engine = await engineWith({ provider: tableProvider({ 'Gain $A$': 'Gagne' }) })
+    const { stats } = await engine.translate(['Gain $A$'], 'fr')
+    expect(stats.failed).toBe(1)
+    expect(engine.getCounters().failed).toBe(1)
+  })
+})
+
+describe('TranslationEngine - one glossary per target language', () => {
+  const russian: Glossary = {
+    exact: new Map([['Men-at-Arms', 'Профессионалы']]),
+    terms: new Map(),
+    builtFrom: '/game',
+    root: '/game/game',
+    files: 2,
+    truncated: false,
+    forLanguage: 'ru'
+  }
+  const french: Glossary = {
+    exact: new Map([['Men-at-Arms', 'Hommes d’armes']]),
+    terms: new Map([['men-at-arms', { source: 'men-at-arms', target: 'Hommes d’armes' }]]),
+    builtFrom: '/game',
+    root: '/game/game',
+    files: 3,
+    truncated: true,
+    forLanguage: 'fr'
+  }
+  const glossaries = new Map([
+    ['ru', russian],
+    ['fr', french]
+  ])
+
+  it('serves each language the strings of its own glossary', async () => {
+    const engine = await engineWith({ glossaries })
+    const inRussian = await engine.translate(['Men-at-Arms'], 'ru')
+    const inFrench = await engine.translate(['Men-at-Arms'], 'fr')
+    expect(inRussian.results.get('Men-at-Arms')).toBe('Профессионалы')
+    expect(inFrench.results.get('Men-at-Arms')).toBe('Hommes d’armes')
+  })
+
+  it('hands the model the hints of the language it is asked for', async () => {
+    let hints: readonly Hint[] | undefined
+    const engine = await engineWith({
+      glossaries,
+      provider: tableProvider({ 'Recruit men-at-arms now': 'x' }, (_texts, h) => {
+        hints = h
+      })
+    })
+    await engine.translate(['Recruit men-at-arms now'], 'ru')
+    expect(hints).toEqual([])
+    await engine.translate(['Recruit men-at-arms now'], 'fr')
+    expect(hints).toEqual([{ source: 'men-at-arms', target: 'Hommes d’armes' }])
+  })
+
+  it('reports one line of statistics per glossary', async () => {
+    const engine = await engineWith({ glossaries })
+    const stats = engine.getGlossaryStats()
+    expect(stats.map(entry => entry.language)).toEqual(['ru', 'fr'])
+    expect(stats[0]).toEqual({
+      language: 'ru',
+      builtFrom: '/game',
+      root: '/game/game',
+      files: 2,
+      exact: 1,
+      terms: 0,
+      truncated: false
+    })
+    expect(stats[1]?.truncated).toBe(true)
+    expect(stats[1]?.terms).toBe(1)
+  })
+
+  it('reports no statistics at all without a glossary', async () => {
+    const engine = await engineWith({})
+    expect(engine.getGlossaryStats()).toEqual([])
   })
 })

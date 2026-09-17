@@ -2,7 +2,7 @@ import { maskTokens, restoreTokens } from '@ptt/parser'
 import { LANGUAGE_CODES, getTargetLanguageCode } from '@ptt/shared/languages'
 
 import { isRecord } from '../guards.js'
-import { checkBaseUrl, describeFailure, withCancel } from '../http.js'
+import { checkBaseUrl, httpFailure, withCancel } from '../http.js'
 import { RAPIDAPI_CODES } from '../language-codes.js'
 import type { FetchLike, Hint, Provider } from '../types.js'
 
@@ -49,7 +49,7 @@ export class RapidApiProvider implements Provider {
       })
     })
 
-    if (!response.ok) throw new Error(await describeFailure(response))
+    if (!response.ok) throw await httpFailure(response)
 
     const data = await response.json()
     const translated = readTranslatedJson(data)

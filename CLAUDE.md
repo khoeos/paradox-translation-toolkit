@@ -24,8 +24,9 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   every one of them. It used to be enforced in half the packages it was claimed of : a
   `/// <reference types="node" />` in translate leaked node's globals through the import
   graph and a probe importing `node:fs` compiled clean in translate and report. The
-  directive is now `/// <reference lib="dom" />` in `translate/src/http.ts`, which gives
-  that file the `AbortSignal` and `URL` VALUES it genuinely needs without re-admitting
+  directive is now `/// <reference lib="dom" />` in `translate/src/http.ts` and in
+  `translate/src/backoff.ts`, which gives those files the `AbortSignal`, `URL` and
+  `setTimeout` VALUES they genuinely need without re-admitting
   `node:fs`, `process` and `Buffer`. It sits in the source, not in a tsconfig, on purpose :
   these packages point `main` at `./src`, so every consumer typechecks their raw `.ts`
   inside its own program, and the requirement has to travel with the file (that is why
@@ -34,7 +35,9 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   which no `types` setting can see.
 - They reach the FS only through the injected `FsLike`, and the network only through the
   injected `FetchLike`. Both contracts live in `@ptt/shared` (`shared/src/ports.ts`), not
-  in whichever package needed them first ; in-memory FS fake at
+  in whichever package needed them first ; `FetchResponse.headers` is optional there on
+  purpose, so the fakes and `nodeFetch` were not all forced to grow one when the backoff
+  started reading `Retry-After`. In-memory FS fake at
   `converter/test/memory-fs.ts`, exported as `@ptt/converter/test/memory-fs`.
   `parser` is pure text and has no FS notion at all.
 - Only `apps/desktop` may touch Electron. The real filesystem is reached through
@@ -48,9 +51,15 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   what stops the two drifting. The translation engine reaches it as an injected
   `TranslationEnginePort`, so `converter -> translate` stays absent.
 - The renderer value-imports only zod-free subexports : `@ptt/converter/progress` for
-  `JobEvent` / `isJobEvent`, `@ptt/translate/defaults` for the settings bounds. A value
-  import of a package root pulls zod and the whole pipeline into the renderer bundle (check
-  with `grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
+  `JobEvent` / `isJobEvent`, `@ptt/converter/totals`, `@ptt/translate/defaults` for the
+  settings bounds. A value import of a package root pulls zod and the whole pipeline into the
+  renderer bundle (check with
+  `grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
+  `@ptt/converter/retranslate` was carved out for the same reason (the predicate first shipped
+  on the package root and only escaped zod through tree shaking, which is not a boundary), but
+  the renderer does not import it : its only consumer is `main/services/converter-service.ts`,
+  where zod is allowed anyway. `@ptt/report` has a single `.` export and is therefore
+  type-imported only from the renderer ; a value import of it would pull zod in.
 - `packages/games/src/index.ts` `builtInGames` order = UI tab order (`builtInGames` ->
   `getGameSummaries()` -> `games.list` -> `GameTabs`, no sort on the path). A new
   game also needs its tab image wired in `GameTabs.tsx`.
@@ -64,7 +73,9 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   all four (statements 86.87, branches 77.87 against the 80 floor, functions 88.40, lines 89.07)
   because `run.ts` (`runConvert`, the orchestrator both front ends share, at 1.11%) had no test
   file at all. The custom-target work added `test/run.test.ts` (`runConvert` end to end),
-  `test/target.test.ts` and `test/prune.test.ts`, so those percentages are stale. They are also
+  `test/target.test.ts` and `test/prune.test.ts`, and the LLM-reliability work added
+  `test/mod-keys.test.ts` plus a `runConvert` suite covering job events, the identical-answer
+  annotation and `retranslateOwnKeys`, so those percentages are stale. They are also
   currently **unmeasurable** : on Windows + vitest 5 the `--coverage` run completes but reports
   0% for every file (the v8 instrumentation never attaches), so it fails all four thresholds
   regardless of the tests. Fix the reporter before trusting any figure here.

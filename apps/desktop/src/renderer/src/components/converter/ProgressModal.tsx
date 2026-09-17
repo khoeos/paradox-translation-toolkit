@@ -19,6 +19,7 @@ import { Progress } from '@ptt/ui/components/progress'
 import { ScrollArea } from '@ptt/ui/components/scroll-area'
 import { cn } from '@ptt/ui/lib/utils'
 
+import { TranslationCountersNote } from '@renderer/components/TranslationCountersNote'
 import { estimateDuration } from '@renderer/lib/estimate'
 import { getLogSeverityStyle } from '@renderer/lib/log-severity'
 import { formatElapsed, scanPhasePercent } from '@renderer/lib/scan-progress'
@@ -189,13 +190,11 @@ export function ProgressModal() {
         {job.totals && !job.scanOutput ? <ScanTally totals={job.totals} /> : null}
 
         {job.translation ? (
-          <p className="text-sm text-muted-foreground">
-            {t('modal.translationCounters', {
-              translated: job.translation.translated,
-              cached: job.translation.cached,
-              failed: job.translation.failed
-            })}
-          </p>
+          <TranslationCountersNote
+            translated={job.translation.translated}
+            cached={job.translation.cached}
+            failed={job.translation.failed}
+          />
         ) : null}
 
         {job.scanOutput ? <ScanSummary output={job.scanOutput} /> : null}

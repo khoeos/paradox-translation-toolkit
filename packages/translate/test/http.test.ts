@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { HttpFailure, httpFailure } from '../src/http.js'
 import { checkBaseUrl, describeFailure, trimTrailingSlash, withCancel } from '../src/index.js'
 
 describe('trimTrailingSlash', () => {
@@ -113,5 +114,86 @@ describe('checkBaseUrl (S-13)', () => {
     const check = checkBaseUrl('not a url', false)
     expect(check.ok).toBe(false)
     expect(check.reason).toContain('Not a valid URL')
+  })
+})
+
+const headersOf = (value: string | null): { get(name: string): string | null } => ({
+  get: () => value
+})
+
+describe('httpFailure', () => {
+  it('carries the status', async () => {
+    const failure = await httpFailure(response({ status: 429, statusText: 'Too Many Requests' }))
+    expect(failure).toBeInstanceOf(HttpFailure)
+    expect(failure.status).toBe(429)
+  })
+
+  it('reuses describeFailure for its message, unchanged', async () => {
+    const same = response({ text: async () => 'quota exceeded' })
+    const failure = await httpFailure(same)
+    expect(failure.message).toBe(await describeFailure(same))
+  })
+
+  it('reads Retry-After as seconds', async () => {
+    const failure = await httpFailure(response({ headers: headersOf('2') }))
+    expect(failure.retryAfterMs).toBe(2000)
+  })
+
+  it('reads Retry-After as an HTTP date', async () => {
+    const future = new Date(Date.now() + 5000).toUTCString()
+    const failure = await httpFailure(response({ headers: headersOf(future) }))
+    expect(failure.retryAfterMs).toBeGreaterThan(0)
+    expect(failure.retryAfterMs).toBeLessThanOrEqual(5000)
+  })
+
+  it('ignores an unreadable Retry-After value', async () => {
+    const failure = await httpFailure(response({ headers: headersOf('not a date') }))
+    expect(failure.retryAfterMs).toBeUndefined()
+  })
+
+  it('ignores an empty Retry-After rather than reading it as zero', async () => {
+    const failure = await httpFailure(response({ headers: headersOf('') }))
+    expect(failure.retryAfterMs).toBeUndefined()
+  })
+
+  it('ignores a blank Retry-After rather than reading it as zero', async () => {
+    const failure = await httpFailure(response({ headers: headersOf('   ') }))
+    expect(failure.retryAfterMs).toBeUndefined()
+  })
+
+  it('ignores a negative Retry-After rather than reading it as zero', async () => {
+    const failure = await httpFailure(response({ headers: headersOf('-30') }))
+    expect(failure.retryAfterMs).toBeUndefined()
+  })
+
+  it('ignores a fractional Retry-After, which the grammar does not allow', async () => {
+    const failure = await httpFailure(response({ headers: headersOf('1.5') }))
+    expect(failure.retryAfterMs).toBeUndefined()
+  })
+
+  it('reads an explicit zero Retry-After as zero', async () => {
+    const failure = await httpFailure(response({ headers: headersOf('0') }))
+    expect(failure.retryAfterMs).toBe(0)
+  })
+
+  it('reads a padded Retry-After as seconds', async () => {
+    const failure = await httpFailure(response({ headers: headersOf(' 3 ') }))
+    expect(failure.retryAfterMs).toBe(3000)
+  })
+
+  it('reads a past HTTP date as zero', async () => {
+    const past = new Date(Date.now() - 60_000).toUTCString()
+    const failure = await httpFailure(response({ headers: headersOf(past) }))
+    expect(failure.retryAfterMs).toBe(0)
+  })
+
+  it('leaves retryAfterMs undefined when there is no header', async () => {
+    const failure = await httpFailure(response({ headers: headersOf(null) }))
+    expect(failure.retryAfterMs).toBeUndefined()
+  })
+
+  it('leaves retryAfterMs undefined when the response has no headers', async () => {
+    const failure = await httpFailure(response({}))
+    expect(failure.retryAfterMs).toBeUndefined()
   })
 })

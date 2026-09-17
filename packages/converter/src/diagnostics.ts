@@ -1,5 +1,7 @@
 import type { Diagnostic } from '@ptt/parser'
 
+import { SCAN_DIAGNOSTICS_PER_MOD } from './constants.js'
+
 export const DIAGNOSTIC_SEVERITIES = ['warning', 'error'] as const
 
 export type DiagnosticSeverity = (typeof DIAGNOSTIC_SEVERITIES)[number]
@@ -35,4 +37,16 @@ export const splitDiagnostics = (
     else warnings.push(diagnostic.message)
   }
   return { errors, warnings }
+}
+
+export const reportModDiagnostics = (
+  modName: string,
+  diagnostics: readonly ModDiagnostic[],
+  onDiagnostic: (message: string, severity: DiagnosticSeverity) => void
+): void => {
+  for (const diagnostic of diagnostics.slice(0, SCAN_DIAGNOSTICS_PER_MOD)) {
+    onDiagnostic(`${modName} : ${diagnostic.message}`, diagnostic.severity)
+  }
+  const hidden = diagnostics.length - SCAN_DIAGNOSTICS_PER_MOD
+  if (hidden > 0) onDiagnostic(`${modName} : and ${hidden} more problem(s) not shown`, 'warning')
 }

@@ -16,7 +16,9 @@ import {
 import { RunErrorCategories } from '@renderer/components/runs/RunErrorCategories'
 import { RunLanguageErrorsCard } from '@renderer/components/runs/RunLanguageErrorsCard'
 import { RunModsTable } from '@renderer/components/runs/RunModsTable'
+import { RunRefusalReasonsCard } from '@renderer/components/runs/RunRefusalReasonsCard'
 import { RunSettingsCard } from '@renderer/components/runs/RunSettingsCard'
+import { TranslationCountersNote } from '@renderer/components/TranslationCountersNote'
 import { formatDateTime, formatSeconds, formatTime } from '@renderer/lib/format-datetime'
 import type { RunErrorCategory } from '@renderer/lib/run-errors'
 import { getErrorCategorySummaries, getReadErrorsByLanguageFolder } from '@renderer/lib/run-errors'
@@ -123,6 +125,14 @@ function RunReportPage() {
             <p className="text-xs text-muted-foreground">{t('runs.report.cancelledNote')}</p>
           ) : null}
 
+          {data.report.counters ? (
+            <TranslationCountersNote
+              translated={data.report.counters.translated}
+              cached={data.report.counters.cached}
+              failed={data.report.counters.failed}
+            />
+          ) : null}
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
             <KpiTile
               label={t('runs.report.kpi.created.label')}
@@ -184,10 +194,18 @@ function RunReportPage() {
             onClearCategory={() => setActiveCategory(null)}
           />
 
-          <RunLanguageErrorsCard
-            entries={languageErrors}
-            sourceLanguage={data.report.request.sourceLanguage}
-          />
+          <div className="grid gap-6 lg:grid-cols-2 items-start">
+            <RunLanguageErrorsCard
+              entries={languageErrors}
+              sourceLanguage={data.report.request.sourceLanguage}
+            />
+            <RunRefusalReasonsCard
+              refusalsByReason={data.report.refusalsByReason}
+              {...(data.report.identicalCount !== undefined && {
+                identicalCount: data.report.identicalCount
+              })}
+            />
+          </div>
         </>
       ) : null}
     </div>

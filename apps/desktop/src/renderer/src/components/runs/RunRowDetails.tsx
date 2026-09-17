@@ -43,6 +43,16 @@ export function RunRowDetails({ item, gameLabel, locale }: RunRowDetailsProps) {
     { label: t('runs.history.details.finished'), value: formatDateTime(item.finishedAt, locale) }
   ]
 
+  if (item.glossaryFiles !== undefined && item.glossaryExact !== undefined) {
+    rows.push({
+      label: t('runs.history.details.glossary'),
+      value: t('runs.history.details.glossaryValue', {
+        files: item.glossaryFiles,
+        exact: item.glossaryExact
+      })
+    })
+  }
+
   return (
     <div className="grid gap-3 bg-muted/30 px-4 py-3">
       <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-4">

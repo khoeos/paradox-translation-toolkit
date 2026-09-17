@@ -2,7 +2,7 @@ import type { FsLike, GameContextRef } from '@ptt/converter'
 import { posixJoin } from '@ptt/converter'
 import type { LanguageCode } from '@ptt/shared'
 
-import { buildGlossary } from './glossary.js'
+import { buildGlossaries } from './glossary.js'
 import { isRecord } from './guards.js'
 import type { Glossary, Hint } from './types.js'
 
@@ -18,41 +18,73 @@ export function glossaryCacheKey(
   return `${gameId}-${sourceLanguage}-${targetLanguage}`
 }
 
-export async function loadGlossary(
+function glossaryCacheFile(cacheDir: string, cacheKey: string): string {
+  return posixJoin(cacheDir, `${cacheKey.replace(/[^a-z0-9_-]/gi, '_')}.json`)
+}
+
+async function writeGlossaryCache(
+  file: string,
+  cacheDir: string,
+  glossary: Glossary,
+  fs: FsLike
+): Promise<void> {
+  if (glossary.exact.size === 0) return
+  try {
+    await fs.mkdir(cacheDir, { recursive: true })
+    const temporary = `${file}.tmp`
+    await fs.writeFile(
+      temporary,
+      JSON.stringify({
+        builtFrom: glossary.builtFrom,
+        root: glossary.root,
+        files: glossary.files,
+        truncated: glossary.truncated,
+        exact: [...glossary.exact],
+        terms: [...glossary.terms]
+      }),
+      'utf-8'
+    )
+    await fs.rename(temporary, file)
+  } catch {}
+}
+
+export async function loadGlossaries(
   cacheDir: string,
   gamePath: string,
-  cacheKey: string,
+  gameId: string,
   gameDef: GameContextRef,
   sourceLanguage: LanguageCode,
-  targetLanguage: LanguageCode,
+  targetLanguages: readonly LanguageCode[],
   fs: FsLike
-): Promise<Glossary> {
-  const file = posixJoin(cacheDir, `${cacheKey.replace(/[^a-z0-9_-]/gi, '_')}.json`)
+): Promise<Map<LanguageCode, Glossary>> {
+  const glossaries = new Map<LanguageCode, Glossary>()
+  const missing: LanguageCode[] = []
 
-  const cached = await readCache(file, gamePath, targetLanguage, fs)
-  if (cached) return cached
-
-  const glossary = await buildGlossary(gamePath, gameDef, sourceLanguage, targetLanguage, fs)
-
-  if (glossary.exact.size > 0) {
-    try {
-      await fs.mkdir(cacheDir, { recursive: true })
-      const temporary = `${file}.tmp`
-      await fs.writeFile(
-        temporary,
-        JSON.stringify({
-          builtFrom: glossary.builtFrom,
-          files: glossary.files,
-          exact: [...glossary.exact],
-          terms: [...glossary.terms]
-        }),
-        'utf-8'
-      )
-      await fs.rename(temporary, file)
-    } catch {}
+  for (const targetLanguage of targetLanguages) {
+    const file = glossaryCacheFile(
+      cacheDir,
+      glossaryCacheKey(gameId, sourceLanguage, targetLanguage)
+    )
+    const cached = await readCache(file, gamePath, targetLanguage, fs)
+    if (cached) glossaries.set(targetLanguage, cached)
+    else missing.push(targetLanguage)
   }
 
-  return glossary
+  if (missing.length > 0) {
+    const built = await buildGlossaries(gamePath, gameDef, sourceLanguage, missing, fs)
+    for (const targetLanguage of missing) {
+      const glossary = built.get(targetLanguage)
+      if (!glossary) continue
+      glossaries.set(targetLanguage, glossary)
+      const file = glossaryCacheFile(
+        cacheDir,
+        glossaryCacheKey(gameId, sourceLanguage, targetLanguage)
+      )
+      await writeGlossaryCache(file, cacheDir, glossary, fs)
+    }
+  }
+
+  return glossaries
 }
 
 async function readCache(
@@ -70,6 +102,9 @@ async function readCache(
   if (!isRecord(parsed)) return undefined
   if (parsed.builtFrom !== gamePath) return undefined
 
+  const root = parsed.root
+  if (typeof root !== 'string' || root.length === 0) return undefined
+
   const exact = readStringPairs(parsed.exact)
   const terms = readHintPairs(parsed.terms)
   if (!exact || !terms) return undefined
@@ -78,7 +113,9 @@ async function readCache(
     exact,
     terms,
     builtFrom: gamePath,
+    root,
     files: typeof parsed.files === 'number' ? parsed.files : 0,
+    truncated: typeof parsed.truncated === 'boolean' ? parsed.truncated : false,
     forLanguage: targetLanguage
   }
 }

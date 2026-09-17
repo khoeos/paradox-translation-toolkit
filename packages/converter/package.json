@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./progress": "./src/progress.ts",
+    "./retranslate": "./src/retranslate.ts",
     "./totals": "./src/totals.ts",
     "./test/memory-fs": "./test/memory-fs.ts"
   },

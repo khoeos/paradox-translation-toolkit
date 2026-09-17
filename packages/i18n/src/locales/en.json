@@ -3,7 +3,8 @@
     "cancel": "Cancel",
     "close": "Close",
     "error": "Error",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "warning": "Warning"
   },
   "converter": {
     "convert": "Convert translations",
@@ -307,6 +308,8 @@
         "finished": "Finished",
         "game": "Game",
         "generatedMod": "Generated mod",
+        "glossary": "Glossary",
+        "glossaryValue": "{{files}} file(s), {{exact}} entries",
         "languages": "Languages",
         "messages": "Messages",
         "mode": "Mode",
@@ -471,11 +474,27 @@
         "notWrittenLabel_other": "{{count}} not written",
         "searchPlaceholder": "Search a mod or a file…"
       },
+      "refusals": {
+        "count_one": "{{count}} key",
+        "count_other": "{{count}} keys",
+        "none": "No refusals recorded",
+        "reasons": {
+          "backend": "The translation backend was unavailable",
+          "control": "The model's answer contained control characters and was rejected",
+          "empty": "The model returned nothing",
+          "identical": "The model returned the English text unchanged",
+          "markup": "The model's answer dropped some of the game's formatting tags",
+          "unknown": "Unrecognised reason: {{reason}}"
+        },
+        "title": "Why keys were not translated"
+      },
       "settings": {
         "folder": "Workshop folder",
         "game": "Game",
         "gameVersion": "Game version",
         "generatedMod": "Generated mod",
+        "glossary": "Glossary",
+        "glossaryValue": "{{files}} file(s), {{exact}} entries",
         "machineTranslation": "Machine translation",
         "mode": "Mode",
         "modPath": "Mod path",
@@ -483,6 +502,9 @@
         "modsSelected_other": "{{count}} mods selected",
         "modsSelectedAll": "All mods",
         "modsSelectedLabel": "Mods selected",
+        "retranslateOwnKeys": "Retranslate own keys",
+        "retranslateOwnKeysOff": "Off",
+        "retranslateOwnKeysOn": "On",
         "sourceLanguage": "Source language",
         "targetLanguages": "Target languages",
         "title": "Settings used",
@@ -556,6 +578,8 @@
       "openai": "OpenAI-compatible",
       "rapidapi": "RapidAPI"
     },
+    "retranslateOwnKeys": "Retranslate keys you already translated yourself",
+    "retranslateOwnKeysHint": "Sends entries you already wrote by hand, and that still read exactly like the English source, back to the model. They will be replaced if the model answers.",
     "test": "Test the provider",
     "testFailed": "Backend failed: {{message}}",
     "testNeedsBuiltIn": "Pick a built-in target language to test the connection.",

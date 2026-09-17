@@ -96,8 +96,11 @@ export const ScanModsInputSchema = z
     rootDir: z.string(),
     sourceLanguage: LanguageCodeSchema,
     targets: TargetsSchema,
+    mode: ConvertModeSchema,
+    targetContent: TargetContentSchema.optional(),
     modName: z.string().optional(),
-    translate: TranslateConfigSchema.optional()
+    translate: TranslateConfigSchema.optional(),
+    retranslateOwnKeys: z.boolean().optional()
   })
   .superRefine((input, ctx) => {
     withTargetProblems(input, ctx)
@@ -114,7 +117,8 @@ export const ConvertInputSchema = z
     selectedMods: z.array(z.string()).optional(),
     modName: z.string().optional(),
     targetContent: TargetContentSchema.optional(),
-    translate: TranslateConfigSchema.optional()
+    translate: TranslateConfigSchema.optional(),
+    retranslateOwnKeys: z.boolean().optional()
   })
   .superRefine(withConvertTargetProblems)
 

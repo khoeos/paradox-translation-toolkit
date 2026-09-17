@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { PARTIAL_SUFFIX, runConvert } from '../src/index.js'
+import {
+  PARTIAL_SUFFIX,
+  SCAN_DIAGNOSTICS_PER_MOD,
+  retranslateOwnKeysHasNoEffect,
+  runConvert
+} from '../src/index.js'
 import type {
   ConvertRunOptions,
   JobEvent,
@@ -22,6 +27,11 @@ const warningsOf = (events: readonly JobEvent[]): string[] =>
     event.type === 'log' && event.severity === 'warning' ? [event.message] : []
   )
 
+const errorsOf = (events: readonly JobEvent[]): string[] =>
+  events.flatMap(event =>
+    event.type === 'log' && event.severity === 'error' ? [event.message] : []
+  )
+
 const countingEngine = (): { engine: TranslationEnginePort; calls: string[] } => {
   const calls: string[] = []
   const counters = { translated: 0, cached: 0, failed: 0 }
@@ -35,10 +45,50 @@ const countingEngine = (): { engine: TranslationEnginePort; calls: string[] } =>
       }
     },
     refusalFor: () => undefined,
-    getCounters: () => ({ ...counters })
+    getCounters: () => ({ ...counters }),
+    isBackendDown: () => false
   }
   return { engine, calls }
 }
+
+const recordingEngine = (): { engine: TranslationEnginePort; values: string[] } => {
+  const values: string[] = []
+  const counters = { translated: 0, cached: 0, failed: 0 }
+  const engine: TranslationEnginePort = {
+    translate: async (vals, language) => {
+      values.push(...vals)
+      counters.translated += vals.length
+      return {
+        results: new Map(vals.map(value => [value, `${language} ${value}`])),
+        stats: { translated: vals.length, cached: 0, failed: 0 }
+      }
+    },
+    refusalFor: () => undefined,
+    getCounters: () => ({ ...counters }),
+    isBackendDown: () => false
+  }
+  return { engine, values }
+}
+
+const identicalEngine = (): TranslationEnginePort => ({
+  translate: async values => ({
+    results: new Map(values.map(value => [value, value])),
+    stats: { translated: values.length, cached: 0, failed: 0 }
+  }),
+  refusalFor: () => undefined,
+  getCounters: () => ({ translated: 0, cached: 0, failed: 0 }),
+  isBackendDown: () => false
+})
+
+const downEngine = (): TranslationEnginePort => ({
+  translate: async values => ({
+    results: new Map(),
+    stats: { translated: 0, cached: 0, failed: values.length }
+  }),
+  refusalFor: () => ({ reason: 'backend down' }),
+  getCounters: () => ({ translated: 0, cached: 0, failed: 0 }),
+  isBackendDown: () => true
+})
 
 const collection = (): MemoryFs =>
   new MemoryFs({
@@ -339,7 +389,8 @@ describe('runConvert - a free-text target language', () => {
         stats: { translated: 0, cached: 0, failed: 1 }
       }),
       refusalFor: () => ({ value: 'one', language: 'Catalan', reason: 'markup' }),
-      getCounters: () => ({ translated: 0, cached: 0, failed: 1 })
+      getCounters: () => ({ translated: 0, cached: 0, failed: 1 }),
+      isBackendDown: () => false
     }
 
     const { untranslated } = await runConvert(
@@ -356,5 +407,203 @@ describe('runConvert - a free-text target language', () => {
 
     expect(untranslated.length).toBeGreaterThan(0)
     expect(untranslated.every(row => row.fileToken === 'french')).toBe(true)
+  })
+})
+
+const brokenFile = (id: string): string => `﻿l_english:\n K_${id}:0 "never closed\n`
+
+const brokenCollection = (fileCount: number): MemoryFs => {
+  const files: Record<string, string> = { 'workshop/mymod/descriptor.mod': 'name="My Mod"' }
+  for (let i = 0; i < fileCount; i++) {
+    files[`workshop/mymod/localisation/f${i}_l_english.yml`] = brokenFile(String(i))
+  }
+  return new MemoryFs(files)
+}
+
+describe('runConvert - plan.errors become log events', () => {
+  it('names the mod on every error, and caps them per mod with a summary line', async () => {
+    const fs = brokenCollection(SCAN_DIAGNOSTICS_PER_MOD + 2)
+    const { port, events } = collectingPort()
+    await runConvert(runOptions(), fs, port)
+
+    const errors = errorsOf(events)
+    expect(errors).toHaveLength(SCAN_DIAGNOSTICS_PER_MOD)
+    expect(errors.every(message => message.startsWith('My Mod :'))).toBe(true)
+
+    const summary = warningsOf(events).find(message => message.includes('more problem'))
+    expect(summary).toContain('My Mod :')
+  })
+})
+
+const twoMods = (): MemoryFs =>
+  new MemoryFs({
+    'workshop/mod1/descriptor.mod': 'name="Mod One"',
+    'workshop/mod1/localisation/a_l_english.yml': localeFile('english', [['K1', 'one']]),
+    'workshop/mod2/descriptor.mod': 'name="Mod Two"',
+    'workshop/mod2/localisation/a_l_english.yml': localeFile('english', [['K1', 'two']])
+  })
+
+describe('runConvert - backend down', () => {
+  it('warns exactly once across two mods whose engine reports itself unavailable', async () => {
+    const fs = twoMods()
+    const { port, events } = collectingPort()
+    await runConvert(runOptions({ engine: downEngine() }), fs, port)
+
+    const backendWarnings = warningsOf(events).filter(message => message.includes('backend'))
+    expect(backendWarnings).toHaveLength(1)
+  })
+})
+
+describe('runConvert - a response identical to the source', () => {
+  it('flags it as english/identical without touching the failed counter', async () => {
+    const fs = collection()
+    const { port } = collectingPort()
+    const { untranslated, output } = await runConvert(
+      runOptions({ engine: identicalEngine() }),
+      fs,
+      port
+    )
+
+    const entry = untranslated.find(row => row.key === 'K2')
+    expect(entry).toMatchObject({ state: 'english', reason: 'identical', identicalToSource: true })
+    expect(output.mods[0]?.translation?.failed).toBe(0)
+  })
+
+  it('produces no entry when the engine returns a real translation', async () => {
+    const fs = collection()
+    const { port } = collectingPort()
+    const { engine } = countingEngine()
+    const { untranslated } = await runConvert(runOptions({ engine }), fs, port)
+    expect(untranslated).toEqual([])
+  })
+})
+
+const ownIdentical = (): MemoryFs =>
+  new MemoryFs({
+    'workshop/mymod/descriptor.mod': 'name="My Mod"',
+    'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K1', 'one']]),
+    'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [['K1', 'one']])
+  })
+
+describe('runConvert - retranslateOwnKeys', () => {
+  it('by default never sends an own key identical to the source to the engine', async () => {
+    const fs = ownIdentical()
+    const { port } = collectingPort()
+    const { engine, values } = recordingEngine()
+    await runConvert(runOptions({ engine }), fs, port)
+    expect(values).toEqual([])
+  })
+
+  it('has no effect under add-to-current with complete-file, warns, and never duplicates the key', async () => {
+    const fs = ownIdentical()
+    const { port, events } = collectingPort()
+    const { engine, values } = recordingEngine()
+    await runConvert(
+      runOptions({
+        engine,
+        mode: 'add-to-current',
+        targetContent: 'complete-file',
+        retranslateOwnKeys: true
+      }),
+      fs,
+      port
+    )
+    expect(values).toEqual([])
+    expect(warningsOf(events).some(message => message.includes('no effect'))).toBe(true)
+    const files = [...fs.snapshot().keys()].filter(path => path.endsWith('.yml'))
+    expect(files).toEqual([
+      'workshop/mymod/localisation/a_l_english.yml',
+      'workshop/mymod/localisation/a_l_russian.yml'
+    ])
+    expect(fs.snapshot().get('workshop/mymod/localisation/a_l_russian.yml')).toContain('one')
+  })
+
+  it('has no effect under add-to-current with regenerate-file beyond the warning itself', async () => {
+    const run = async (
+      retranslateOwnKeys: boolean
+    ): Promise<{ values: string[]; warned: boolean }> => {
+      const fs = ownIdentical()
+      const { port, events } = collectingPort()
+      const { engine, values } = recordingEngine()
+      await runConvert(
+        runOptions({
+          engine,
+          mode: 'add-to-current',
+          targetContent: 'regenerate-file',
+          retranslateOwnKeys
+        }),
+        fs,
+        port
+      )
+      return { values, warned: warningsOf(events).some(message => message.includes('no effect')) }
+    }
+    const off = await run(false)
+    const on = await run(true)
+    expect(on.values).toEqual(off.values)
+    expect(off.warned).toBe(false)
+    expect(on.warned).toBe(true)
+  })
+
+  it('still applies in create-translation-mod, sending the own key and writing the translation', async () => {
+    const fs = ownIdentical()
+    const { port, events } = collectingPort()
+    const { engine } = recordingEngine()
+    await runConvert(
+      runOptions({
+        engine,
+        mode: 'create-translation-mod',
+        generatedMod,
+        generatedModsDir: 'documents/mod',
+        retranslateOwnKeys: true
+      }),
+      fs,
+      port
+    )
+    expect(warningsOf(events).some(message => message.includes('no effect'))).toBe(false)
+    const produced = [...fs.snapshot().entries()].find(
+      ([path]) => path.includes('missing_translations') && path.endsWith('.yml')
+    )
+    expect(produced?.[1]).toContain('ru one')
+  })
+
+  it('never sends an own key whose value is not translatable', async () => {
+    const fs = new MemoryFs({
+      'workshop/mymod/descriptor.mod': 'name="My Mod"',
+      'workshop/mymod/localisation/a_l_english.yml': localeFile('english', [['K1', '$COUNT$']]),
+      'workshop/mymod/localisation/a_l_russian.yml': localeFile('russian', [['K1', '$COUNT$']])
+    })
+    const { port } = collectingPort()
+    const { engine, values } = recordingEngine()
+    await runConvert(
+      runOptions({
+        engine,
+        mode: 'add-to-current',
+        targetContent: 'regenerate-file',
+        retranslateOwnKeys: true
+      }),
+      fs,
+      port
+    )
+    expect(values).toEqual([])
+  })
+
+  it('has no effect under add-to-current with missing-keys, and warns once', async () => {
+    const fs = ownIdentical()
+    const { port, events } = collectingPort()
+    const { engine, values } = recordingEngine()
+    await runConvert(runOptions({ engine, retranslateOwnKeys: true }), fs, port)
+    expect(values).toEqual([])
+    expect(warningsOf(events).some(message => message.includes('no effect'))).toBe(true)
+  })
+})
+
+describe('retranslateOwnKeysHasNoEffect', () => {
+  it('is true for add-to-current, where our own keys are the target', () => {
+    expect(retranslateOwnKeysHasNoEffect('add-to-current')).toBe(true)
+  })
+
+  it('is false for create-translation-mod and extract-to-folder', () => {
+    expect(retranslateOwnKeysHasNoEffect('create-translation-mod')).toBe(false)
+    expect(retranslateOwnKeysHasNoEffect('extract-to-folder')).toBe(false)
   })
 })

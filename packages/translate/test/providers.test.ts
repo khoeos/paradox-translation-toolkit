@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { HttpFailure } from '../src/http.js'
 import {
   OllamaProvider,
   OpenAiProvider,
@@ -76,6 +77,18 @@ describe('OllamaProvider', () => {
     const fetch = fakeFetch(() => ({ json: async () => ({}) }))
     const provider = new OllamaProvider('http://localhost:11434', 'm', TIMEOUT, fetch.fn)
     await expect(provider.translate(['one'], 'French', 'English')).rejects.toThrow(/JSON/)
+  })
+
+  it('throws an HttpFailure of status 429 when rate limited', async () => {
+    const fetch = fakeFetch(() => ({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests'
+    }))
+    const provider = new OllamaProvider('http://localhost:11434', 'm', TIMEOUT, fetch.fn)
+    const translation = provider.translate(['one'], 'French', 'English')
+    await expect(translation).rejects.toBeInstanceOf(HttpFailure)
+    await expect(translation).rejects.toMatchObject({ status: 429 })
   })
 })
 
@@ -154,6 +167,18 @@ describe('OpenAiProvider', () => {
     const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
     expect(await provider.translate(['one', 'two'], 'French', 'English')).toEqual(['un', undefined])
   })
+
+  it('throws an HttpFailure of status 429 when rate limited', async () => {
+    const fetch = fakeFetch(() => ({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests'
+    }))
+    const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
+    const translation = provider.translate(['one'], 'French', 'English')
+    await expect(translation).rejects.toBeInstanceOf(HttpFailure)
+    await expect(translation).rejects.toMatchObject({ status: 429 })
+  })
 })
 
 describe('RapidApiProvider', () => {
@@ -230,6 +255,18 @@ describe('RapidApiProvider', () => {
       /cannot translate into "Catalan"/
     )
     expect(fetch.calls).toHaveLength(0)
+  })
+
+  it('throws an HttpFailure of status 429 when rate limited', async () => {
+    const fetch = fakeFetch(() => ({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests'
+    }))
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, fetch.fn)
+    const translation = provider.translate(['one'], 'French', 'English')
+    await expect(translation).rejects.toBeInstanceOf(HttpFailure)
+    await expect(translation).rejects.toMatchObject({ status: 429 })
   })
 })
 

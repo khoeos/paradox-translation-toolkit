@@ -346,9 +346,7 @@ describe('buildOptions - target content', () => {
 
   it('maps the short content names', async () => {
     expect((await build(['memory', '--content', 'missing'])).targetContent).toBe('missing-keys')
-    expect((await build(['memory', '--content', 'complete'])).targetContent).toBe(
-      'complete-file'
-    )
+    expect((await build(['memory', '--content', 'complete'])).targetContent).toBe('complete-file')
     expect((await build(['memory', '--content', 'regenerate'])).targetContent).toBe(
       'regenerate-file'
     )
@@ -386,9 +384,9 @@ describe('buildOptions - translation', () => {
   })
 
   it('carries the game description, which is what stops a trait becoming a common noun', async () => {
-    expect(
-      (await build(['memory', '--translate', '--game', 'ck3'])).translate?.domain
-    ).toContain('Crusader Kings III')
+    expect((await build(['memory', '--translate', '--game', 'ck3'])).translate?.domain).toContain(
+      'Crusader Kings III'
+    )
   })
 
   it('refuses an unknown provider', async () => {
@@ -420,6 +418,20 @@ describe('buildOptions - translation', () => {
     } finally {
       delete process.env.PTT_API_KEY
     }
+  })
+})
+
+describe('buildOptions - retranslateOwnKeys', () => {
+  it('is off by default', async () => {
+    expect((await build(['memory'])).retranslateOwnKeys).toBe(false)
+  })
+
+  it('reads the bare switch as on', async () => {
+    expect((await build(['memory', '--retranslate-own-keys'])).retranslateOwnKeys).toBe(true)
+  })
+
+  it('reads --retranslate-own-keys=false as off, like every other boolean flag here', async () => {
+    expect((await build(['memory', '--retranslate-own-keys=false'])).retranslateOwnKeys).toBe(false)
   })
 })
 

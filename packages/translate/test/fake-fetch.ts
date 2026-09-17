@@ -27,7 +27,8 @@ export function fakeFetch(
       status: scripted.status ?? 200,
       statusText: scripted.statusText ?? 'OK',
       text: scripted.text ?? (async () => ''),
-      json: scripted.json ?? (async () => ({}))
+      json: scripted.json ?? (async () => ({})),
+      ...(scripted.headers !== undefined && { headers: scripted.headers })
     }
   }
   return { fn, calls }
