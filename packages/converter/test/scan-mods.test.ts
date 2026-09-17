@@ -452,3 +452,44 @@ describe('scanMods', () => {
     expect(output.mods[0]?.name).toBe('Solo')
   })
 })
+
+describe('scanMods - options that reach the key plan', () => {
+  const collection = {
+    'workshop/b/descriptor.mod': 'name="Mod B"',
+    'workshop/b/localisation/english/b_l_english.yml': localeFile('english', [['K3', 'three']]),
+    'workshop/b/localisation/russian/b_l_russian.yml': localeFile('russian', [['K3', 'три']])
+  }
+
+  const identicalOwn = {
+    'workshop/b/descriptor.mod': 'name="Mod B"',
+    'workshop/b/localisation/english/b_l_english.yml': localeFile('english', [
+      ['K3', 'Colony Ship']
+    ]),
+    'workshop/b/localisation/russian/b_l_russian.yml': localeFile('russian', [
+      ['K3', 'Colony Ship']
+    ])
+  }
+
+  const missingFor = async (over: Partial<ScanModsOptions>, files = collection): Promise<number> => {
+    const output = await scanMods(base(over), new MemoryFs(files))
+    return output.mods.find(m => m.id === 'b')?.missingKeys.ru ?? -1
+  }
+
+  it('forwards targetContent, which decides whether a covered file is regenerated', async () => {
+    expect(await missingFor({ targetContent: 'missing-keys' })).toBe(0)
+    expect(await missingFor({})).toBe(0)
+    expect(await missingFor({ targetContent: 'regenerate-file' })).toBe(1)
+  })
+
+  it('forwards retranslateOwnKeys, which reopens an own key identical to the source', async () => {
+    expect(await missingFor({}, identicalOwn)).toBe(0)
+    expect(await missingFor({ retranslateOwnKeys: true }, identicalOwn)).toBe(1)
+  })
+
+  it('drops retranslateOwnKeys in the mode where it has no effect', async () => {
+    const over = { retranslateOwnKeys: true } as const
+    expect(await missingFor({ ...over, mode: 'create-translation-mod' }, identicalOwn)).toBe(1)
+    expect(await missingFor({ ...over, mode: 'extract-to-folder' }, identicalOwn)).toBe(1)
+    expect(await missingFor({ ...over, mode: 'add-to-current' }, identicalOwn)).toBe(0)
+  })
+})

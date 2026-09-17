@@ -17,7 +17,8 @@ export const UI_LANGUAGES: ReadonlyArray<{ code: UiLanguage; label: string }> = 
 export const DEFAULT_UI_LANGUAGE: UiLanguage = 'en'
 
 export function isUiLanguage(value: unknown): value is UiLanguage {
-  return typeof value === 'string' && (VALID_UI_LANGUAGES as readonly string[]).includes(value)
+  return typeof value === 'string' && VALID_UI_LANGUAGES.some(code => code === value)
+
 }
 
 export const resources = {

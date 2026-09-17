@@ -1,9 +1,12 @@
 import { useTranslation } from 'react-i18next'
 
+import { IDENTICAL_REASON } from '@ptt/converter/reasons'
 import { Card, CardContent, CardHeader } from '@ptt/ui/components/card'
 import { Progress } from '@ptt/ui/components/progress'
 
+
 import { getRefusalReasonLabel } from '@renderer/lib/refusal-reasons'
+
 
 interface RunRefusalReasonsCardProps {
   refusalsByReason: Readonly<Record<string, number>>
@@ -44,7 +47,10 @@ export function RunRefusalReasonsCard({
             {identical > 0 ? (
               <div className="grid gap-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-foreground">{getRefusalReasonLabel(t, 'identical')}</span>
+                  <span className="text-foreground">
+                    {getRefusalReasonLabel(t, IDENTICAL_REASON)}
+                  </span>
+
                   <span className="text-muted-foreground">
                     {t('runs.report.refusals.count', { count: identical })}
                   </span>

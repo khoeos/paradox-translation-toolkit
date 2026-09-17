@@ -48,17 +48,32 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   from the preload import graph ships in the preload bundle.
 - The mod-level pipeline (`scanMods`, `runConvert`) lives in `converter` and takes a
   `ProgressPort` : `apps/desktop`'s worker and `apps/cli` call the same functions, which is
-  what stops the two drifting. The translation engine reaches it as an injected
-  `TranslationEnginePort`, so `converter -> translate` stays absent.
+  what stops the two drifting. Everything *around* the pipeline is shared the same way, through
+  two more injected ports declared in `converter/src/types.ts` : `TranslationSetupPort` (opens the
+  memory and the engine, reports glossary problems, flushes) and `RunReportPort` (writes the run
+  report). `runConvert` owns the order those steps run in ; each front end only supplies the
+  wiring, in `apps/desktop/src/main/workers/ports.ts` and `apps/cli/src/commands/ports.ts`.
+  That is why `converter -> translate` and `converter -> report` stay absent. The two front ends
+  used to each write that ~60-line sequence themselves, with independently drifting spread guards.
+  A new optional field on the report belongs in **both** adapters or in neither : the rule in force
+  is that `retranslateOwnKeys` is recorded only when on.
+
 - The renderer value-imports only zod-free subexports : `@ptt/converter/progress` for
-  `JobEvent` / `isJobEvent`, `@ptt/converter/totals`, `@ptt/translate/defaults` for the
-  settings bounds. A value import of a package root pulls zod and the whole pipeline into the
+  `JobEvent` / `isJobEvent`, `@ptt/converter/totals`, `@ptt/converter/path` for the `posix*`
+  helpers, `@ptt/converter/reasons` for `IDENTICAL_REASON`, `@ptt/shared/updater` for
+  `UpdaterEvent` / `isUpdaterEvent`, `@ptt/translate/defaults` for the settings bounds and
+  `REFUSAL_REASONS`.
+
+ A value import of a package root pulls zod and the whole pipeline into the
   renderer bundle (check with
   `grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
-  `@ptt/converter/retranslate` was carved out for the same reason (the predicate first shipped
-  on the package root and only escaped zod through tree shaking, which is not a boundary), but
-  the renderer does not import it : its only consumer is `main/services/converter-service.ts`,
-  where zod is allowed anyway. `@ptt/report` has a single `.` export and is therefore
+  `@ptt/converter/retranslate` used to exist for the same reason and **has been removed** : the
+  `retranslateOwnKeysHasNoEffect` guard was pushed down into `scanMods` (next to the one
+  `runConvert` already applied), so neither front end computes it and nothing imported the
+  subexport any more. `src/retranslate.ts` stays, imported relatively by `run.ts` and
+  `scan-mods.ts`. Re-declare the subexport if a zod-free consumer ever needs the predicate again.
+
+ `@ptt/report` has a single `.` export and is therefore
   type-imported only from the renderer ; a value import of it would pull zod in.
 - `packages/games/src/index.ts` `builtInGames` order = UI tab order (`builtInGames` ->
   `getGameSummaries()` -> `games.list` -> `GameTabs`, no sort on the path). A new
@@ -79,8 +94,10 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   currently **unmeasurable** : on Windows + vitest 5 the `--coverage` run completes but reports
   0% for every file (the v8 instrumentation never attaches), so it fails all four thresholds
   regardless of the tests. Fix the reporter before trusting any figure here.
-  `generated-mod-paths.ts` is still the one converter module with no test file of its own
-  (`apps/desktop`'s own copy at `main/services/generated-mod-paths.ts` is tested).
+  Every converter module now has a test file : `generated-mod-paths.test.ts` moved into
+  `packages/converter/test/` when `apps/desktop`'s one-line re-export of it was deleted, which is
+  why `converter` has `@ptt/games` as a devDependency (no cycle : `games` only depends on `shared`).
+
 - `apps/desktop`'s vitest runs in `environment: 'node'`, so nothing that renders JSX is
   tested. Keep renderer logic in stores and `lib/` modules where it can be
   (`lib/estimate.ts` exists for that reason) ; see `docs/testing.md` for what a jsdom
@@ -98,26 +115,35 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   `safeParse` when the value crosses a process boundary. `as const` is not an
   assertion here but the replacement (`LANGUAGE_CODES`, `VALID_UI_LANGUAGES` are
   `as const` tuples so `z.enum()` can derive the union).
-- Legitimate and staying : key widening from `Object.entries()` / `Object.keys()`
-  over a `Partial<Record<K, V>>` (`converter/src/plan.ts`, `scan.ts`) ; external
-  types that are wrong or closed (electron-store `Store.set`, tRPC
-  `_def._config`, `TRPCClientError.from`) ; `packages/ui` (vendored shadcn,
-  never hand-edited) ; fixture traversal in tests.
-  Add a one-line reason at the site : 16 of the 18 current sites have none.
-  Five sites removed by the custom-target work, once `TranslationTarget.language`
-  widened from `LanguageCode` to `string` : `games/src/index.ts`'s `toGameSummary`
-  used to do `Object.keys(...) as LanguageCode[]`, now
-  `Object.keys(game.languageFileToken).filter(isLanguageCode)` (a type guard,
-  no assertion) ; `converter/src/apply-generated.ts:63` and `run.ts:282`
-  (`languageRaw as LanguageCode`, both deleted : `Object.entries` over a
-  now-`string`-keyed record already yields `string`) ; `converter/src/scan-mod.ts:39`
-  (same reason) ; `cli/commands/shared.ts:178` (`as keyof typeof mod.missingKeys`,
-  deleted : indexing `Partial<Record<string, number>>` with a `string` needs no
-  cast). One site stays and is the only `as LanguageCode` / `as keyof typeof` left
-  in the repo : `converter/src/mod-keys.ts:20`'s `lc as LanguageCode`, a legitimate
-  `Object.entries` key widening over a `LanguageCode`-keyed record. Verify with
+- **Seven sites in `src`**, all of them in one of the legitimate shapes, and all worth
+  re-checking before adding an eighth (`packages/ui` and tests excluded throughout) :
+  - `converter/src/mod-keys.ts:20` : `lc as LanguageCode`, `Object.entries` key widening over
+    a `LanguageCode`-keyed record. The only one of its kind left.
+  - `renderer/src/lib/ipc-link.ts:36` and `main/ipc/bridge.ts:68` : the two raw-message casts
+    on the process boundary. These are the ones zod should replace, see **Boundaries** below.
+  - `renderer/src/hooks/useUiLanguageSync.ts:17` : reading one field off the settings payload
+    coming back from the main process ; same boundary, same fix.
+  - `renderer/src/lib/ipc-link.ts:72` (`TRPCClientError.from`), `main/ipc/bridge.ts:102`
+    (`_def._config`), `main/services/settings-service.ts:407` (electron-store `Store.set`) :
+    external types that are wrong or closed. These three stay.
+
+  Verify the whole set with :
+  `grep -rnE "\bas [A-Za-z_{(<]" packages apps --include=*.ts --include=*.tsx | grep -v dist-deploy | grep -v packages/ui/ | grep -v "as const" | grep -vE "/(test|e2e)/|\.test\.ts"`
+  (it also matches prose containing " as "; the code lines are the ones listed above).
+  `packages/i18n/src/index.ts` used to hold an eighth, `(VALID_UI_LANGUAGES as readonly
+  string[]).includes(value)`, which is precisely what the `TUPLE.some(...)` rule above exists to
+  replace ; it now uses `some`. Add a one-line reason at any site that is not self-evident.
+
+  How the count got down here : the custom-target work widened `TranslationTarget.language` from
+  `LanguageCode` to `string` and five `as LanguageCode` / `as keyof typeof` sites became
+  unnecessary (`games/src/index.ts` now filters with the `isLanguageCode` guard ;
+  `apply-generated.ts`, `run.ts`, `scan-mod.ts` and `cli/commands/shared.ts` index
+  `string`-keyed records, which needs no cast). A sixth went with the updater types moving to
+  `@ptt/shared` : `isUpdaterEvent` no longer does `value as { type?: unknown }`. Check the two
+  families that used to dominate with :
   `grep -rn "as LanguageCode\|as keyof typeof" packages apps --include=*.ts --include=*.tsx | grep -v dist-deploy`
-  (expect exactly that one line).
+  (expect exactly `converter/src/mod-keys.ts:20`).
+
 - Boundaries : `renderer -> main` is validated (`RequestSchema.safeParse` in
   `main/ipc/bridge.ts`), but `main -> renderer` and `main -> worker` are not
   (`renderer/src/lib/ipc-link.ts`, `main/workers/converter.worker.ts` cast raw
@@ -129,16 +155,20 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
 
 ## Reuse before writing
 
-- `packages/ui` ships 18 shadcn primitives (`ls packages/ui/src/components/`), 9
-  with no consumer yet. Import `@ptt/ui/components/<kebab-name>` (no root `.`
+- `packages/ui` ships 21 shadcn primitives (`ls packages/ui/src/components/`), 2
+  with no consumer yet (`dropdown-menu`, `toggle`).
+ Import `@ptt/ui/components/<kebab-name>` (no root `.`
   export) and `cn` from `@ptt/ui/lib/utils`. A missing primitive is installed
   (shadcn MCP in `.mcp.json`, or `pnpm dlx shadcn add`), never pasted.
 - Never hand-roll path strings : `@ptt/converter` exports `posixJoin`,
   `posixDirname`, `posixBasename`, `posixSplit`, `posixNormalize`,
   `posixNormalizeStrict` (throws on `.` / `..`) and `posixContains` (sandbox
-  containment). Two current bypasses are bugs to fix, not patterns to copy :
-  `VirtualizedFileList.tsx` open-codes `posixDirname`, `main/services/path-policy.ts`
-  re-creates `posixSplit` as `segmentsOf` next to the traversal guards.
+  containment). They are also reachable as `@ptt/converter/path`, the zod-free subexport the
+  renderer must use (`src/path.ts` has no import at all, so it is the safest one in the repo).
+  The two long-standing bypasses are gone : `VirtualizedFileList.tsx` used to open-code
+  `posixDirname` and `main/services/path-policy.ts` re-created `posixSplit` as `segmentsOf`
+  next to the traversal guards.
+
 - All `_l_<lang>.yml` text goes through `@ptt/parser` (`parse` / `serialize`),
   filenames through `parseFilename` / `buildFilename` ; the `_l_<lang>.yml` filename grammar lives in
   `parser/src/filename.ts` and nowhere else.
@@ -149,14 +179,36 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   components use `i18next.t` (as `renderer/src/store/jobs.ts` does).
 - `JobEvent` and `isJobEvent` now live in `converter/src/progress.ts`, with a
   `JOB_EVENT_TYPES` tuple the guard checks against : a variant one side emits and the other
-  does not handle is rejected rather than falling through a `switch`. One duplication is
-  left : `UpdaterStatus` + `UpdaterEvent` (`main/services/updater-service.ts` +
-  `renderer/src/store/updater.ts`) belong in `@ptt/shared`, and `isUpdaterEvent` still
-  only checks that `type` is a string.
+  does not handle is rejected rather than falling through a `switch`. `UpdaterStatus` +
+  `UpdaterEvent` follow the same shape since : they live in `shared/src/updater.ts` with
+  `UPDATER_STATUSES` / `UPDATER_EVENT_TYPES` tuples, `isUpdaterEvent` checks membership rather
+  than `typeof type === 'string'`, and `UpdaterSnapshot` is the part of the main process's state
+  the renderer hydrates from. Both sides re-export from there rather than redeclaring.
+- Why a key came back untranslated is one vocabulary, assembled rather than retyped :
+  `REFUSAL_REASONS` (`translate/src/types.ts`, an `as const` tuple so a consumer can iterate it)
+  plus `IDENTICAL_REASON` and `NOT_ATTEMPTED_REASON` (`converter/src/reasons.ts`, the two the
+  pipeline writes itself). The renderer's label map is
+  `[...REFUSAL_REASONS, IDENTICAL_REASON] as const`, so a fifth engine reason is a compile error
+  at the label map rather than a silent fall-through to the "unknown" wording. Only `identical` is
+  ever labelled : `not attempted` reaches the CSV and the CLI table, never the UI.
+- The whole acceptance decision for a target list is `findTargetListIssue`
+
+  (`shared/src/languages.ts`) : shape, then the provider's own limits, then the modes that would
+  write nothing. The three front ends (`renderer/src/lib/targets.ts`,
+  `main/ipc/procedures/converter.ts`, `cli/src/options.ts`) each map the returned
+  `TargetListProblem` code to their own wording and nothing else ; `describeTargetListProblem`
+  owns the English one. Adding a check means adding a code, not a fourth copy of the sequence.
+  `ScanModsInputSchema` and `ConvertInputSchema` run the same function, so a list the run would
+  reject can no longer be scanned first.
+
+- Where run reports live is `runReportsDir(userDataPath)` from `@ptt/report`, not
+  `posixJoin(userDataPath, 'reports')` written out a fourth time.
 - Internal deps are always `workspace:*` ; third-party deps shared by 2+ packages
+
   belong in the `catalog:` block of `pnpm-workspace.yaml`. Three shared deps are
-  still pinned literally and can drift : `lucide-react`, `@types/react` (already
-  drifted), `@types/react-dom`.
+  still pinned literally in both `apps/desktop` and `packages/ui` : `lucide-react`,
+  `@types/react`, `@types/react-dom`. They happen to be in step today ; nothing keeps them so.
+
 - `pnpm install` hits a private registry and can hang for minutes ; `pnpm install --offline`
   resolves everything already in the store instantly and is enough after adding a
   `workspace:*` dep or a catalog entry that is already in the lockfile.
@@ -195,7 +247,8 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   zod object got a `Zod` suffix as a one-off (`SettingsSchemaZod`). Do not
   generalize it : the healthy sibling pair is `SettingsPatch` / `SettingsPatchSchema`.
 - Path aliases are declared as `@renderer/*`, `@main/*`, `@preload/*` but in practice
-  only `@renderer/*` is used (49 imports, 1 for `@main`, none for `@preload`) ;
+  only `@renderer/*` is used (161 imports, 3 for `@main`, none for `@preload`) ;
+
   inside `src/main` and in every `test/`, cross-directory relative imports are the
   norm, keep them. There is no `@/*` alias, yet `apps/desktop/components.json`
   advertises `@/components` : every app-level import the shadcn CLI writes has to be
@@ -203,9 +256,11 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
 - Tests are always `*.test.ts` (no `.spec.`, no `__tests__/`) ; location is
   per-workspace : `packages/*` use a `test/` sibling of `src/`,
   `apps/desktop` and `apps/cli` colocate as `src/**/*.test.ts`. Every workspace with a
-  `vitest.config.ts` pins an `include`, 9 of them : the seven `packages/*` libraries through
-  `libraryVitestConfig()`'s `test/**/*.test.ts` (`shared` joined them with the custom-target
-  work), plus the two apps' `src/**/*.test.ts`.
+  `vitest.config.ts` pins an `include`, 10 of them : the eight `packages/*` libraries through
+  `libraryVitestConfig()`'s `test/**/*.test.ts` (`game-locator` and `shared` are the two most
+  recent to join), plus the two apps' `src/**/*.test.ts`. `packages/ui` and `packages/i18n` are
+  the exceptions : `ui` has no tests, `i18n` has `test/smoke.test.ts` and no config of its own.
+
   There, a test outside the glob is never run and `pnpm test` stays green, so a colocated
   `src/foo.test.ts` in a `packages/*` library is a file nothing executes. Shared helpers must
   keep no `.test` segment (`converter/test/memory-fs.ts`, `fixtures.ts`). Playwright E2E is the

@@ -55,26 +55,39 @@ describe('ConverterService', () => {
     )
   })
 
-  it('drops retranslateOwnKeys from the scan-mods command when it has no effect in add-to-current', () => {
+  it('forwards the mode to the scan-mods command, so the guard can be applied downstream', () => {
     const service = new ConverterService('/fake/worker.js', new OpenableRegistry())
     service.scanMods({
       ...scanModsInput,
       mode: 'add-to-current' as const,
       retranslateOwnKeys: true
     })
-    const [command] = fakeWorker.postMessage.mock.calls.at(-1) ?? []
-    expect(command).not.toHaveProperty('retranslateOwnKeys')
+    expect(fakeWorker.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'scan-mods',
+        mode: 'add-to-current',
+        retranslateOwnKeys: true
+      })
+    )
   })
 
-  it('keeps retranslateOwnKeys in the scan-mods command outside add-to-current', () => {
+  it('forwards targetContent to the scan-mods command, so the preview matches the run', () => {
     const service = new ConverterService('/fake/worker.js', new OpenableRegistry())
     service.scanMods({
       ...scanModsInput,
-      mode: 'create-translation-mod' as const,
-      retranslateOwnKeys: true
+      mode: 'add-to-current' as const,
+      targetContent: 'complete-file' as const
     })
     expect(fakeWorker.postMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'scan-mods', retranslateOwnKeys: true })
+      expect.objectContaining({ type: 'scan-mods', targetContent: 'complete-file' })
     )
   })
+
+  it('omits targetContent from the scan-mods command when the form did not set one', () => {
+    const service = new ConverterService('/fake/worker.js', new OpenableRegistry())
+    service.scanMods(scanModsInput)
+    const [command] = fakeWorker.postMessage.mock.calls.at(-1) ?? []
+    expect(command).not.toHaveProperty('targetContent')
+  })
 })
+

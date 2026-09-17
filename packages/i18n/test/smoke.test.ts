@@ -78,21 +78,50 @@ describe('@ptt/i18n', () => {
     // (en gets _one/_other ; fr gets _one/_many/_other ; zh gets _other only,
     // by CLDR rules). It's correct for some locales to be missing certain
     // plural variants, so we exclude them from the parity check.
-    const PLURAL_SUFFIXES = ['_zero', '_one', '_two', '_few', '_many', '_other']
-    const isPluralKey = (k: string): boolean => PLURAL_SUFFIXES.some(s => k.endsWith(s))
     const enKeys = collectKeys(resources.en.translation).filter(k => !isPluralKey(k))
     const offenders: Record<string, string[]> = {}
     for (const code of VALID_UI_LANGUAGES) {
       if (code === 'en') continue
-      const localeKeys = new Set(
-        collectKeys((resources as Record<string, { translation: unknown }>)[code]!.translation)
-      )
+      const localeKeys = new Set(collectKeys(translationOf(code)))
       const missing = enKeys.filter(k => !localeKeys.has(k))
       if (missing.length > 0) offenders[code] = missing
     }
     expect(offenders).toEqual({})
   })
+
+  it.each([...VALID_UI_LANGUAGES])('%s has no key with an empty value', code => {
+    const empty = Object.entries(flatten(translationOf(code)))
+      .filter(([, value]) => value.trim().length === 0)
+      .map(([key]) => key)
+    expect(empty).toEqual([])
+  })
+
+  it.each(['fr', 'zh'] as const)('%s carries no key English dropped', code => {
+    const enBases = new Set(collectKeys(resources.en.translation).map(pluralBase))
+    const stale = collectKeys(translationOf(code)).filter(k => !enBases.has(pluralBase(k)))
+    expect(stale).toEqual([])
+  })
 })
+
+const PLURAL_SUFFIXES = ['_zero', '_one', '_two', '_few', '_many', '_other']
+
+const isPluralKey = (key: string): boolean => PLURAL_SUFFIXES.some(s => key.endsWith(s))
+
+const pluralBase = (key: string): string =>
+  PLURAL_SUFFIXES.reduce((out, s) => (out.endsWith(s) ? out.slice(0, -s.length) : out), key)
+
+const translationOf = (code: string): unknown =>
+  (resources as Record<string, { translation: unknown }>)[code]?.translation
+
+function flatten(obj: unknown, prefix = ''): Record<string, string> {
+  if (typeof obj !== 'object' || obj === null) {
+    return { [prefix]: typeof obj === 'string' ? obj : String(obj) }
+  }
+  return Object.entries(obj).reduce<Record<string, string>>(
+    (out, [k, v]) => Object.assign(out, flatten(v, prefix ? `${prefix}.${k}` : k)),
+    {}
+  )
+}
 
 function collectKeys(obj: unknown, prefix = ''): string[] {
   if (typeof obj !== 'object' || obj === null) return [prefix]

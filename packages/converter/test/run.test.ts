@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+
 
 import {
   PARTIAL_SUFFIX,
@@ -10,11 +11,19 @@ import type {
   ConvertRunOptions,
   JobEvent,
   ProgressPort,
+  RunReportPort,
   TranslationEnginePort,
+
   TranslationMemoryPort,
-  TranslationMod
+  TranslationMod,
+  TranslationSetup,
+  TranslationSetupPort
 } from '../src/index.js'
-import { builtIn, localeFile, stellarisGame } from './fixtures.js'
+
+
+
+import { builtIn, localeFile, staticSetup, stellarisGame } from './fixtures.js'
+
 import { MemoryFs } from './memory-fs.js'
 
 const collectingPort = (): { port: ProgressPort; events: JobEvent[] } => {
@@ -102,16 +111,30 @@ const collection = (): MemoryFs =>
 
 const natural = 'workshop/mymod/localisation/a_l_russian.yml'
 
-const runOptions = (over: Partial<ConvertRunOptions> = {}): ConvertRunOptions => ({
-  jobId: 'job-1',
-  rootDir: 'workshop',
-  game: stellarisGame,
-  sourceLanguage: 'en',
-  targets: builtIn('ru'),
-  mode: 'add-to-current',
-  cancellation: { requested: false },
-  ...over
-})
+type RunOverrides
+ = Partial<ConvertRunOptions> & TranslationSetup
+
+const runOptions = (over: RunOverrides = {}): ConvertRunOptions => {
+  const { engine, memory, glossaryProblems, flush, ...rest } = over
+  const setup: TranslationSetup = {
+    ...(engine !== undefined && { engine }),
+    ...(memory !== undefined && { memory }),
+    ...(glossaryProblems !== undefined && { glossaryProblems }),
+    ...(flush !== undefined && { flush })
+  }
+  return {
+    jobId: 'job-1',
+    rootDir: 'workshop',
+    game: stellarisGame,
+    sourceLanguage: 'en',
+    targets: builtIn('ru'),
+    mode: 'add-to-current',
+    cancellation: { requested: false },
+    ...(Object.keys(setup).length > 0 && { translationSetup: staticSetup(setup) }),
+    ...rest
+  }
+}
+
 
 const generatedMod: TranslationMod = {
   name: 'Missing Translations',
@@ -605,5 +628,116 @@ describe('retranslateOwnKeysHasNoEffect', () => {
   it('is false for create-translation-mod and extract-to-folder', () => {
     expect(retranslateOwnKeysHasNoEffect('create-translation-mod')).toBe(false)
     expect(retranslateOwnKeysHasNoEffect('extract-to-folder')).toBe(false)
+  })
+})
+
+describe('runConvert - the sequence around the run', () => {
+  const trace: string[] = []
+
+  const tracingSetup = (over: Partial<TranslationSetup> = {}): TranslationSetupPort => ({
+    open: request => {
+      trace.push(`open ${request.sourceLanguage} -> ${request.targetLanguages.join(',')}`)
+      return Promise.resolve({
+        flush: () => {
+          trace.push('flush')
+          return Promise.resolve()
+        },
+        ...over
+      })
+    }
+  })
+
+  const tracingReport = (): RunReportPort => ({
+    write: facts => {
+      trace.push(`write ${facts.output.totals.mods} mods, ${facts.untranslated.length} untranslated`)
+      return Promise.resolve({ jsonPath: '/data/reports/run.json', file: 'run.json' })
+    }
+  })
+
+  beforeEach(() => {
+    trace.length = 0
+  })
+
+  it('opens the setup, runs, flushes the memory, then writes the report', async () => {
+    const { port } = collectingPort()
+    await runConvert(
+      runOptions({ translationSetup: tracingSetup(), runReport: tracingReport() }),
+      collection(),
+      port
+    )
+    expect(trace).toEqual(['open en -> ru', 'flush', 'write 1 mods, 0 untranslated'])
+  })
+
+  it('puts the written report on the output, which is how both front ends find it', async () => {
+    const { port } = collectingPort()
+    const { output } = await runConvert(
+      runOptions({ runReport: tracingReport() }),
+      collection(),
+      port
+    )
+    expect(output.reportPath).toBe('/data/reports/run.json')
+    expect(output.reportFile).toBe('run.json')
+  })
+
+  it('leaves the report fields alone when no report port was given', async () => {
+    const { port } = collectingPort()
+    const { output } = await runConvert(runOptions(), collection(), port)
+    expect(output.reportPath).toBeUndefined()
+    expect(output.reportFile).toBeUndefined()
+  })
+
+  it('leaves them alone when the port declines to write', async () => {
+    const { port } = collectingPort()
+    const declining: RunReportPort = { write: () => Promise.resolve(undefined) }
+    const { output } = await runConvert(
+      runOptions({ runReport: declining }),
+      collection(),
+      port
+    )
+    expect(output.reportPath).toBeUndefined()
+  })
+
+  it('emits the glossary problems as warnings before the first mod is touched', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({ translationSetup: tracingSetup({ glossaryProblems: ['no game path'] }) }),
+      collection(),
+      port
+    )
+    const warned = events.findIndex(e => e.type === 'log' && e.message === 'no game path')
+    const firstProgress = events.findIndex(e => e.type === 'mod-progress')
+    expect(warned).toBeGreaterThanOrEqual(0)
+    expect(warned).toBeLessThan(firstProgress)
+  })
+
+  it('still flushes and reports a cancelled run, so nothing translated is lost', async () => {
+    const { port } = collectingPort()
+    const { output } = await runConvert(
+      runOptions({
+        cancellation: { requested: true },
+        translationSetup: tracingSetup(),
+        runReport: tracingReport()
+      }),
+      collection(),
+      port
+    )
+    expect(output.cancelled).toBe(true)
+    expect(trace).toEqual(['open en -> ru', 'flush', 'write 0 mods, 0 untranslated'])
+  })
+
+  it('asks the setup for the target languages the run was given', async () => {
+    const { port } = collectingPort()
+    await runConvert(
+      runOptions({
+        targets: [
+          { language: 'Russian', fileToken: 'russian' },
+          { language: 'tr', fileToken: 'turkish' }
+        ],
+        translationSetup: tracingSetup()
+      }),
+      collection(),
+      port
+    )
+    expect(trace[0]).toBe('open en -> ru,tr')
   })
 })

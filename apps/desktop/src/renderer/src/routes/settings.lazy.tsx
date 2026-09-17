@@ -13,6 +13,8 @@ import { ReportProblemDialog } from '@renderer/components/ReportProblemDialog'
 import { formatPath } from '@renderer/lib/format-path'
 import { DISCORD_INVITE_URL } from '@renderer/lib/links'
 import { trpc } from '@renderer/lib/trpc'
+import { updaterStatusKey } from '@renderer/lib/updater-status'
+
 
 const THEMES = [
   { value: 'system' as const, key: 'settings.themes.system' },
@@ -262,8 +264,8 @@ function UpdaterCard() {
 
   if (!state || !settings) return null
 
-  const statusKey = state.status === 'not-available' ? 'notAvailable' : state.status
-  const statusLine = t(`updater.statuses.${statusKey}`, {
+  const statusLine = t(`updater.statuses.${updaterStatusKey(state.status)}`, {
+
     version: state.latestVersion ?? '',
     percent: state.downloadProgress,
     message: state.errorMessage ?? ''

@@ -1,15 +1,17 @@
-import { DEFAULT_MOD_NAME, posixJoin, resolveTargets } from '@ptt/converter'
+import { DEFAULT_MOD_NAME, resolveTargets } from '@ptt/converter'
+
 import { getAllGameIds, getGame } from '@ptt/games'
+import { runReportsDir } from '@ptt/report'
 import type { GameDefinition } from '@ptt/shared'
 import {
   CONVERT_MODES,
   LANGUAGE_CODES,
   LanguageCodeSchema,
+
   TARGET_CONTENTS,
   describeTargetListProblem,
-  findNothingToWriteTarget,
+  findTargetListIssue,
   findTargetListProblem,
-  findUnrecognizedTarget,
   isFileToken,
   isGameToken,
   isLanguageCode,
@@ -17,7 +19,14 @@ import {
   normalizeFileToken,
   normalizeTargetLanguage
 } from '@ptt/shared'
-import type { ConvertMode, LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
+import type {
+  ConvertMode,
+  LanguageCode,
+  TargetContent,
+  TargetListProblem,
+  TranslationTarget
+} from '@ptt/shared'
+
 import type { TranslateConfig } from '@ptt/translate'
 import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
@@ -105,21 +114,8 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
     throw new Error(`Every --to target was dropped, so the run would write nothing: ${dropped}`)
   }
 
-  const nothingToWrite = findNothingToWriteTarget(
-    targets,
-    game.languageFileToken,
-    sourceLanguage,
-    mode,
-    targetContent
-  )
-  if (nothingToWrite) {
-    throw new Error(
-      `l_${nothingToWrite.fileToken} is already how this mod is written: with "Only missing keys" ` +
-        'there is nothing to add. Pick "Complete file", or use "Create a translation mod".'
-    )
-  }
-
   const userDataPath = resolveUserData(asString(flags['user-data']))
+
   const documentsPath = await resolveDocuments(asString(flags.documents))
   const outputDir = asString(flags.out)
   const modFilter = asString(flags.mod)
@@ -128,13 +124,13 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
   const selectedMods = asList(flags.mods)
   const translate = buildTranslate(flags, game)
 
-  const unsupported = findUnsupportedTarget(translate, targets)
-  if (unsupported) {
-    throw new Error(
-      `The RapidAPI provider cannot translate into "${unsupported.language}": it only supports ` +
-        `${LANGUAGE_CODES.join(', ')}. Pick a built-in language, or use the OpenAI or Ollama provider.`
-    )
-  }
+  const issue = findTargetListIssue(targets, game.languageFileToken, {
+    sourceLanguage,
+    mode,
+    targetContent,
+    ...(translate !== undefined && { provider: translate.provider })
+  })
+  if (issue) throw new Error(describeTargetListProblem(issue, targets, game))
 
   return {
     command: args.command,
@@ -148,7 +144,8 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
     modName: asString(flags['mod-name']) ?? DEFAULT_MOD_NAME,
     documentsPath,
     userDataPath,
-    reportsDir: posixJoin(userDataPath, 'reports'),
+    reportsDir: runReportsDir(userDataPath),
+
     limit: asNumber(flags.limit, DEFAULT_ROWS),
     ...(outputDir !== undefined && { outputDir }),
     ...(selectedMods !== undefined && { selectedMods }),
@@ -251,18 +248,19 @@ function builtInTokenFor(game: GameDefinition, language: string): string {
 
 function parseCustomToken(raw: string, language: string, game: GameDefinition): string {
   const fileToken = normalizeFileToken(raw)
+  const describe = (problem: TargetListProblem): string =>
+    describeTargetListProblem(problem, [{ language, fileToken: raw }], game)
+
   if (!isFileToken(fileToken)) {
     throw new Error(
-      `Invalid file token "${raw}" for "${language}": a file token is lowercase letters and ` +
+      `${describe({ code: 'invalid-token', index: 0 })}: a file token is lowercase letters and ` +
         'underscores, without "l_"'
     )
   }
   if (!isGameToken(fileToken, game.languageFileToken)) {
-    throw new Error(
-      `${game.displayName} writes no l_${fileToken}: expected one of ` +
-        Object.values(game.languageFileToken).join(', ')
-    )
+    throw new Error(describe({ code: 'unknown-token', index: 0, fileToken }))
   }
+
   return fileToken
 }
 
@@ -276,13 +274,6 @@ function describeDroppedTargets(
   return resolved.warnings.length > 0
     ? resolved.warnings.join(' ; ')
     : 'no target survived resolution'
-}
-
-export function findUnsupportedTarget(
-  translate: TranslateConfig | undefined,
-  targets: readonly TranslationTarget[]
-): TranslationTarget | undefined {
-  return translate?.provider === 'rapidapi' ? findUnrecognizedTarget(targets) : undefined
 }
 
 function isConvertMode(value: string): value is ConvertMode {

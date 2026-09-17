@@ -229,10 +229,10 @@
     "scanToast_one": "{{count}} file missing across the collection",
     "scanToast_other": "{{count}} files missing across the collection",
     "status": {
-      "": "Working…",
       "cancelled": "Cancelled",
       "done": "Done",
       "error": "Error",
+      "idle": "Working…",
       "processing-mods": "Processing mods…",
       "scan-finished": "Scan finished",
       "scanning": "Scanning files…",
@@ -252,7 +252,6 @@
     },
     "translationCounters": "{{translated}} translated, {{cached}} free, {{failed}} left alone"
   },
-  "modal.status.": "",
   "report": {
     "cardHint": "Found a bug or have a suggestion?",
     "cardTitle": "Report a problem",

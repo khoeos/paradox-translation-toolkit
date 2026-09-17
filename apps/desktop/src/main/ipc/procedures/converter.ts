@@ -3,20 +3,18 @@ import { z } from 'zod'
 import { getAllGameIds, getGame } from '@ptt/games'
 import {
   ConvertModeSchema,
-  LANGUAGE_CODES,
   LanguageCodeSchema,
   TargetContentSchema,
   TranslationTargetSchema,
   describeTargetListProblem,
-  findNothingToWriteTarget,
-  findTargetListProblem,
-  findUnrecognizedTarget,
+  findTargetListIssue,
   normalizeTargets,
   type ConvertMode,
   type LanguageCode,
   type TargetContent,
   type TranslationTarget
 } from '@ptt/shared'
+
 
 import { publicProcedure, router } from '../trpc.js'
 import { TranslateConfigSchema, toTranslateConfig } from './translate.js'
@@ -28,67 +26,33 @@ const TargetsSchema = z.array(TranslationTargetSchema).min(1)
 interface TargetListInput {
   gameId: string
   targets: readonly TranslationTarget[]
-  translate?: { provider: string } | undefined
+  sourceLanguage: LanguageCode
+  mode: ConvertMode
+  targetContent?: TargetContent | undefined
+  translate?: { enabled: boolean; provider: string } | undefined
 }
 
-const withTargetProblems = (
-  input: TargetListInput,
-  ctx: z.RefinementCtx
-): TranslationTarget[] | undefined => {
+const withTargetProblems = (input: TargetListInput, ctx: z.RefinementCtx): void => {
   const game = getGame(input.gameId)
   const tokens = game?.languageFileToken ?? {}
   const targets = normalizeTargets(input.targets)
 
-  const problem = findTargetListProblem(targets, tokens)
-  if (problem !== undefined) {
-    ctx.addIssue(
-      describeTargetListProblem(problem, targets, {
-        displayName: game?.displayName ?? 'This game',
-        languageFileToken: tokens
-      })
-    )
-    return undefined
-  }
+  const problem = findTargetListIssue(targets, tokens, {
+    sourceLanguage: input.sourceLanguage,
+    mode: input.mode,
+    targetContent: input.targetContent ?? 'missing-keys',
+    ...(input.translate?.enabled === true && { provider: input.translate.provider })
+  })
+  if (problem === undefined) return
 
-  const unsupported =
-    input.translate?.provider === 'rapidapi' ? findUnrecognizedTarget(targets) : undefined
-  if (unsupported !== undefined) {
-    ctx.addIssue(
-      `The RapidAPI provider cannot translate into "${unsupported.language}": it only supports ` +
-        `${LANGUAGE_CODES.join(', ')}. Pick a built-in language, or use the OpenAI or Ollama provider.`
-    )
-    return undefined
-  }
-
-  return targets
-}
-
-const withConvertTargetProblems = (
-  input: TargetListInput & {
-    sourceLanguage: LanguageCode
-    mode: ConvertMode
-    targetContent?: TargetContent | undefined
-  },
-  ctx: z.RefinementCtx
-): void => {
-  const targets = withTargetProblems(input, ctx)
-  const game = getGame(input.gameId)
-  if (targets === undefined || game === undefined) return
-
-  const nothingToWrite = findNothingToWriteTarget(
-    targets,
-    game.languageFileToken,
-    input.sourceLanguage,
-    input.mode,
-    input.targetContent ?? 'missing-keys'
+  ctx.addIssue(
+    describeTargetListProblem(problem, targets, {
+      displayName: game?.displayName ?? 'This game',
+      languageFileToken: tokens
+    })
   )
-  if (nothingToWrite !== undefined) {
-    ctx.addIssue(
-      `l_${nothingToWrite.fileToken} is already how this mod is written: with "Only missing keys" ` +
-        'there is nothing to add. Pick "Complete file", or use "Create a translation mod".'
-    )
-  }
 }
+
 
 export const ScanModsInputSchema = z
   .object({
@@ -102,9 +66,8 @@ export const ScanModsInputSchema = z
     translate: TranslateConfigSchema.optional(),
     retranslateOwnKeys: z.boolean().optional()
   })
-  .superRefine((input, ctx) => {
-    withTargetProblems(input, ctx)
-  })
+  .superRefine(withTargetProblems)
+
 
 export const ConvertInputSchema = z
   .object({
@@ -120,7 +83,8 @@ export const ConvertInputSchema = z
     translate: TranslateConfigSchema.optional(),
     retranslateOwnKeys: z.boolean().optional()
   })
-  .superRefine(withConvertTargetProblems)
+  .superRefine(withTargetProblems)
+
 
 export const converterRouter = router({
   scanMods: publicProcedure.input(ScanModsInputSchema).mutation(({ ctx, input }) => {

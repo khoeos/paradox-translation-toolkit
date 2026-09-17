@@ -11,7 +11,8 @@ import type {
   TranslationEnginePort,
   TranslationMod
 } from '../src/index.js'
-import { localeFile, stellarisDef, stellarisGame } from './fixtures.js'
+import { localeFile, staticSetup, stellarisDef, stellarisGame } from './fixtures.js'
+
 import { MemoryFs } from './memory-fs.js'
 
 const translationMod: TranslationMod = {
@@ -178,8 +179,9 @@ describe('create-translation-mod, twice, with a target writing under the source 
     mode: 'create-translation-mod',
     generatedMod: translationMod,
     generatedModsDir: 'documents/mod',
-    engine,
+    translationSetup: staticSetup({ engine }),
     cancellation: { requested: false }
+
   })
 
   const scan = async (

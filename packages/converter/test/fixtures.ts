@@ -1,7 +1,7 @@
 import type { GameDefinition, LanguageCode, TranslationTarget } from '@ptt/shared'
 import { builtInTargetFor } from '@ptt/shared/languages'
 
-import type { GameContextRef } from '../src/index.js'
+import type { GameContextRef, TranslationSetup, TranslationSetupPort } from '../src/index.js'
 
 const BOM = '﻿'
 
@@ -58,3 +58,7 @@ export function localeFile(language: string, entries: Array<[string, string]> = 
   }
   return content
 }
+
+export const staticSetup = (setup: TranslationSetup): TranslationSetupPort => ({
+  open: () => Promise.resolve(setup)
+})

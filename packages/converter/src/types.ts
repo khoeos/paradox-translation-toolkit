@@ -1,6 +1,7 @@
 import type { GameDefinition, LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
 
 import type { ModDiagnostic } from './diagnostics.js'
+import type { TranslationProgress } from './progress.js'
 
 export type { FsDirEntry, FsLike } from '@ptt/shared'
 
@@ -136,6 +137,43 @@ export interface ModPlan {
 
 export interface TranslationMemoryPort {
   get(language: string, value: string): string | undefined
+}
+
+export interface TranslationEnginePort {
+  translate(
+    values: readonly string[],
+    language: string
+  ): Promise<{ results: Map<string, string>; stats: TranslationProgress }>
+  refusalFor(language: string, value: string): { reason: string; detail?: string } | undefined
+  getCounters(): TranslationProgress
+  isBackendDown(): boolean
+}
+
+export interface TranslationSetupRequest {
+  sourceLanguage: LanguageCode
+  targetLanguages: readonly string[]
+}
+
+export interface TranslationSetup {
+  engine?: TranslationEnginePort
+  memory?: TranslationMemoryPort
+  glossaryProblems?: readonly string[]
+  flush?: () => Promise<void>
+}
+
+export interface TranslationSetupPort {
+  open(request: TranslationSetupRequest): Promise<TranslationSetup>
+}
+
+export interface RunReportPort {
+  write(facts: RunReportFacts): Promise<{ jsonPath: string; file: string } | undefined>
+}
+
+export interface RunReportFacts {
+  startedAt: number
+  finishedAt: number
+  output: ConversionOutput
+  untranslated: readonly KeyReport[]
 }
 
 export interface KeyPlanOptions {

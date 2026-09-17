@@ -1,12 +1,15 @@
 import { TRPCError } from '@trpc/server'
-import { BrowserWindow, utilityProcess, type UtilityProcess } from 'electron'
+import { utilityProcess, type UtilityProcess } from 'electron'
+
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { resolveGeneratedMod } from '@ptt/converter'
 import type { ConversionOutput, JobEvent, TranslationMod } from '@ptt/converter'
+
 import { isJobEvent } from '@ptt/converter/progress'
-import { retranslateOwnKeysHasNoEffect } from '@ptt/converter/retranslate'
+
 import { getGame } from '@ptt/games'
 import {
   IPC_CHANNELS,
@@ -18,8 +21,10 @@ import {
 } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
 
+import { broadcastToWindows } from '../ipc/bridge.js'
 import { log } from '../log.js'
-import { resolveGeneratedMod } from './generated-mod-paths.js'
+
+
 import type { OpenableRegistry } from './openable-registry.js'
 
 export type { JobEvent }
@@ -72,9 +77,6 @@ export class ConverterService {
   ) {}
 
   scanMods(input: ScanModsInput): { jobId: string } {
-    const requestedRetranslateOwnKeys = input.retranslateOwnKeys ?? false
-    const retranslateOwnKeys =
-      requestedRetranslateOwnKeys && !retranslateOwnKeysHasNoEffect(input.mode)
     return this.startJob(input.gameId, (jobId, game) => {
       const generated = this.generatedModFor(game, input.modName)
       return {
@@ -84,13 +86,18 @@ export class ConverterService {
         game,
         sourceLanguage: input.sourceLanguage,
         targets: input.targets,
+        mode: input.mode,
         userDataPath: this.userDataPath,
+        ...(input.targetContent !== undefined && { targetContent: input.targetContent }),
         ...(input.translate !== undefined && { translate: input.translate }),
-        ...(retranslateOwnKeys && { retranslateOwnKeys }),
+        ...(input.retranslateOwnKeys !== undefined && {
+          retranslateOwnKeys: input.retranslateOwnKeys
+        }),
         ...(generated !== undefined && { generatedMod: generated.mod })
       }
     })
   }
+
 
   convert(input: ConvertInput): { jobId: string } {
     return this.startJob(input.gameId, (jobId, game) => {
@@ -220,10 +227,9 @@ export class ConverterService {
   }
 
   private broadcast(event: JobEvent): void {
-    for (const win of BrowserWindow.getAllWindows()) {
-      win.webContents.send(IPC_CHANNELS.jobEvent, event)
-    }
+    broadcastToWindows(IPC_CHANNELS.jobEvent, event)
   }
+
 
   private registerConversionPaths(output: ConversionOutput): void {
     for (const mod of output.mods) {

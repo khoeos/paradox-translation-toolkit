@@ -1,16 +1,13 @@
-import type { RefusalReason } from '@ptt/translate'
+import { IDENTICAL_REASON } from '@ptt/converter/reasons'
+import { REFUSAL_REASONS } from '@ptt/translate/defaults'
 
 export type Translate = (key: string, options: Record<string, unknown>) => string
 
-type KnownRefusalReason = RefusalReason | 'identical'
+const KNOWN_REFUSAL_REASONS = [...REFUSAL_REASONS, IDENTICAL_REASON] as const
 
-const KNOWN_REFUSAL_REASONS = [
-  'markup',
-  'empty',
-  'backend',
-  'control',
-  'identical'
-] as const satisfies readonly KnownRefusalReason[]
+export type KnownRefusalReason = (typeof KNOWN_REFUSAL_REASONS)[number]
+
+export { KNOWN_REFUSAL_REASONS }
 
 const isKnownRefusalReason = (reason: string): reason is KnownRefusalReason =>
   KNOWN_REFUSAL_REASONS.some(known => known === reason)

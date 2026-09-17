@@ -7,9 +7,11 @@ import {
   isRunReportFileName,
   listRunReportFiles,
   readRunReportMeta,
+  runReportsDir,
   type ParsedRunReport,
   type RunReportSummary
 } from '@ptt/report'
+
 import type { FsLike } from '@ptt/shared'
 
 import { nodeFs } from './node-fs.js'
@@ -120,5 +122,6 @@ export function createRunReportsService(
   openable: OpenableRegistry,
   userDataPath: string
 ): RunReportsService {
-  return new RunReportsService(posixJoin(userDataPath, 'reports'), openable)
+  return new RunReportsService(runReportsDir(userDataPath), openable)
+
 }

@@ -32,7 +32,9 @@ export {
 } from './schema.js'
 export {
   RUN_REPORT_FILE_PATTERN,
+  runReportsDir,
   isRunReportFileName,
+
   buildCsvSiblingPath,
   listRunReportFiles,
   readRunReport,

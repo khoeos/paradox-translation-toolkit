@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ReportMod } from './run-errors.js'
+import { scanMods } from '@ptt/converter'
+import { MemoryFs } from '@ptt/converter/test/memory-fs'
+import { stellaris } from '@ptt/games'
+
+import type { ReportMod, RunErrorCategory } from './run-errors.js'
+
 import {
   filterReportMods,
   getErrorCategorySummaries,
@@ -305,5 +310,55 @@ describe('sortReportMods', () => {
     const c = mod({ id: 'c', name: 'C Mod', failed: 0, errors: [UNTERMINATED, NO_HEADER] })
     const d = mod({ id: 'd', name: 'D Mod', failed: 0, errors: [] })
     expect(sortReportMods([d, c, a, b]).map(m => m.id)).toEqual(['b', 'a', 'c', 'd'])
+  })
+})
+
+const BOM = '﻿'
+
+const scanWith = async (files: Record<string, string>): Promise<string[]> => {
+  const output = await scanMods(
+    {
+      rootDir: 'workshop',
+      gameDef: stellaris,
+      sourceLanguage: 'en',
+      targets: [{ language: 'ru', fileToken: 'russian' }]
+    },
+    new MemoryFs(files)
+  )
+  return output.mods.flatMap(scanned => scanned.errors.concat(scanned.warnings ?? []))
+}
+
+describe('parseModError against the strings the converter actually emits', () => {
+  const categoriesOf
+ = async (files: Record<string, string>): Promise<RunErrorCategory[]> =>
+    (await scanWith(files)).map(raw => parseModError(raw).category)
+
+  it('recognises an unterminated value string', async () => {
+    const categories = await categoriesOf({
+      'workshop/a/descriptor.mod': 'name="Mod A"',
+      'workshop/a/localisation/english/a_l_english.yml':
+        `${BOM}l_english:\n K1:0 "never closed\n K2:0 "fine"\n`
+    })
+    expect(categories).toContain('unterminated')
+    expect(categories).not.toContain('other')
+  })
+
+  it('recognises a file with no language header', async () => {
+    const categories = await categoriesOf({
+      'workshop/a/descriptor.mod': 'name="Mod A"',
+      'workshop/a/localisation/english/a_l_english.yml': `${BOM} K1:0 "no header above me"\n`
+    })
+    expect(categories).toContain('header')
+
+  })
+
+  it('reads the language folder back out of the path the converter built', async () => {
+    const [raw] = await scanWith({
+      'workshop/a/descriptor.mod': 'name="Mod A"',
+      'workshop/a/localisation/english/a_l_english.yml':
+        `${BOM}l_english:\n K1:0 "never closed\n K2:0 "fine"\n`
+    })
+    expect(raw).toBeDefined()
+    expect(parseModError(raw ?? '').languageFolder).toBe('english')
   })
 })

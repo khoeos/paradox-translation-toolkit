@@ -1,7 +1,10 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useRef } from 'react'
 
+import { posixDirname } from '@ptt/converter/path'
+
 import { formatPath } from '@renderer/lib/format-path'
+
 
 interface VirtualizedFileListProps {
   files: string[]
@@ -35,7 +38,8 @@ export function VirtualizedFileList({ files, onPick }: VirtualizedFileListProps)
         {rowVirtualizer.getVirtualItems().map(virtualRow => {
           const file = files[virtualRow.index]
           if (!file) return null
-          const dir = file.split('/').slice(0, -1).join('/')
+          const dir = posixDirname(file)
+
           return (
             <li
               key={file}

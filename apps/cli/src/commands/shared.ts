@@ -1,10 +1,10 @@
 import {
   posixDirname,
   resolveGeneratedMod,
-  retranslateOwnKeysHasNoEffect,
   scanMods,
   sumByLanguage
 } from '@ptt/converter'
+
 import type { GeneratedModPaths, KeyReport, ScanOutput, ScannedMod } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
 import { writeKeyCsv } from '@ptt/report'
@@ -69,10 +69,11 @@ export async function runScan(options: CliOptions, detail: boolean): Promise<Sca
       targets: options.targets,
       countLines: options.translate?.enabled === true,
       detail,
+      mode: options.mode,
       targetContent: options.targetContent,
-      retranslateOwnKeys:
-        options.retranslateOwnKeys && !retranslateOwnKeysHasNoEffect(options.mode),
+      retranslateOwnKeys: options.retranslateOwnKeys,
       memory,
+
       generatedModPath: generated.path,
       generatedModFolder: generated.folder,
       onProgress: (processed, total, modName, totals) =>

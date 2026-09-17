@@ -272,6 +272,9 @@ importers:
         specifier: workspace:*
         version: link:../shared
     devDependencies:
+      '@ptt/games':
+        specifier: workspace:*
+        version: link:../games
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@5.0.0)

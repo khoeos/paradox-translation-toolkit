@@ -1,9 +1,15 @@
 import { is } from '@electron-toolkit/utils'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, shell } from 'electron'
+
 import electronUpdater from 'electron-updater'
 import { join } from 'node:path'
 
 import { IPC_CHANNELS } from '@ptt/shared'
+import type { UpdaterEvent, UpdaterSnapshot } from '@ptt/shared/updater'
+
+import { broadcastToWindows } from '../ipc/bridge.js'
+
+
 
 import {
   getLinuxPackageKind,
@@ -15,36 +21,13 @@ const { autoUpdater } = electronUpdater
 
 const RELEASES_URL = 'https://github.com/khoeos/paradox-translation-toolkit/releases/latest'
 
-export type UpdaterStatus =
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'not-available'
-  | 'downloading'
-  | 'ready'
-  | 'error'
-  | 'disabled'
+export type { UpdaterEvent, UpdaterStatus } from '@ptt/shared/updater'
 
-export interface UpdaterState {
-  status: UpdaterStatus
+export interface UpdaterState extends UpdaterSnapshot {
   currentVersion: string
-  latestVersion: string | null
-  downloadProgress: number
-  errorMessage: string | null
-  releaseNotes: string | null
-  autoUpdateSupported: boolean
   requiresElevatedInstall: boolean
-  releaseUrl: string
 }
 
-export type UpdaterEvent =
-  | { type: 'checking' }
-  | { type: 'available'; version: string; releaseNotes: string | null }
-  | { type: 'not-available'; version: string }
-  | { type: 'download-progress'; percent: number }
-  | { type: 'ready'; version: string }
-  | { type: 'error'; message: string }
-  | { type: 'redirected-to-browser'; version: string | null }
 
 export class UpdaterService {
   private state: UpdaterState
@@ -172,10 +155,9 @@ export class UpdaterService {
   }
 
   private broadcast(event: UpdaterEvent): void {
-    for (const win of BrowserWindow.getAllWindows()) {
-      win.webContents.send(IPC_CHANNELS.updaterEvent, event)
-    }
+    broadcastToWindows(IPC_CHANNELS.updaterEvent, event)
   }
+
 }
 
 function normalizeReleaseNotes(

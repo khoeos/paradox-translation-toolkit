@@ -19,7 +19,13 @@ export type {
   CreationJob,
   ModPlan,
   TranslationMemoryPort,
+  TranslationSetup,
+  TranslationSetupPort,
+  TranslationSetupRequest,
+  RunReportPort,
+  RunReportFacts,
   KeyPlanOptions,
+
   ScannedMod,
   ScanTotals,
   ScanOutput,
@@ -114,4 +120,6 @@ export {
   type TranslationEnginePort
 } from './run.js'
 export { retranslateOwnKeysHasNoEffect } from './retranslate.js'
+export { IDENTICAL_REASON, NOT_ATTEMPTED_REASON } from './reasons.js'
+
 export { pruneNamespace, canPrune, type PruneOptions, type PruneReport } from './prune.js'

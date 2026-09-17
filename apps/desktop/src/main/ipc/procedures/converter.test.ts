@@ -195,3 +195,63 @@ describe('ConvertInputSchema', () => {
     expect(result.success).toBe(true)
   })
 })
+
+describe('the two schemas agree on what a usable target list is', () => {
+  const cases = [
+    {
+      name: 'a target that would write nothing into the source file',
+      over: {
+        mode: 'add-to-current',
+        targetContent: 'missing-keys',
+        targets: [{ language: 'fr', fileToken: 'english' }]
+      },
+      accepted: false
+    },
+    {
+      name: 'that same target once the whole file is rewritten',
+      over: {
+        mode: 'add-to-current',
+        targetContent: 'complete-file',
+        targets: [{ language: 'fr', fileToken: 'english' }]
+      },
+      accepted: true
+    },
+    {
+      name: 'a free-text language RapidAPI cannot reach',
+      over: {
+        targets: [{ language: 'Catalan', fileToken: 'english' }],
+        translate: translateConfig('rapidapi')
+      },
+      accepted: false
+    },
+    {
+      name: 'that same language once the provider is not RapidAPI',
+      over: {
+        targets: [{ language: 'Catalan', fileToken: 'english' }],
+        translate: translateConfig('openai')
+      },
+      accepted: true
+    },
+    {
+      name: 'an unknown file token',
+      over: { targets: [{ language: 'fr', fileToken: 'klingon' }] },
+      accepted: false
+    }
+  ] as const
+
+  it.each(cases)('$name', ({ over, accepted }) => {
+    const input = { ...convertBase, ...over }
+    expect(ScanModsInputSchema.safeParse(input).success, 'scan').toBe(accepted)
+    expect(ConvertInputSchema.safeParse(input).success, 'convert').toBe(accepted)
+  })
+
+  it('ignores the provider limits while translation is off', () => {
+    const input = {
+      ...convertBase,
+      targets: [{ language: 'Catalan', fileToken: 'english' }],
+      translate: { ...translateConfig('rapidapi'), enabled: false }
+    }
+    expect(ScanModsInputSchema.safeParse(input).success).toBe(true)
+    expect(ConvertInputSchema.safeParse(input).success).toBe(true)
+  })
+})

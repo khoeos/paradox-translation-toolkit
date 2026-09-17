@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildFilename, parseFilename } from '@ptt/parser'
 import type { LanguageCode, TranslationTarget } from '@ptt/shared'
-import { isFileToken } from '@ptt/shared/languages'
+import { findTargetListIssue, isFileToken } from '@ptt/shared/languages'
 
 import { describeInPlaceShadowing, resolveTargets } from '../src/index.js'
 import type { GameContextRef, ResolvedTarget } from '../src/index.js'
@@ -231,5 +231,64 @@ describe('describeInPlaceShadowing', () => {
     expect(describeInPlaceShadowing({ ...shadowing, language: 'tr' }, 'fr', true)).toContain(
       'Turkish written under "l_english" replaces the French files'
     )
+  })
+})
+
+describe('resolveTargets agrees with the gate the front ends run', () => {
+  const tokens = stellarisDef.languageFileToken
+  const context = {
+    sourceLanguage: 'en',
+    mode: 'create-translation-mod',
+    targetContent: 'missing-keys'
+  } as const
+
+  const accepted: ReadonlyArray<readonly TranslationTarget[]> = [
+    [{ language: 'ru', fileToken: 'russian' }],
+    [
+      { language: 'ru', fileToken: 'russian' },
+      { language: 'fr', fileToken: 'french' }
+    ],
+    [{ language: 'Catalan', fileToken: 'russian' }],
+    [{ language: 'Russian', fileToken: 'russian' }]
+  ]
+
+  const rejected: ReadonlyArray<readonly TranslationTarget[]> = [
+    [],
+    [{ language: 'a:b', fileToken: 'russian' }],
+    [{ language: 'ru', fileToken: 'l_x' }],
+    [{ language: 'ru', fileToken: 'klingon' }],
+    [
+      { language: 'ru', fileToken: 'russian' },
+      { language: 'Russian', fileToken: 'french' }
+    ],
+    [
+      { language: 'ru', fileToken: 'russian' },
+      { language: 'fr', fileToken: 'russian' }
+    ]
+  ]
+
+  it.each(accepted.map(list => [list]))(
+    'resolves an accepted list whole, with no warning: %j',
+    list => {
+      expect(findTargetListIssue(list, tokens, context)).toBeUndefined()
+      const resolved = resolveTargets(stellarisDef, 'en', list)
+      expect(resolved.warnings).toEqual([])
+      expect(resolved.targets).toHaveLength(list.length)
+    }
+  )
+
+  it.each(rejected.map(list => [list]))(
+    'never lets a rejected list through silently: %j',
+    list => {
+      expect(findTargetListIssue(list, tokens, context)).toBeDefined()
+    }
+  )
+
+  it('drops the source language itself, which the gate allows through', () => {
+    const list: TranslationTarget[] = [{ language: 'en', fileToken: 'english' }]
+    expect(findTargetListIssue(list, tokens, context)).toBeUndefined()
+    const resolved = resolveTargets(stellarisDef, 'en', list)
+    expect(resolved.targets).toEqual([])
+    expect(resolved.warnings[0]).toContain('is the source language')
   })
 })

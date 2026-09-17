@@ -150,6 +150,8 @@ export type TargetListProblem =
   | { code: 'unknown-token'; index: number; fileToken: string }
   | { code: 'duplicate-language'; index: number; language: string }
   | { code: 'duplicate-token'; index: number; fileToken: string }
+  | { code: 'rapidapi-unsupported'; index: number; language: string }
+  | { code: 'nothing-to-write'; index: number; fileToken: string }
 
 export const findTargetListProblem = (
   targets: readonly TranslationTarget[],
@@ -187,7 +189,52 @@ export const findTargetListProblem = (
   return undefined
 }
 
+export interface TargetCheckContext {
+  sourceLanguage: LanguageCode
+  mode: ConvertMode
+  targetContent: TargetContent
+  provider?: string | undefined
+}
+
+export const findTargetListIssue = (
+  targets: readonly TranslationTarget[],
+  tokens: GameTokens,
+  context: TargetCheckContext
+): TargetListProblem | undefined => {
+  const problem = findTargetListProblem(targets, tokens)
+  if (problem !== undefined) return problem
+
+  if (context.provider === 'rapidapi') {
+    const unsupported = findUnrecognizedTarget(targets)
+    if (unsupported !== undefined) {
+      return {
+        code: 'rapidapi-unsupported',
+        index: targets.indexOf(unsupported),
+        language: unsupported.language
+      }
+    }
+  }
+
+  const nothingToWrite = findNothingToWriteTarget(
+    targets,
+    tokens,
+    context.sourceLanguage,
+    context.mode,
+    context.targetContent
+  )
+  if (nothingToWrite !== undefined) {
+    return {
+      code: 'nothing-to-write',
+      index: targets.indexOf(nothingToWrite),
+      fileToken: nothingToWrite.fileToken
+    }
+  }
+
+  return undefined
+}
+
 export const describeTargetListProblem = (
+
   problem: TargetListProblem,
   targets: readonly TranslationTarget[],
   game: { displayName: string; languageFileToken: GameTokens }
@@ -210,5 +257,16 @@ export const describeTargetListProblem = (
       return `Target language "${problem.language}" is given more than once`
     case 'duplicate-token':
       return `Target file token "${problem.fileToken}" is given more than once`
+    case 'rapidapi-unsupported':
+      return (
+        `The RapidAPI provider cannot translate into "${problem.language}": it only supports ` +
+        `${LANGUAGE_CODES.join(', ')}. Pick a built-in language, or use the OpenAI or Ollama provider.`
+      )
+    case 'nothing-to-write':
+      return (
+        `l_${problem.fileToken} is already how this mod is written: with "Only missing keys" ` +
+        'there is nothing to add. Pick "Complete file", or use "Create a translation mod".'
+      )
   }
 }
+

@@ -1,6 +1,7 @@
 import type { TranslateConfig, TranslateProvider } from './types.js'
 
-export { TRANSLATE_PROVIDERS } from './types.js'
+export { TRANSLATE_PROVIDERS, REFUSAL_REASONS } from './types.js'
+
 export type { TranslateProvider, TranslateConfig }
 
 export interface ProviderDefaults {

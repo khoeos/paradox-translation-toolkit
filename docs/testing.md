@@ -9,14 +9,18 @@ pnpm --filter @ptt/converter exec vitest run --coverage
 ## What's covered
 
 - **`parser`**: BOM, escapes, color codes, comments, error recovery, multi-line values, line-ending preservation, body/comment ordering, full round-trip fuzz.
-- **`converter`**: the mod-level pipeline, over a fake `FsLike`: multi-mod discovery, descriptor reading, inter-mod coverage by declared dependency and by key overlap, the key-level diff and its six `KeyState` (including the `english` versus `kept` boundary, which only the translation memory can settle), generated-mod idempotence, namespace pruning and its guards, the sandbox and file-size guards carried on every write, and the job-event guard.
+- **`converter`**: the mod-level pipeline, over a fake `FsLike`: multi-mod discovery, descriptor reading, inter-mod coverage by declared dependency and by key overlap, the key-level diff and its six `KeyState` (including the `english` versus `kept` boundary, which only the translation memory can settle), generated-mod idempotence, namespace pruning and its guards, the sandbox and file-size guards carried on every write, and the job-event guard. `test/run.test.ts` also covers the sequence `runConvert` owns around the pipeline, with fake `TranslationSetupPort` / `RunReportPort`: glossary problems emitted before the first mod, memory flushed before the report is written, both still happening on a cancelled run, and `output.reportPath` set only when the port actually wrote something. `test/scan-mods.test.ts` covers the options that must reach the key plan, `targetContent` and `retranslateOwnKeys`, including the mode where the latter is dropped.
+
 - **`translate`**: the engine's six guarantees against a table-driven provider (glossary and memory bypass, in-flight deduplication across mods, recursive batch splitting, the circuit breaker, the markup gate, refusal clearing), the three providers against a scripted `fetch`, atomic memory flush, and the glossary's term voting.
-- **`shared`**: `test/languages.test.ts` covers the language recognizer and its normalization (codes, display names, the two Paradox token aliases), the label grammar, the two token predicates and their normalized-input precondition, every `findTargetListProblem` code, and `TranslationTargetSchema`.
+- **`shared`**: `test/languages.test.ts` covers the language recognizer and its normalization (codes, display names, the two Paradox token aliases), the label grammar, the two token predicates and their normalized-input precondition, every `findTargetListProblem` code, the `findTargetListIssue` ordering (shape before provider before mode) and a non-empty message for every `TargetListProblem` code, plus `TranslationTargetSchema`. `test/updater.test.ts` covers `isUpdaterEvent` against the `UPDATER_EVENT_TYPES` tuple, including that the union and the tuple stay in step.
+
 - **`report`**: CSV quoting and formula neutralisation, the stored report shape, and its zod schema refusing a truncated or hand-edited report.
 - **`fs-node`**: the adapter against a real temporary directory, including a BOM + CRLF round trip. A fake here would test nothing.
 - **`@ptt/cli`**: argv parsing with its documented quirks, flag coercion, the config file, option building against the registry and the zod schemas, the per-platform userData mapping, mod filtering and terminal formatting.
 - **`@ptt/games`**: registry invariants (`getAllGames`, `getGame`, `getAllGameIds`, `toGameSummary`, `getGameSummaries`) plus a table-driven test in `packages/games/test/games.test.ts` with one row per `GameDefinition`, asserting id, displayName, steamAppId, localisationDirName, layout, userFolder and the game-specific language tokens.
-- **`@ptt/desktop`**: `path-policy.test.ts` covers the Paradox-pattern allowlist and the critical-folder blocklist for Win / macOS / Linux. OS-specific cases run only on the matching host (POSIX path semantics can't be faked on Win32 without mocking `node:path`). `generated-mod-paths.test.ts` covers where the generated mod lands per game. `store/converter-form.test.ts` covers scan invalidation, provider switching and the API key never reaching the persisted settings. `store/job-status-i18n.test.ts` asserts every `JobStatus` has a label, because the modal builds that key dynamically and the extractor cannot see it. `lib/estimate.test.ts` covers the duration estimate.
+- **`@ptt/desktop`**: `workers/ports.test.ts` and `@ptt/cli`'s `commands/ports.test.ts` cover the two port adapters each front end supplies to `runConvert` (the sequence itself is tested once, in `converter`). `ipc/procedures/converter.test.ts` asserts the scan and convert schemas accept exactly the same target lists. `store/jobs.test.ts` covers the job reducer: eviction that spares the active job, auto-creation on an unknown job id, the `scan-phase` dedup that returns the same state object so nothing re-renders, and the deferred clear on fake timers. `lib/run-errors.test.ts` ends with a contract test that drives the real `scanMods` over a `MemoryFs`, because its regexes are written against sentences owned by `@ptt/parser`: frozen string constants would stay green through a rewording. `path-policy.test.ts` covers the Paradox-pattern allowlist
+
+ and the critical-folder blocklist for Win / macOS / Linux. OS-specific cases run only on the matching host (POSIX path semantics can't be faked on Win32 without mocking `node:path`). `generated-mod-paths.test.ts` covers where the generated mod lands per game. `store/converter-form.test.ts` covers scan invalidation, provider switching and the API key never reaching the persisted settings. `store/job-status-i18n.test.ts` asserts every `JobStatus` has a label, because the modal builds that key dynamically and the extractor cannot see it. `lib/estimate.test.ts` covers the duration estimate.
 - **`i18n`**: parity check: every non-plural English key must exist in every other locale.
 
 ## Running tests
@@ -40,10 +44,18 @@ pnpm --filter @ptt/desktop exec playwright test      # already built, skip turbo
 pnpm --filter @ptt/desktop run e2e:ui                # Playwright UI mode
 ```
 
-- **Fixtures** live in `e2e/fixtures.ts`. The `electronApp` fixture launches `out/main/index.js`
-  through `electron.launch()` with a throwaway `--user-data-dir`, so `electron-store` settings and
-  the window-state file never leak between tests or touch your real profile. The `page` fixture is
-  the main window. A trace is recorded for every test and written to `test-results/` only on failure.
+- **Fixtures** live in `e2e/fixtures.ts`. `userDataDir` creates a throwaway `--user-data-dir`
+  **before** anything starts, so `electron-store` settings and the window-state file never leak
+  between tests or touch your real profile, and a test can write into it first. `launchApp()`
+  starts the app on that directory and can be called twice, which is how
+  `settings.test.ts` checks that a setting survives the process that wrote it. `electronApp` and
+  `page` are the one-launch shorthands. A trace is recorded for every launch and written to
+  `test-results/` only on failure; teardown tolerates an app the test closed itself.
+- **Seeding** goes through `e2e/seed.ts`, which writes a run report with the production
+  `writeRunReport`. The fixture therefore cannot drift from the schema the Runs page reads back.
+  `runs.test.ts` uses it to cover the one path no Vitest suite reaches: the report on disk, through
+  `RunReportsService` and tRPC, into the history table and the detail route.
+
 - **`PTT_E2E=1`** is set by the fixture and read in `main/env.ts`. It suppresses the two things that
   make an unpackaged run non-deterministic: the detached DevTools window (which would otherwise count
   as a second window) and the auto-update check.

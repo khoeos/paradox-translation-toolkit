@@ -6,7 +6,11 @@ import type {
   TargetContent,
   TranslationTarget
 } from '@ptt/shared'
-import { getLanguageDisplayName, normalizeTargets } from '@ptt/shared/languages'
+import {
+  getLanguageDisplayName,
+  normalizeTargets,
+  uniqueTargetLanguages
+} from '@ptt/shared/languages'
 
 import { applyModJobs } from './apply-generated.js'
 import { mapWithConcurrency } from './concurrency.js'
@@ -18,7 +22,10 @@ import { discoverMods } from './discover-mods.js'
 import { dropOurOwnMod, readGeneratedMod } from './generated-mod.js'
 import { planMod } from './key-plan.js'
 import { posixJoin } from './path.js'
-import type { JobEvent, ProgressPort, TranslationProgress } from './progress.js'
+import { IDENTICAL_REASON, NOT_ATTEMPTED_REASON } from './reasons.js'
+
+import type { JobEvent, ProgressPort } from './progress.js'
+
 import { retranslateOwnKeysHasNoEffect } from './retranslate.js'
 import { describeInPlaceShadowing, resolveTargets } from './target.js'
 import type { ResolvedTarget } from './target.js'
@@ -31,19 +38,14 @@ import type {
   ModFolder,
   ModPlan,
   ModResult,
+  RunReportPort,
+  TranslationEnginePort,
   TranslationMemoryPort,
-  TranslationMod
+  TranslationMod,
+  TranslationSetupPort
 } from './types.js'
 
-export interface TranslationEnginePort {
-  translate(
-    values: readonly string[],
-    language: string
-  ): Promise<{ results: Map<string, string>; stats: TranslationProgress }>
-  refusalFor(language: string, value: string): { reason: string; detail?: string } | undefined
-  getCounters(): TranslationProgress
-  isBackendDown(): boolean
-}
+export type { TranslationEnginePort } from './types.js'
 
 export interface Cancellation {
   requested: boolean
@@ -61,10 +63,15 @@ export interface ConvertRunOptions {
   generatedMod?: TranslationMod
   generatedModsDir?: string
   targetContent?: TargetContent
-  engine?: TranslationEnginePort
-  memory?: TranslationMemoryPort
+  translationSetup?: TranslationSetupPort
+  runReport?: RunReportPort
   retranslateOwnKeys?: boolean
   cancellation: Cancellation
+}
+
+interface ConvertCoreOptions extends Omit<ConvertRunOptions, 'translationSetup' | 'runReport'> {
+  engine?: TranslationEnginePort
+  memory?: TranslationMemoryPort
 }
 
 const EMPTY_TOTALS: ConversionTotals = {
@@ -85,6 +92,47 @@ export interface ConvertRunResult {
 
 export async function runConvert(
   options: ConvertRunOptions,
+  fs: FsLike,
+  port: ProgressPort
+): Promise<ConvertRunResult> {
+  const startedAt = Date.now()
+  const setup = (await options.translationSetup?.open({
+    sourceLanguage: options.sourceLanguage,
+    targetLanguages: uniqueTargetLanguages(normalizeTargets(options.targets))
+  })) ?? {}
+
+  for (const message of setup.glossaryProblems ?? []) {
+    port.emit({ type: 'log', jobId: options.jobId, severity: 'warning', message })
+  }
+
+  const result = await runConvertCore(
+    {
+      ...options,
+      ...(setup.engine !== undefined && { engine: setup.engine }),
+      ...(setup.memory !== undefined && { memory: setup.memory })
+    },
+    fs,
+    port
+  )
+
+  await setup.flush?.()
+
+  const written = await options.runReport?.write({
+    startedAt,
+    finishedAt: Date.now(),
+    output: result.output,
+    untranslated: result.untranslated
+  })
+  if (written !== undefined) {
+    result.output.reportPath = written.jsonPath
+    result.output.reportFile = written.file
+  }
+
+  return result
+}
+
+async function runConvertCore(
+  options: ConvertCoreOptions,
   fs: FsLike,
   port: ProgressPort
 ): Promise<ConvertRunResult> {
@@ -314,7 +362,8 @@ export function collectUntranslated(
         continue
       }
       if (response.trim() === value.trim()) {
-        out.push({ ...base, reason: 'identical', identicalToSource: true })
+        out.push({ ...base, reason: IDENTICAL_REASON, identicalToSource: true })
+
       }
     }
   }
@@ -365,7 +414,8 @@ async function translateMod(
     untranslated.push(
       ...collectUntranslated(plan, mod, language, tokenByLanguage.get(language), results, value => {
         const refusal = engine.refusalFor(language, value)
-        if (!refusal) return 'not attempted'
+        if (!refusal) return NOT_ATTEMPTED_REASON
+
         return refusal.detail ? `${refusal.reason}: ${refusal.detail}` : refusal.reason
       })
     )

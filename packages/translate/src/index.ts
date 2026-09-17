@@ -10,11 +10,13 @@ export type {
   RefusalReason,
   Refusal,
   Glossary,
+
   GlossaryStats,
   GlossaryReport,
   GlossarySkipReason
 } from './types.js'
-export { TRANSLATE_PROVIDERS } from './types.js'
+export { TRANSLATE_PROVIDERS, REFUSAL_REASONS } from './types.js'
+
 
 export {
   PROVIDER_DEFAULTS,

@@ -7,8 +7,9 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./path": "./src/path.ts",
     "./progress": "./src/progress.ts",
-    "./retranslate": "./src/retranslate.ts",
+    "./reasons": "./src/reasons.ts",
     "./totals": "./src/totals.ts",
     "./test/memory-fs": "./test/memory-fs.ts"
   },
@@ -24,6 +25,7 @@
     "@ptt/shared": "workspace:*"
   },
   "devDependencies": {
+    "@ptt/games": "workspace:*",
     "@vitest/coverage-v8": "catalog:",
     "rimraf": "catalog:",
     "typescript": "catalog:",

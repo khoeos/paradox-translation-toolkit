@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import en from '@ptt/i18n/locales/en'
 
-import { getRefusalReasonLabel, type Translate } from './refusal-reasons.js'
+import {
+  getRefusalReasonLabel,
+  KNOWN_REFUSAL_REASONS,
+  type Translate
+} from './refusal-reasons.js'
+
 
 const t: Translate = (key, options) => {
   const entries = Object.entries(options)
@@ -10,16 +15,26 @@ const t: Translate = (key, options) => {
   return entries.reduce<string>((out, [name, value]) => `${out} {{${name}}}=${String(value)}`, key)
 }
 
-const KNOWN_REASONS = ['markup', 'empty', 'backend', 'control', 'identical'] as const
-
 describe('getRefusalReasonLabel', () => {
   const reasonLabels: Record<string, string> = en.runs.report.refusals.reasons
 
-  it.each(KNOWN_REASONS)('has a non-empty extracted i18n value for %s', reason => {
+  it('covers the engine reasons and the one the pipeline writes itself', () => {
+    expect([...KNOWN_REFUSAL_REASONS]).toEqual([
+      'markup',
+      'empty',
+      'backend',
+      'control',
+      'identical'
+    ])
+  })
+
+  it.each(KNOWN_REFUSAL_REASONS)('has a non-empty extracted i18n value for %s', reason => {
+
     expect(reasonLabels[reason], reason).toBeTruthy()
   })
 
-  it.each(KNOWN_REASONS)('maps %s to its own i18n key', reason => {
+  it.each(KNOWN_REFUSAL_REASONS)('maps %s to its own i18n key', reason => {
+
     expect(getRefusalReasonLabel(t, reason)).toBe(`runs.report.refusals.reasons.${reason}`)
   })
 

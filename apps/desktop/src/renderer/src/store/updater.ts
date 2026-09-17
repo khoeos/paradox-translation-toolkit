@@ -1,45 +1,18 @@
 import { create } from 'zustand'
 
-export type UpdaterStatus =
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'not-available'
-  | 'downloading'
-  | 'ready'
-  | 'error'
-  | 'disabled'
+import type { UpdaterEvent, UpdaterSnapshot } from '@ptt/shared/updater'
 
-export type UpdaterEvent =
-  | { type: 'checking' }
-  | { type: 'available'; version: string; releaseNotes: string | null }
-  | { type: 'not-available'; version: string }
-  | { type: 'download-progress'; percent: number }
-  | { type: 'ready'; version: string }
-  | { type: 'error'; message: string }
-  | { type: 'redirected-to-browser'; version: string | null }
 
-interface UpdaterUiState {
-  status: UpdaterStatus
-  latestVersion: string | null
-  downloadProgress: number
-  errorMessage: string | null
-  releaseNotes: string | null
+export { isUpdaterEvent } from '@ptt/shared/updater'
+export type { UpdaterEvent, UpdaterStatus } from '@ptt/shared/updater'
+
+interface UpdaterUiState extends UpdaterSnapshot {
   dismissed: boolean
-  autoUpdateSupported: boolean
-  releaseUrl: string
   applyEvent: (e: UpdaterEvent) => void
-  hydrateFromState: (state: {
-    status: UpdaterStatus
-    latestVersion: string | null
-    downloadProgress: number
-    errorMessage: string | null
-    releaseNotes: string | null
-    autoUpdateSupported: boolean
-    releaseUrl: string
-  }) => void
+  hydrateFromState: (state: UpdaterSnapshot) => void
   dismiss: () => void
 }
+
 
 export const isUpdateBannerVisible = (
   state: Pick<UpdaterUiState, 'status' | 'dismissed'>
@@ -91,8 +64,3 @@ export const useUpdaterStore = create<UpdaterUiState>(set => ({
   dismiss: () => set({ dismissed: true })
 }))
 
-export function isUpdaterEvent(value: unknown): value is UpdaterEvent {
-  if (typeof value !== 'object' || value === null) return false
-  const v = value as { type?: unknown }
-  return typeof v.type === 'string'
-}

@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url'
 const APP_ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)))
 
 interface AppFixtures {
+  userDataDir: string
+  launchApp: () => Promise<ElectronApplication>
   electronApp: ElectronApplication
   page: Page
 }
@@ -22,21 +24,40 @@ function inheritedEnv(): Record<string, string> {
 
 export const test = base.extend<AppFixtures>({
   // oxlint-disable-next-line no-empty-pattern
-  electronApp: async ({}, use, testInfo) => {
-    const userDataDir = mkdtempSync(join(tmpdir(), 'ptt-e2e-'))
-    const app = await electron.launch({
-      cwd: APP_ROOT,
-      args: [`--user-data-dir=${userDataDir}`, '.'],
-      env: { ...inheritedEnv(), PTT_E2E: '1' }
-    })
-    await app.context().tracing.start({ screenshots: true, snapshots: true })
+  userDataDir: async ({}, use) => {
+    const dir = mkdtempSync(join(tmpdir(), 'ptt-e2e-'))
+    await use(dir)
+    rmSync(dir, { recursive: true, force: true })
+  },
 
-    await use(app)
+  launchApp: async ({ userDataDir }, use, testInfo) => {
+    const started: ElectronApplication[] = []
+
+    await use(async () => {
+      const app = await electron.launch({
+        cwd: APP_ROOT,
+        args: [`--user-data-dir=${userDataDir}`, '.'],
+        env: { ...inheritedEnv(), PTT_E2E: '1' }
+      })
+      await app.context().tracing.start({ screenshots: true, snapshots: true })
+      started.push(app)
+      return app
+    })
 
     const failed = testInfo.status !== testInfo.expectedStatus
-    await app.context().tracing.stop(failed ? { path: testInfo.outputPath('trace.zip') } : {})
-    await app.close()
-    rmSync(userDataDir, { recursive: true, force: true })
+    for (const [index, app] of started.entries()) {
+      const path = testInfo.outputPath(started.length > 1 ? `trace-${index}.zip` : 'trace.zip')
+      try {
+        await app.context().tracing.stop(failed ? { path } : {})
+        await app.close()
+      } catch {
+      }
+    }
+
+  },
+
+  electronApp: async ({ launchApp }, use) => {
+    await use(await launchApp())
   },
 
   page: async ({ electronApp }, use) => {

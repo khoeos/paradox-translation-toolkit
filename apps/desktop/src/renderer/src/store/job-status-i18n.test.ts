@@ -16,10 +16,8 @@ const STATUSES = [
 describe('modal.status labels', () => {
   const labels: Record<string, string> = en.modal.status
 
-  for (const status of STATUSES) {
-    if (status === 'idle') continue
-    it(`has a label for "${status}"`, () => {
-      expect(labels[status], status).toBeTruthy()
-    })
-  }
+  it.each(STATUSES)('has a label for "%s"', status => {
+    expect(labels[status], status).toBeTruthy()
+  })
+
 })

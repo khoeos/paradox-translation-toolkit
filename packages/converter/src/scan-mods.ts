@@ -1,4 +1,4 @@
-import type { LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
+import type { ConvertMode, LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
 import { normalizeTargets } from '@ptt/shared/languages'
 
 import { mapWithConcurrency } from './concurrency.js'
@@ -8,7 +8,9 @@ import { reportModDiagnostics, type DiagnosticSeverity, type ModDiagnostic } fro
 import { discoverMods } from './discover-mods.js'
 import { dropOurOwnMod, readGeneratedMod, summariseGeneratedMod } from './generated-mod.js'
 import type { ScanPhase, ScanRunningTotals } from './progress.js'
+import { retranslateOwnKeysHasNoEffect } from './retranslate.js'
 import { scanMod } from './scan-mod.js'
+
 import { sumByLanguage } from './totals.js'
 import type {
   Coverage,
@@ -29,9 +31,11 @@ export interface ScanModsOptions {
   generatedModPath?: string
   generatedModFolder?: string
   memory?: TranslationMemoryPort
+  mode?: ConvertMode
   targetContent?: TargetContent
   retranslateOwnKeys?: boolean
   countLines?: boolean
+
   detail?: boolean
   onProgress?: (done: number, total: number, modName: string, totals: ScanRunningTotals) => void
   onPhase?: (phase: ScanPhase, done?: number, total?: number) => void
@@ -91,8 +95,9 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
     generatedModPath,
     generatedModFolder,
     memory,
+    mode,
     targetContent,
-    retranslateOwnKeys,
+    retranslateOwnKeys: requestedRetranslateOwnKeys,
     countLines = false,
     detail = false,
     onProgress,
@@ -101,7 +106,13 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
     isCancelled
   } = options
 
+  const retranslateOwnKeys =
+    requestedRetranslateOwnKeys === true && mode !== undefined && retranslateOwnKeysHasNoEffect(mode)
+      ? false
+      : requestedRetranslateOwnKeys
+
   const requestedTargets = normalizeTargets(targets)
+
 
   onPhase?.('reading-generated')
   const generated: GeneratedMod | undefined = generatedModPath

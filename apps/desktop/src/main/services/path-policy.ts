@@ -2,7 +2,9 @@ import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
+import { posixSplit } from '@ptt/converter/path'
 import { getAllGames } from '@ptt/games'
+
 
 function resolveExistingAncestor(resolved: string): string {
   let current = resolved
@@ -32,9 +34,6 @@ export function canonicalizeCasePreserving(p: string): string {
   return real.replaceAll('\\', '/')
 }
 
-function segmentsOf(canonical: string): string[] {
-  return canonical.split('/').filter(s => s.length > 0)
-}
 
 let allowedTokensCache: ReadonlySet<string> | null = null
 
@@ -57,7 +56,7 @@ function getAllowedTokens(): ReadonlySet<string> {
 
 export function isWellKnownParadoxPath(absPath: string): boolean {
   const canonical = canonicalize(absPath)
-  const segs = segmentsOf(canonical)
+  const segs = posixSplit(canonical)
   for (let i = 0; i < segs.length - 1; i++) {
     if (segs[i] === 'workshop' && segs[i + 1] === 'content') return true
   }

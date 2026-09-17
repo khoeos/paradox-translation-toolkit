@@ -15,6 +15,8 @@ export {
   builtInTargetFor,
   isGameToken,
   findTargetListProblem,
+  findTargetListIssue,
+
   LANGUAGE_LABEL_MAX,
   isLanguageLabel,
   LANGUAGE_DISPLAY_NAMES,
@@ -29,7 +31,14 @@ export {
   findNothingToWriteTarget,
   describeTargetListProblem
 } from './languages.js'
-export type { LanguageCode, TranslationTarget, GameTokens, TargetListProblem } from './languages.js'
+export type {
+  LanguageCode,
+  TranslationTarget,
+  GameTokens,
+  TargetListProblem,
+  TargetCheckContext
+} from './languages.js'
+
 
 export const LanguageCodeSchema = z.enum(LANGUAGE_CODES)
 

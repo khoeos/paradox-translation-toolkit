@@ -41,7 +41,9 @@ export interface TranslationCounters {
   failed: number
 }
 
-export type RefusalReason = 'markup' | 'empty' | 'backend' | 'control'
+export const REFUSAL_REASONS = ['markup', 'empty', 'backend', 'control'] as const
+
+export type RefusalReason = (typeof REFUSAL_REASONS)[number]
 
 export interface Refusal {
   value: string

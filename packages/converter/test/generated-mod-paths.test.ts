@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_MOD_FOLDER, GENERATED_MOD_FOLDER_MAX_LEN } from '@ptt/converter'
 import { ck3, stellaris } from '@ptt/games'
 
-import { resolveGeneratedMod } from './generated-mod-paths.js'
+import {
+  DEFAULT_MOD_FOLDER,
+  GENERATED_MOD_FOLDER_MAX_LEN,
+  resolveGeneratedMod
+} from '../src/index.js'
+
 
 const DOCUMENTS = '/Users/x/Documents'
 

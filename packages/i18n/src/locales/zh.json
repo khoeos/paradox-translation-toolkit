@@ -211,10 +211,10 @@
     },
     "scanToast_other": "整个集合缺失 {{count}} 个文件",
     "status": {
-      "": "进行中…",
       "cancelled": "已取消",
       "done": "完成",
       "error": "错误",
+      "idle": "进行中…",
       "processing-mods": "正在处理模组…",
       "scan-finished": "扫描完成",
       "scanning": "扫描文件中…",
@@ -229,13 +229,11 @@
     },
     "translationCounters": "已翻译 {{translated}}，免费 {{cached}}，保留原样 {{failed}}"
   },
-  "modal.status.": "",
   "report": {
     "cardHint": "发现错误或有建议？",
     "cardTitle": "报告问题",
     "contactLabel": "联系方式（可选）",
     "contactPlaceholder": "邮箱或 Discord 用户名，如需回复",
-    "description": "直接向开发者发送反馈或错误报告。始终会包含你当前所在的页面和所选设置；只有在你勾选下方选项时才会发送文件路径。",
     "discordLink": "加入 Discord",
     "error": "无法发送报告：{{message}}",
     "includeTechnical": "包含技术信息（文件夹路径和最近的任务详情）以帮助排查问题",

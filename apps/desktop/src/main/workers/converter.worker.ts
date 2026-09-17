@@ -1,8 +1,8 @@
-import { posixJoin, runConvert, scanMods } from '@ptt/converter'
+import { runConvert, scanMods } from '@ptt/converter'
 import type { Cancellation, JobEvent, ProgressPort, TranslationMod } from '@ptt/converter'
-import { nodeFetch, nodeFs } from '@ptt/fs-node'
-import { buildRunReport, writeRunReport } from '@ptt/report'
+import { nodeFs } from '@ptt/fs-node'
 import { uniqueTargetLanguages } from '@ptt/shared'
+
 import type {
   ConvertMode,
   GameDefinition,
@@ -11,21 +11,27 @@ import type {
   TranslationTarget
 } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
-import { createEngineForRun, describeGlossaryProblems, openTranslationMemory } from '@ptt/translate'
+import { openTranslationMemory } from '@ptt/translate'
+
+import { createRunReportPort, createTranslationSetup } from './ports.js'
 
 interface ScanModsCommand {
+
   type: 'scan-mods'
   jobId: string
   rootDir: string
   game: GameDefinition
   sourceLanguage: LanguageCode
   targets: TranslationTarget[]
+  mode: ConvertMode
+  targetContent?: TargetContent
   generatedMod?: TranslationMod
   userDataPath?: string
   translate?: TranslateConfig
   detail?: boolean
   retranslateOwnKeys?: boolean
 }
+
 
 interface ConvertCommand {
   type: 'convert'
@@ -123,8 +129,11 @@ async function handleScanMods(cmd: ScanModsCommand): Promise<void> {
       gameDef: cmd.game,
       sourceLanguage: cmd.sourceLanguage,
       targets: cmd.targets,
+      mode: cmd.mode,
       countLines: cmd.translate?.enabled === true,
       detail: cmd.detail ?? false,
+      ...(cmd.targetContent !== undefined && { targetContent: cmd.targetContent }),
+
       isCancelled: () => cancellation.requested,
       onProgress: (processed, total, modName, totals) =>
         emit({ type: 'mod-progress', jobId: cmd.jobId, processed, total, modName, totals }),
@@ -156,47 +165,30 @@ async function handleScanMods(cmd: ScanModsCommand): Promise<void> {
 }
 
 async function handleConvert(cmd: ConvertCommand): Promise<void> {
-  const startedAt = Date.now()
-  const translate = cmd.translate?.enabled === true ? cmd.translate : undefined
+  const setup = createTranslationSetup({
+    jobId: cmd.jobId,
+    game: cmd.game,
+    signal: abort.signal,
+    emit,
+    ...(cmd.userDataPath !== undefined && { userDataPath: cmd.userDataPath }),
+    ...(cmd.translate !== undefined && { translate: cmd.translate })
+  })
 
-  const targetLanguages = uniqueTargetLanguages(cmd.targets)
+  const runReport = createRunReportPort({
+    rootDir: cmd.rootDir,
+    gameId: cmd.game.id,
+    mode: cmd.mode,
+    sourceLanguage: cmd.sourceLanguage,
+    targets: cmd.targets,
+    targetContent: cmd.targetContent ?? 'missing-keys',
+    engine: setup.engine,
+    ...(cmd.selectedMods !== undefined && { selectedMods: cmd.selectedMods }),
+    ...(cmd.retranslateOwnKeys !== undefined && { retranslateOwnKeys: cmd.retranslateOwnKeys }),
+    ...(cmd.translate !== undefined && { translate: cmd.translate }),
+    ...(cmd.userDataPath !== undefined && { userDataPath: cmd.userDataPath })
+  })
 
-  const memory = cmd.userDataPath
-    ? await openTranslationMemory(
-        cmd.userDataPath,
-        cmd.game.id,
-        cmd.translate,
-        targetLanguages,
-        nodeFs
-      )
-    : undefined
-
-  const engine =
-    translate && memory
-      ? await createEngineForRun(
-          {
-            config: translate,
-            game: cmd.game,
-            sourceLanguage: cmd.sourceLanguage,
-            targetLanguages,
-            memory,
-            signal: abort.signal,
-            onProgress: counters =>
-              emit({ type: 'translate-progress', jobId: cmd.jobId, counters }),
-            ...(cmd.userDataPath !== undefined && { userDataPath: cmd.userDataPath })
-          },
-          nodeFs,
-          nodeFetch
-        )
-      : undefined
-
-  if (engine !== undefined) {
-    for (const message of describeGlossaryProblems(engine.getGlossaryReport())) {
-      emit({ type: 'log', jobId: cmd.jobId, severity: 'warning', message })
-    }
-  }
-
-  const { output, untranslated } = await runConvert(
+  const { output } = await runConvert(
     {
       jobId: cmd.jobId,
       rootDir: cmd.rootDir,
@@ -205,51 +197,18 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
       targets: cmd.targets,
       mode: cmd.mode,
       cancellation,
+      translationSetup: setup.port,
+      ...(runReport !== undefined && { runReport }),
       ...(cmd.outputDir !== undefined && { outputDir: cmd.outputDir }),
       ...(cmd.selectedMods !== undefined && { selectedMods: cmd.selectedMods }),
       ...(cmd.targetContent !== undefined && { targetContent: cmd.targetContent }),
       ...(cmd.generatedMod !== undefined && { generatedMod: cmd.generatedMod }),
       ...(cmd.generatedModsDir !== undefined && { generatedModsDir: cmd.generatedModsDir }),
-      ...(engine !== undefined && { engine }),
-      ...(memory !== undefined && { memory }),
       ...(cmd.retranslateOwnKeys !== undefined && { retranslateOwnKeys: cmd.retranslateOwnKeys })
     },
     nodeFs,
     progress
   )
-
-  await memory?.flush()
-
-  if (cmd.userDataPath !== undefined) {
-    const written = await writeRunReport(
-      posixJoin(cmd.userDataPath, 'reports'),
-      buildRunReport({
-        startedAt,
-        finishedAt: Date.now(),
-        rootDir: cmd.rootDir,
-        gameId: cmd.game.id,
-        mode: cmd.mode,
-        sourceLanguage: cmd.sourceLanguage,
-        targets: cmd.targets,
-        output,
-        untranslated,
-        targetContent: cmd.targetContent ?? 'missing-keys',
-        ...(cmd.selectedMods !== undefined && { selectedMods: cmd.selectedMods }),
-        ...(translate !== undefined && { translate }),
-        ...(engine !== undefined && {
-          counters: engine.getCounters(),
-          refusals: engine.getRefusals(),
-          glossaries: engine.getGlossaryStats()
-        }),
-        ...(cmd.retranslateOwnKeys !== undefined && { retranslateOwnKeys: cmd.retranslateOwnKeys })
-      }),
-      nodeFs
-    )
-    if (written) {
-      output.reportPath = written.jsonPath
-      output.reportFile = written.file
-    }
-  }
 
   if (output.cancelled === true) {
     emit({ type: 'cancelled', jobId: cmd.jobId })

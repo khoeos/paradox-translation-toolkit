@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { TranslationTargetSchema } from '../src/index.js'
 import {
   builtInTargetFor,
+  describeTargetListProblem,
+  findTargetListIssue,
   findTargetListProblem,
+
   gameTokenOwner,
   getLanguageDisplayName,
   getTargetLanguageCode,
@@ -388,5 +391,82 @@ describe('TranslationTargetSchema', () => {
   it('rejects an empty token', () => {
     const result = TranslationTargetSchema.safeParse({ language: 'tr', fileToken: '' })
     expect(result.success).toBe(false)
+  })
+})
+
+describe('findTargetListIssue', () => {
+  const tokens: GameTokens = { en: 'english', tr: 'turkish', ru: 'russian' }
+  const base = {
+    sourceLanguage: 'en',
+    mode: 'create-translation-mod',
+    targetContent: 'missing-keys'
+  } as const
+
+  const turkish: TranslationTarget[] = [{ language: 'tr', fileToken: 'turkish' }]
+  const freeText: TranslationTarget[] = [{ language: 'Catalan', fileToken: 'english' }]
+
+  it('accepts a list nothing is wrong with', () => {
+    expect(findTargetListIssue(turkish, tokens, base)).toBeUndefined()
+  })
+
+  it('returns the shape problem first, before any provider or mode check', () => {
+    const broken: TranslationTarget[] = [{ language: 'tr', fileToken: 'klingon' }]
+    expect(findTargetListIssue(broken, tokens, { ...base, provider: 'rapidapi' })).toEqual({
+      code: 'unknown-token',
+      index: 0,
+      fileToken: 'klingon'
+    })
+  })
+
+  it('flags a free-text language RapidAPI cannot reach', () => {
+    expect(findTargetListIssue(freeText, tokens, { ...base, provider: 'rapidapi' })).toEqual({
+      code: 'rapidapi-unsupported',
+      index: 0,
+      language: 'Catalan'
+    })
+  })
+
+  it('leaves the same list alone for another provider, and when translation is off', () => {
+    expect(findTargetListIssue(freeText, tokens, { ...base, provider: 'openai' })).toBeUndefined()
+    expect(findTargetListIssue(freeText, tokens, base)).toBeUndefined()
+  })
+
+  it('flags a target that would write into the source file with nothing to add', () => {
+    const intoSource: TranslationTarget[] = [{ language: 'tr', fileToken: 'english' }]
+    const context = { ...base, mode: 'add-to-current', targetContent: 'missing-keys' } as const
+    expect(findTargetListIssue(intoSource, tokens, context)).toEqual({
+      code: 'nothing-to-write',
+      index: 0,
+      fileToken: 'english'
+    })
+  })
+
+  it('allows that same target once the whole file is rewritten', () => {
+    const intoSource: TranslationTarget[] = [{ language: 'tr', fileToken: 'english' }]
+    const context = { ...base, mode: 'add-to-current', targetContent: 'complete-file' } as const
+    expect(findTargetListIssue(intoSource, tokens, context)).toBeUndefined()
+  })
+})
+
+describe('describeTargetListProblem', () => {
+  const game = {
+    displayName: 'Stellaris',
+    languageFileToken: { en: 'english', tr: 'turkish' } as GameTokens
+  }
+  const targets: TranslationTarget[] = [{ language: 'Catalan', fileToken: 'english' }]
+
+  const problems = [
+    { code: 'empty' },
+    { code: 'invalid-language', index: 0 },
+    { code: 'invalid-token', index: 0 },
+    { code: 'unknown-token', index: 0, fileToken: 'klingon' },
+    { code: 'duplicate-language', index: 0, language: 'tr' },
+    { code: 'duplicate-token', index: 0, fileToken: 'turkish' },
+    { code: 'rapidapi-unsupported', index: 0, language: 'Catalan' },
+    { code: 'nothing-to-write', index: 0, fileToken: 'english' }
+  ] as const
+
+  it.each(problems)('describes $code', problem => {
+    expect(describeTargetListProblem(problem, targets, game)).toBeTruthy()
   })
 })

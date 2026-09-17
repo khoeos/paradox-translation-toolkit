@@ -4,17 +4,11 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ck3, eu4, stellaris } from '@ptt/games'
-import type { TranslateConfig } from '@ptt/translate'
 import { TRANSLATE_DEFAULTS } from '@ptt/translate'
 
 import { parseArgs } from './args.js'
 import { readConfig } from './config.js'
-import {
-  buildOptions,
-  findUnsupportedTarget,
-  parseSourceLanguage,
-  parseTargets
-} from './options.js'
+import { buildOptions, parseSourceLanguage, parseTargets } from './options.js'
 
 const build = (argv: string[]): ReturnType<typeof buildOptions> => buildOptions(parseArgs(argv))
 
@@ -154,37 +148,48 @@ describe('parseTargets', () => {
   })
 })
 
-const translateConfig = (provider: 'openai' | 'rapidapi'): TranslateConfig => ({
-  enabled: true,
-  provider,
-  baseUrl: '',
-  model: '',
-  batchSize: 1,
-  concurrency: 1,
-  retries: 1,
-  timeout: 1000
-})
+const withRapidapi = (to: string): string[] => [
+  'convert',
+  '--path',
+  '/mods',
+  '--game',
+  'stellaris',
+  '--to',
+  to,
+  '--translate',
+  '--provider',
+  'rapidapi',
+  '--key',
+  'k'
+]
 
-describe('findUnsupportedTarget', () => {
-  const targets = [{ language: 'Catalan', fileToken: 'english' }]
-
-  it('is undefined when translation is off', () => {
-    expect(findUnsupportedTarget(undefined, targets)).toBeUndefined()
+describe('buildOptions - target list checks', () => {
+  it('rejects a free-text target the RapidAPI provider cannot reach', async () => {
+    await expect(build(withRapidapi('Catalan:english'))).rejects.toThrow(
+      /RapidAPI provider cannot translate into "Catalan"/
+    )
   })
 
-  it('is undefined for a provider other than rapidapi', () => {
-    expect(findUnsupportedTarget(translateConfig('openai'), targets)).toBeUndefined()
+  it('accepts a built-in code for the same provider', async () => {
+    await expect(build(withRapidapi('tr:english'))).resolves.toBeDefined()
   })
 
-  it('finds the first unrecognized target for rapidapi', () => {
-    expect(findUnsupportedTarget(translateConfig('rapidapi'), targets)).toEqual(targets[0])
-  })
-
-  it('is undefined for rapidapi when every target is a built-in code', () => {
-    const translate = translateConfig('rapidapi')
-    expect(
-      findUnsupportedTarget(translate, [{ language: 'tr', fileToken: 'turkish' }])
-    ).toBeUndefined()
+  it('rejects a run that would have nothing to write', async () => {
+    await expect(
+      build([
+        'convert',
+        '--path',
+        '/mods',
+        '--game',
+        'stellaris',
+        '--mode',
+        'add-to-current',
+        '--content',
+        'missing',
+        '--to',
+        'ru:english'
+      ])
+    ).rejects.toThrow(/already how this mod is written/)
   })
 })
 

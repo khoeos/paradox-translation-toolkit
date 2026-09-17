@@ -1,13 +1,13 @@
 import { runConvert } from '@ptt/converter'
 import type { Cancellation, ConversionOutput, TranslationMod } from '@ptt/converter'
-import { nodeFetch, nodeFs } from '@ptt/fs-node'
-import { buildRunReport, writeRunReport } from '@ptt/report'
-import { createEngineForRun, describeGlossaryProblems } from '@ptt/translate'
+import { nodeFs } from '@ptt/fs-node'
 
 import { consolePort } from '../console-port.js'
 import type { CliOptions } from '../options.js'
 import { dim, facts, green, num, red, section, yellow } from '../output.js'
-import { generatedModPaths, openMemory, printHeader, targetLanguagesOf } from './shared.js'
+import { createRunPorts } from './ports.js'
+import { generatedModPaths, printHeader } from './shared.js'
+
 
 export async function commandConvert(options: CliOptions): Promise<void> {
   printHeader(options)
@@ -32,32 +32,8 @@ export async function commandConvert(options: CliOptions): Promise<void> {
   })
 
   const port = consolePort()
-  const memory = await openMemory(options)
   const generated = generatedModPaths(options)
-  const startedAt = Date.now()
-
-  const engine = options.translate
-    ? await createEngineForRun(
-        {
-          config: options.translate,
-          game: options.game,
-          sourceLanguage: options.sourceLanguage,
-          targetLanguages: targetLanguagesOf(options),
-          memory,
-          userDataPath: options.userDataPath,
-          signal: abort.signal,
-          onProgress: counters => port.emit({ type: 'translate-progress', jobId: 'cli', counters })
-        },
-        nodeFs,
-        nodeFetch
-      )
-    : undefined
-
-  if (engine) {
-    for (const problem of describeGlossaryProblems(engine.getGlossaryReport())) {
-      port.emit({ type: 'log', jobId: 'cli', message: problem, severity: 'warning' })
-    }
-  }
+  const { translationSetup, runReport } = createRunPorts(options, abort.signal)
 
   const translationMod: TranslationMod = {
     name: options.modName,
@@ -66,7 +42,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
     supportedVersion: '*'
   }
 
-  const { output, untranslated } = await runConvert(
+  const { output } = await runConvert(
     {
       jobId: 'cli',
       rootDir: options.rootDir,
@@ -77,48 +53,21 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       targetContent: options.targetContent,
       retranslateOwnKeys: options.retranslateOwnKeys,
       cancellation,
-      memory,
+      translationSetup,
+      runReport,
       ...(options.outputDir !== undefined && { outputDir: options.outputDir }),
       ...(options.selectedMods !== undefined && { selectedMods: options.selectedMods }),
       ...(options.mode === 'create-translation-mod' && {
         generatedMod: translationMod,
         generatedModsDir: generated.modsDir
-      }),
-      ...(engine !== undefined && { engine })
+      })
     },
     nodeFs,
     port
   )
   port.done()
 
-  await memory.flush()
-
-  const written = await writeRunReport(
-    options.reportsDir,
-    buildRunReport({
-      startedAt,
-      finishedAt: Date.now(),
-      rootDir: options.rootDir,
-      gameId: options.game.id,
-      mode: options.mode,
-      targetContent: options.targetContent,
-      sourceLanguage: options.sourceLanguage,
-      targets: options.targets,
-      output,
-      untranslated,
-      ...(options.selectedMods !== undefined && { selectedMods: options.selectedMods }),
-      ...(options.translate !== undefined && { translate: options.translate }),
-      ...(options.retranslateOwnKeys && { retranslateOwnKeys: options.retranslateOwnKeys }),
-      ...(engine !== undefined && {
-        counters: engine.getCounters(),
-        refusals: engine.getRefusals(),
-        glossaries: engine.getGlossaryStats()
-      })
-    }),
-    nodeFs
-  )
-
-  printResult(output, written?.jsonPath, options.limit)
+  printResult(output, output.reportPath, options.limit)
 }
 
 function printResult(

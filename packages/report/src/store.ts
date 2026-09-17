@@ -6,6 +6,11 @@ import { StoredRunReportMetaSchema, StoredRunReportSchema } from './schema.js'
 
 const STAT_CONCURRENCY = 16
 
+const RUN_REPORTS_DIR_NAME = 'reports'
+
+export const runReportsDir = (userDataPath: string): string =>
+  posixJoin(userDataPath, RUN_REPORTS_DIR_NAME)
+
 export type RunOutcome = 'clean' | 'issues' | 'failed' | 'cancelled'
 
 export interface RunReportFile {

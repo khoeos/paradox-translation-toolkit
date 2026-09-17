@@ -6,14 +6,14 @@ import type {
   TranslationTarget
 } from '@ptt/shared/languages'
 import {
-  findNothingToWriteTarget,
-  findTargetListProblem,
-  findUnrecognizedTarget,
+  findTargetListIssue,
   isLanguageCode,
+
   normalizeTargets,
   shadowedLanguageOf,
   usesOwnToken
 } from '@ptt/shared/languages'
+
 
 import type { PersistedTranslate } from '@renderer/store/converter-form'
 
@@ -106,40 +106,26 @@ export function describeTargetProblem(
       })
     case 'duplicate-token':
       return t('converter.customTarget.duplicateToken', { token: problem.fileToken })
+    case 'rapidapi-unsupported':
+      return t('converter.customTarget.rapidapiUnsupported', {
+        language: languageLabel(t, problem.language)
+      })
+    case 'nothing-to-write':
+      return t('converter.customTarget.nothingToWrite', { token: problem.fileToken })
   }
 }
 
 export function targetListError(t: Translate, ctx: TargetListContext): string | undefined {
   const targets = normalizeTargets(ctx.targets)
-
-  const problem = findTargetListProblem(targets, ctx.tokens)
-  if (problem !== undefined) {
-    return describeTargetProblem(t, problem, ctx.gameName)
-  }
-
-  const unsupported =
-    ctx.translateEnabled === true && ctx.provider === 'rapidapi'
-      ? findUnrecognizedTarget(targets)
-      : undefined
-  if (unsupported !== undefined) {
-    return t('converter.customTarget.rapidapiUnsupported', {
-      language: languageLabel(t, unsupported.language)
-    })
-  }
-
-  const nothingToWrite = findNothingToWriteTarget(
-    targets,
-    ctx.tokens,
-    ctx.sourceLanguage,
-    ctx.mode,
-    ctx.targetContent
-  )
-  if (nothingToWrite !== undefined) {
-    return t('converter.customTarget.nothingToWrite', { token: nothingToWrite.fileToken })
-  }
-
-  return undefined
+  const problem = findTargetListIssue(targets, ctx.tokens, {
+    sourceLanguage: ctx.sourceLanguage,
+    mode: ctx.mode,
+    targetContent: ctx.targetContent,
+    ...(ctx.translateEnabled === true && { provider: ctx.provider })
+  })
+  return problem === undefined ? undefined : describeTargetProblem(t, problem, ctx.gameName)
 }
+
 
 export function targetListWarning(t: Translate, ctx: TargetListContext): string | undefined {
   if (ctx.mode !== 'add-to-current' || ctx.targetContent !== 'missing-keys') return undefined
