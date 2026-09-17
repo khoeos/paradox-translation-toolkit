@@ -7,18 +7,21 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./ipc-channels": "./src/ipc-channels.ts"
+    "./ipc-channels": "./src/ipc-channels.ts",
+    "./languages": "./src/languages.ts"
   },
   "scripts": {
-    "lint": "oxlint src",
+    "lint": "oxlint src test",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "clean": "rimraf dist .turbo"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rimraf dist .turbo coverage"
   },
   "dependencies": {
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "catalog:",
     "rimraf": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

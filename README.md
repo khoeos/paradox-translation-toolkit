@@ -62,7 +62,6 @@ The easiest way to manage your missing translation files for Paradox games (and 
 
 **Demo**: [https://www.youtube.com/watch?v=V2nhfQZ6cfw](https://www.youtube.com/watch?v=V2nhfQZ6cfw)
 
-
 ## Supported games
 
 | Game                  | Steam ID | Status                       |
@@ -95,7 +94,8 @@ Get the latest installer from the [release page](https://github.com/khoeos/parad
 1. **Select the game** you want to manage on the top
 2. **Select your mod folder** from the path or using the button
 3. **Pick the source language** if you want to translate from something other than English
-4. **Select the target language(s)** you want to generate
+4. **Select the target language(s)** you want to generate. Any language can be
+   added as a custom target for language support through other language.
 5. **Select the mode** (add to current mod or extract to a separate folder)
 6. **Choose what a target file should contain** if it already exists: "Fill in what is missing" (default) leaves it untouched and writes only the missing keys elsewhere; "Complete the file" rewrites it with every key from the source while keeping what's already translated; "Translate everything again" rewrites it and retranslates everything, discarding what was there (asks for confirmation first). The last two save the file about to be replaced as `<file>.bak` right beside it before writing
 7. **Enjoy**

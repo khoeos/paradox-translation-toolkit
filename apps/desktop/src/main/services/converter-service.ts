@@ -12,7 +12,8 @@ import {
   type ConvertMode,
   type GameDefinition,
   type LanguageCode,
-  type TargetContent
+  type TargetContent,
+  type TranslationTarget
 } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
 
@@ -26,7 +27,7 @@ interface ScanModsInput {
   gameId: string
   rootDir: string
   sourceLanguage: LanguageCode
-  targetLanguages: LanguageCode[]
+  targets: TranslationTarget[]
   modName?: string | undefined
   translate?: TranslateConfig | undefined
 }
@@ -75,7 +76,7 @@ export class ConverterService {
         rootDir: input.rootDir,
         game,
         sourceLanguage: input.sourceLanguage,
-        targetLanguages: input.targetLanguages,
+        targets: input.targets,
         userDataPath: this.userDataPath,
         ...(input.translate !== undefined && { translate: input.translate }),
         ...(generated !== undefined && { generatedMod: generated.mod })
@@ -92,7 +93,7 @@ export class ConverterService {
         rootDir: input.rootDir,
         game,
         sourceLanguage: input.sourceLanguage,
-        targetLanguages: input.targetLanguages,
+        targets: input.targets,
         mode: input.mode,
         userDataPath: this.userDataPath,
         ...(input.outputDir !== undefined && { outputDir: input.outputDir }),

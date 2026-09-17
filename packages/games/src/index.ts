@@ -1,4 +1,5 @@
-import type { GameDefinition, GameSummary, LanguageCode } from '@ptt/shared'
+import type { GameDefinition, GameSummary } from '@ptt/shared'
+import { isLanguageCode } from '@ptt/shared'
 
 import { ck3 } from './ck3.js'
 import { eu4 } from './eu4.js'
@@ -32,7 +33,8 @@ export function toGameSummary(game: GameDefinition): GameSummary {
     id: game.id,
     displayName: game.displayName,
     ...(game.steamAppId !== undefined && { steamAppId: game.steamAppId }),
-    languages: Object.keys(game.languageFileToken) as LanguageCode[]
+    languages: Object.keys(game.languageFileToken).filter(isLanguageCode),
+    languageFileToken: game.languageFileToken
   }
 }
 

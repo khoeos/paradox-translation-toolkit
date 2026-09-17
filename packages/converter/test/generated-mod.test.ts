@@ -32,14 +32,39 @@ describe('readGeneratedMod', () => {
     expect(await readGeneratedMod('generated', stellarisDef, fs)).toBeUndefined()
   })
 
-  it('indexes keys by namespace and language', async () => {
+  it('indexes keys by namespace and file token', async () => {
     const fs = new MemoryFs({
       'generated/localisation/russian/mymod_my_mod/a_l_russian.yml': localeFile('russian', [
         ['K', 'значение']
       ])
     })
     const generated = await readGeneratedMod('generated', stellarisDef, fs)
-    expect(generated?.byNamespace.get('mymod_my_mod')?.get('ru')?.get('K')?.value).toBe('значение')
+    expect(generated?.byNamespace.get('mymod_my_mod')?.get('russian')?.get('K')?.value).toBe(
+      'значение'
+    )
+    expect(generated?.byNamespace.get('mymod_my_mod')?.has('ru')).toBe(false)
+  })
+
+  it('indexes our own output under the token it was written as, not the language it holds', async () => {
+    const fs = new MemoryFs({
+      'generated/localisation/english/mymod_my_mod/a_l_english.yml': localeFile('english', [
+        ['K', 'Türkçe metin']
+      ])
+    })
+    const generated = await readGeneratedMod('generated', stellarisDef, fs)
+    expect(generated?.byNamespace.get('mymod_my_mod')?.get('english')?.get('K')?.value).toBe(
+      'Türkçe metin'
+    )
+  })
+
+  it('indexes a token the game does not declare, which a custom target needs to find again', async () => {
+    const fs = new MemoryFs({
+      'generated/localisation/klingon/mymod_my_mod/a_l_klingon.yml': localeFile('klingon', [
+        ['K', 'tlh']
+      ])
+    })
+    const generated = await readGeneratedMod('generated', stellarisDef, fs)
+    expect(generated?.byNamespace.get('mymod_my_mod')?.get('klingon')?.get('K')?.value).toBe('tlh')
   })
 
   it('records which file a key came from, so a rewrite can be traced', async () => {
@@ -47,7 +72,7 @@ describe('readGeneratedMod', () => {
       'generated/localisation/russian/ns/a_l_russian.yml': localeFile('russian', [['K', 'v']])
     })
     const generated = await readGeneratedMod('generated', stellarisDef, fs)
-    expect(generated?.byNamespace.get('ns')?.get('ru')?.get('K')?.file).toBe(
+    expect(generated?.byNamespace.get('ns')?.get('russian')?.get('K')?.file).toBe(
       'generated/localisation/russian/ns/a_l_russian.yml'
     )
   })
@@ -66,8 +91,8 @@ describe('readGeneratedMod', () => {
       'generated/localisation/russian/mod_b/a_l_russian.yml': localeFile('russian', [['K', 'b']])
     })
     const generated = await readGeneratedMod('generated', stellarisDef, fs)
-    expect(generated?.byNamespace.get('mod_a')?.get('ru')?.get('K')?.value).toBe('a')
-    expect(generated?.byNamespace.get('mod_b')?.get('ru')?.get('K')?.value).toBe('b')
+    expect(generated?.byNamespace.get('mod_a')?.get('russian')?.get('K')?.value).toBe('a')
+    expect(generated?.byNamespace.get('mod_b')?.get('russian')?.get('K')?.value).toBe('b')
   })
 })
 
@@ -97,13 +122,10 @@ describe('dropOurOwnMod', () => {
   })
 })
 
-const generated = (namespaces: string[]): GeneratedMod => ({
+const generated = (namespaces: string[], token = 'russian'): GeneratedMod => ({
   path: 'generated',
   byNamespace: new Map(
-    namespaces.map(ns => [
-      ns,
-      new Map([['ru' as const, new Map([['K', { value: 'v', file: 'f' }]])]])
-    ])
+    namespaces.map(ns => [ns, new Map([[token, new Map([['K', { value: 'v', file: 'f' }]])]])])
   )
 })
 
@@ -130,6 +152,12 @@ describe('summariseGeneratedMod', () => {
     ])
     expect(summary.orphanNamespaces).toEqual(['gone_forever'])
     expect(summary.translated).toBe(1)
+  })
+
+  it('counts the entries written under a custom token as translations of ours', () => {
+    const summary = summariseGeneratedMod(generated(['mymod_my_mod'], 'english'), [scannedMod()])
+    expect(summary.translated).toBe(1)
+    expect(summary.orphanNamespaces).toEqual([])
   })
 
   it('never treats the no-namespace bucket as an orphan', () => {

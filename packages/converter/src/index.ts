@@ -89,6 +89,7 @@ export {
   pendingCount,
   countTranslatableLines
 } from './key-plan.js'
+export { resolveTargets, describeInPlaceShadowing, type ResolvedTarget } from './target.js'
 export { scanMod, type ScanModResult } from './scan-mod.js'
 export { scanMods, type ScanModsOptions } from './scan-mods.js'
 export {

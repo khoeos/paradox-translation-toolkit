@@ -40,7 +40,7 @@ export interface RunReportSummary {
   mode: ConvertMode
   targetContent?: TargetContent
   sourceLanguage: LanguageCode
-  targetLanguages: readonly LanguageCode[]
+  targetLanguages: readonly string[]
   selectedMods: number | 'all'
   rootPath: string
   translationModName?: string

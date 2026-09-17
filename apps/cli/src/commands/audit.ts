@@ -1,4 +1,6 @@
 import type { KeyReport, KeyState } from '@ptt/converter'
+import { usesOwnToken } from '@ptt/shared'
+import type { GameTokens } from '@ptt/shared'
 
 import type { Args } from '../args.js'
 import { filterMods } from '../filter.js'
@@ -78,7 +80,12 @@ export async function commandAudit(options: CliOptions, args: Args): Promise<voi
     ],
     selected
       .slice(0, options.limit)
-      .map(key => [key.modName, key.key, key.source.replace(/\s+/g, ' '), noteFor(key)])
+      .map(key => [
+        key.modName,
+        key.key,
+        key.source.replace(/\s+/g, ' '),
+        noteFor(key, options.game.languageFileToken)
+      ])
   )
 
   printByMod(keyStates, 'english', 'Refusals by mod', options.limit)
@@ -129,8 +136,14 @@ function printByMod(
   )
 }
 
-function noteFor(key: KeyReport): string {
+export function noteFor(key: KeyReport, tokens: GameTokens): string {
   if (key.shadowed === true) return yellow('shadowed by us')
   if (key.markupOnly === true) return dim('markup only')
+  if (
+    key.fileToken !== undefined &&
+    !usesOwnToken({ language: key.language, fileToken: key.fileToken }, tokens)
+  ) {
+    return dim(`written as l_${key.fileToken}`)
+  }
   return key.reason ?? ''
 }

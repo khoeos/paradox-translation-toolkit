@@ -174,7 +174,7 @@ export async function buildGlossary(
     terms.set(lower, { source: lower, target: best })
   }
 
-  return { exact, terms, builtFrom: gamePath, files: keys.files }
+  return { exact, terms, builtFrom: gamePath, files: keys.files, forLanguage: targetLanguage }
 }
 
 export function collectHints(glossary: Glossary, texts: readonly string[]): Hint[] {

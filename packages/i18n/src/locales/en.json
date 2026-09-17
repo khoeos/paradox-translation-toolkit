@@ -9,6 +9,36 @@
     "convert": "Convert translations",
     "convertSelection_one": "CONVERT {{count}} MOD",
     "convertSelection_other": "CONVERT {{count}} MODS",
+    "customTarget": {
+      "add": "Add a custom target",
+      "badge": "{{language}} as l_{{token}}",
+      "duplicateLang": "{{language}} is already a target; remove it first",
+      "duplicateToken": "Another target already writes l_{{token}}",
+      "emptyLanguage": "Type the language to translate into",
+      "fileToken": "Write files as",
+      "inPlaceCreateOnly": "{{language}} written under l_{{token}} only creates the {{owner}} files the mod does not already have.",
+      "invalidLanguage": "No \":\" or \",\" in a language name, and at most 64 characters",
+      "invalidToken": "Only lowercase letters and underscores, and no \"l_\"",
+      "language": "Translate into",
+      "languageClaimed": "{{language}} is already a target below, written under l_{{token}}. Remove that one to write it under its own file name.",
+      "languageHint": "Any language. A known name (\"Turkish\", \"tr\") is matched to a built-in language, so the glossary and the translation memory are reused.",
+      "nothingToWrite": "l_{{token}} is already how this mod is written: with \"Only missing keys\" there is nothing to add. Write under a different file name, pick \"Complete file\", or use \"Create a translation mod\".",
+      "rapidapiUnsupported": "The RapidAPI provider only translates the built-in languages. Pick a built-in language for \"{{language}}\", or use OpenAI or Ollama.",
+      "recognized": "Matched to {{language}}",
+      "remove": "Remove this target",
+      "sameLanguage": "Pick a language other than the source one",
+      "shadows": "Writes under the {{owner}} file name: the game shows this text instead of its {{owner}} text.",
+      "title": "Custom target language",
+      "tokenHintGame": "{{game}} reads these file names.",
+      "tokenOption": "l_{{token}} ({{owner}})",
+      "unknownToken": "{{game}} does not use l_{{token}}",
+      "unrecognizedHint": "Not a built-in language: \"{{language}}\" is sent to the model as is, with no glossary."
+    },
+    "inPlaceShadowConfirm": {
+      "body": "{{language}} will be written over the mod's {{owner}} files. A .bak is kept next to each file, and the next run overwrites it.",
+      "cost": "Running this a second time reads the translation back as {{owner}} and translates it again. Keep a copy, or use \"Create a translation mod\".",
+      "title": "Replace the {{owner}} files in the mod?"
+    },
     "intro": "The converter copies missing localisation files from a source language into target languages, so mods stop displaying raw translation tags.",
     "mode": "Mode",
     "modes": {
@@ -528,8 +558,9 @@
     },
     "test": "Test the provider",
     "testFailed": "Backend failed: {{message}}",
+    "testNeedsBuiltIn": "Pick a built-in target language to test the connection.",
     "testOk": "Backend answered: {{text}}",
-    "title": "MACHINE TRANSLATION"
+    "title": "MACHINE TRANSLATION (experimental)"
   },
   "updater": {
     "autoCheckHint": "Automatically look for new versions a few seconds after the app starts.",

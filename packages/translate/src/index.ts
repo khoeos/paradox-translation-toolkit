@@ -23,7 +23,8 @@ export {
   MODEL_LIST_TIMEOUT,
   type ProviderDefaults
 } from './defaults.js'
-export { LANGUAGE_DISPLAY_NAMES, RAPIDAPI_CODES, MAPPED_LANGUAGE_CODES } from './language-codes.js'
+export { LANGUAGE_DISPLAY_NAMES } from '@ptt/shared/languages'
+export { RAPIDAPI_CODES, MAPPED_LANGUAGE_CODES } from './language-codes.js'
 export { buildPrompt, buildAnswerSchema, indexed, type AnswerSchema } from './prompt.js'
 export { parseAnswer, type ParsedAnswer } from './answer.js'
 export {

@@ -1,7 +1,13 @@
+export interface ReportTargetView {
+  language: string
+  fileToken: string
+}
+
 export interface ReportSettingsView {
   defaultSourceLanguage: string
   sourceLanguage: Partial<Record<string, string>>
   targetLanguages: Partial<Record<string, string[]>>
+  targets: Partial<Record<string, ReportTargetView[]>>
   mode: string
   targetContent: string
   themeOverride: string
@@ -28,6 +34,9 @@ const formatRecord = (record: Partial<Record<string, string>>): string =>
     .map(([key, value]) => `${key}=${value}`)
     .join(', ')
 
+const formatTarget = (target: ReportTargetView): string =>
+  `${target.language} as l_${target.fileToken}`
+
 const JOB_ERROR_LIMIT = 200
 
 export const formatReportPage = (pathname: string, selectedGameId: string | null): string =>
@@ -51,10 +60,18 @@ export const formatReportSettings = (settings: ReportSettingsView): string => {
     .join(', ')
   if (sourceLangs) lines.push(`Source langs: ${sourceLangs}`)
 
-  const targetLangs = Object.entries(settings.targetLanguages)
-    .filter((entry): entry is [string, string[]] => entry[1] !== undefined)
-    .map(([game, langs]) => `${game}=${langs.join('+')}`)
-    .join(', ')
+  const targetEntries = Object.entries(settings.targets).filter(
+    (entry): entry is [string, ReportTargetView[]] => entry[1] !== undefined && entry[1].length > 0
+  )
+  const targetLangs =
+    targetEntries.length > 0
+      ? targetEntries
+          .map(([game, targets]) => `${game}=${targets.map(formatTarget).join('+')}`)
+          .join(', ')
+      : Object.entries(settings.targetLanguages)
+          .filter((entry): entry is [string, string[]] => entry[1] !== undefined)
+          .map(([game, langs]) => `${game}=${langs.join('+')}`)
+          .join(', ')
   if (targetLangs) lines.push(`Target langs: ${targetLangs}`)
 
   return lines.join('\n')

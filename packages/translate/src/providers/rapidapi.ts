@@ -1,5 +1,5 @@
 import { maskTokens, restoreTokens } from '@ptt/parser'
-import type { LanguageCode } from '@ptt/shared'
+import { LANGUAGE_CODES, getTargetLanguageCode } from '@ptt/shared/languages'
 
 import { isRecord } from '../guards.js'
 import { checkBaseUrl, describeFailure, withCancel } from '../http.js'
@@ -11,18 +11,21 @@ export class RapidApiProvider implements Provider {
     private readonly baseUrl: string,
     private readonly apiKey: string,
     private readonly timeout: number,
-    private readonly targetLanguage: LanguageCode,
     private readonly fetchFn: FetchLike
   ) {}
 
   async translate(
     texts: readonly string[],
-    _language: string,
+    language: string,
+    sourceLanguage: string,
     _hints?: readonly Hint[],
     signal?: AbortSignal
   ): Promise<Array<string | undefined>> {
     const check = checkBaseUrl(this.baseUrl, this.apiKey.length > 0)
     if (!check.ok) throw new Error(check.reason)
+
+    const target = serviceCode(language)
+    const origin = serviceCode(sourceLanguage)
 
     const masked = texts.map(text => maskTokens(text))
     const content: Record<string, string> = {}
@@ -40,8 +43,8 @@ export class RapidApiProvider implements Provider {
       },
       signal: withCancel(this.timeout, signal),
       body: JSON.stringify({
-        origin_language: 'en',
-        target_language: RAPIDAPI_CODES[this.targetLanguage],
+        origin_language: origin,
+        target_language: target,
         json_content: content
       })
     })
@@ -58,6 +61,17 @@ export class RapidApiProvider implements Provider {
       return restoreTokens(answer, item.tokens) ?? undefined
     })
   }
+}
+
+function serviceCode(language: string): string {
+  const code = getTargetLanguageCode(language)
+  if (code === undefined) {
+    throw new Error(
+      `The RapidAPI provider cannot translate into "${language}": it only supports ` +
+        `${LANGUAGE_CODES.join(', ')}. Pick a built-in language, or use the OpenAI or Ollama provider.`
+    )
+  }
+  return RAPIDAPI_CODES[code]
 }
 
 function readTranslatedJson(data: unknown): Record<string, unknown> | undefined {

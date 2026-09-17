@@ -2,6 +2,7 @@ import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { isLanguageCode } from '@ptt/shared/languages'
 import {
   PROVIDER_DEFAULTS,
   TRANSLATE_LIMITS,
@@ -27,7 +28,7 @@ export function TranslateSettings() {
   const setProvider = useConverterFormStore(s => s.setTranslateProvider)
   const setApiKey = useConverterFormStore(s => s.setApiKey)
   const gameId = useConverterFormStore(s => s.selectedGameId)
-  const targetLanguages = useConverterFormStore(s => s.targetLanguages)
+  const targets = useConverterFormStore(s => s.targets)
 
   const defaults = PROVIDER_DEFAULTS[translate.provider]
 
@@ -44,7 +45,7 @@ export function TranslateSettings() {
     onError: error => toast.error(error.message)
   })
 
-  const firstTarget = [...targetLanguages][0]
+  const probeLanguage = targets.map(target => target.language).find(isLanguageCode)
 
   return (
     <section className="space-y-3 rounded-md border p-3">
@@ -162,15 +163,15 @@ export function TranslateSettings() {
             <p className="text-xs text-muted-foreground">{t('translate.gamePathHint')}</p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Button
               type="button"
               variant="outline"
-              disabled={gameId === null || firstTarget === undefined || testProvider.isPending}
+              disabled={gameId === null || probeLanguage === undefined || testProvider.isPending}
               onClick={() => {
                 const config = runTranslateConfig(useConverterFormStore.getState())
-                if (!config || gameId === null || firstTarget === undefined) return
-                testProvider.mutate({ gameId, targetLanguage: firstTarget, config })
+                if (!config || gameId === null || probeLanguage === undefined) return
+                testProvider.mutate({ gameId, targetLanguage: probeLanguage, config })
               }}
             >
               {t('translate.test')}
@@ -183,6 +184,9 @@ export function TranslateSettings() {
             >
               {t('translate.clearMemory')}
             </Button>
+            {probeLanguage === undefined ? (
+              <p className="text-xs text-muted-foreground">{t('translate.testNeedsBuiltIn')}</p>
+            ) : null}
           </div>
         </div>
       ) : null}

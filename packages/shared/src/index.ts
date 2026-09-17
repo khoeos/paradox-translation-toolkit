@@ -1,28 +1,49 @@
 import { z } from 'zod'
 
-export const LANGUAGE_CODES = [
-  'en',
-  'fr',
-  'de',
-  'es',
-  'pl',
-  'pt-BR',
-  'ru',
-  'zh-Hans',
-  'ko',
-  'ja',
-  'tr'
-] as const
+import { FILE_TOKEN_MAX, isFileToken, isLanguageLabel, LANGUAGE_CODES } from './languages.js'
+import type { LanguageCode } from './languages.js'
+
+export {
+  LANGUAGE_CODES,
+  isLanguageCode,
+  FILE_TOKEN_MAX,
+  normalizeFileToken,
+  isFileToken,
+  gameTokenOwner,
+  usesOwnToken,
+  shadowedLanguageOf,
+  builtInTargetFor,
+  isGameToken,
+  findTargetListProblem,
+  LANGUAGE_LABEL_MAX,
+  isLanguageLabel,
+  LANGUAGE_DISPLAY_NAMES,
+  getTargetLanguageCode,
+  getTargetLanguageKey,
+  normalizeTargetLanguage,
+  normalizeTargets,
+  uniqueTargetLanguages,
+  targetsFromLanguages,
+  getLanguageDisplayName,
+  findUnrecognizedTarget,
+  findNothingToWriteTarget,
+  describeTargetListProblem
+} from './languages.js'
+export type { LanguageCode, TranslationTarget, GameTokens, TargetListProblem } from './languages.js'
 
 export const LanguageCodeSchema = z.enum(LANGUAGE_CODES)
 
-export type LanguageCode = (typeof LANGUAGE_CODES)[number]
+export const TranslationTargetSchema = z.object({
+  language: z.string().refine(isLanguageLabel),
+  fileToken: z.string().min(1).max(FILE_TOKEN_MAX).refine(isFileToken)
+})
 
 export interface GameSummary {
   id: string
   displayName: string
   steamAppId?: number
   languages: ReadonlyArray<LanguageCode>
+  languageFileToken: Partial<Record<LanguageCode, string>>
 }
 
 export interface GameDefinition {

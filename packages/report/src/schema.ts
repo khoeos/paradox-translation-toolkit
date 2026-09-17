@@ -1,7 +1,12 @@
 import { z } from 'zod'
 
 import type { KeyState } from '@ptt/converter'
-import { ConvertModeSchema, LanguageCodeSchema, TargetContentSchema } from '@ptt/shared'
+import {
+  ConvertModeSchema,
+  LanguageCodeSchema,
+  TargetContentSchema,
+  TranslationTargetSchema
+} from '@ptt/shared'
 import { TRANSLATE_PROVIDERS } from '@ptt/translate'
 
 const KEY_STATES = ['own', 'patch', 'generated', 'english', 'kept', 'missing'] as const
@@ -25,11 +30,12 @@ const CountersSchema = z.object({
 const KeyReportSchema = z.object({
   modId: z.string(),
   modName: z.string(),
-  language: LanguageCodeSchema,
+  language: z.string().min(1),
   key: z.string(),
   file: z.string(),
   source: z.string(),
   state: z.enum(KEY_STATES),
+  fileToken: z.string().optional(),
   provider: z.string().optional(),
   reason: z.string().optional(),
   markupOnly: z.boolean().optional(),
@@ -57,7 +63,8 @@ export const StoredRunReportSchema = z.object({
     mode: ConvertModeSchema,
     targetContent: TargetContentSchema.optional(),
     sourceLanguage: LanguageCodeSchema,
-    targetLanguages: z.array(LanguageCodeSchema),
+    targetLanguages: z.array(z.string()),
+    targets: z.array(TranslationTargetSchema).optional(),
     selectedMods: z.union([z.number(), z.literal('all')]),
     translate: z
       .object({

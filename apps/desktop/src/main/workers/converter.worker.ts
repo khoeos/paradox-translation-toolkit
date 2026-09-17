@@ -2,11 +2,13 @@ import { posixJoin, runConvert, scanMods } from '@ptt/converter'
 import type { Cancellation, JobEvent, ProgressPort, TranslationMod } from '@ptt/converter'
 import { nodeFetch, nodeFs } from '@ptt/fs-node'
 import { buildRunReport, writeRunReport } from '@ptt/report'
+import { uniqueTargetLanguages } from '@ptt/shared'
 import type {
   ConvertMode,
   GameDefinition,
   LanguageCode,
-  TargetContent
+  TargetContent,
+  TranslationTarget
 } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
 import { createEngineForRun, openTranslationMemory } from '@ptt/translate'
@@ -17,7 +19,7 @@ interface ScanModsCommand {
   rootDir: string
   game: GameDefinition
   sourceLanguage: LanguageCode
-  targetLanguages: LanguageCode[]
+  targets: TranslationTarget[]
   generatedMod?: TranslationMod
   userDataPath?: string
   translate?: TranslateConfig
@@ -30,7 +32,7 @@ interface ConvertCommand {
   rootDir: string
   game: GameDefinition
   sourceLanguage: LanguageCode
-  targetLanguages: LanguageCode[]
+  targets: TranslationTarget[]
   mode: ConvertMode
   outputDir?: string
   selectedMods?: string[]
@@ -108,7 +110,7 @@ async function handleScanMods(cmd: ScanModsCommand): Promise<void> {
         cmd.userDataPath,
         cmd.game.id,
         cmd.translate,
-        cmd.targetLanguages,
+        uniqueTargetLanguages(cmd.targets),
         nodeFs
       )
     : undefined
@@ -118,7 +120,7 @@ async function handleScanMods(cmd: ScanModsCommand): Promise<void> {
       rootDir: cmd.rootDir,
       gameDef: cmd.game,
       sourceLanguage: cmd.sourceLanguage,
-      targetLanguages: cmd.targetLanguages,
+      targets: cmd.targets,
       countLines: cmd.translate?.enabled === true,
       detail: cmd.detail ?? false,
       isCancelled: () => cancellation.requested,
@@ -154,12 +156,14 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
   const startedAt = Date.now()
   const translate = cmd.translate?.enabled === true ? cmd.translate : undefined
 
+  const targetLanguages = uniqueTargetLanguages(cmd.targets)
+
   const memory = cmd.userDataPath
     ? await openTranslationMemory(
         cmd.userDataPath,
         cmd.game.id,
         cmd.translate,
-        cmd.targetLanguages,
+        targetLanguages,
         nodeFs
       )
     : undefined
@@ -171,7 +175,7 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
             config: translate,
             game: cmd.game,
             sourceLanguage: cmd.sourceLanguage,
-            targetLanguages: cmd.targetLanguages,
+            targetLanguages,
             memory,
             signal: abort.signal,
             onProgress: counters =>
@@ -189,7 +193,7 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
       rootDir: cmd.rootDir,
       game: cmd.game,
       sourceLanguage: cmd.sourceLanguage,
-      targetLanguages: cmd.targetLanguages,
+      targets: cmd.targets,
       mode: cmd.mode,
       cancellation,
       ...(cmd.outputDir !== undefined && { outputDir: cmd.outputDir }),
@@ -216,7 +220,7 @@ async function handleConvert(cmd: ConvertCommand): Promise<void> {
         gameId: cmd.game.id,
         mode: cmd.mode,
         sourceLanguage: cmd.sourceLanguage,
-        targetLanguages: cmd.targetLanguages,
+        targets: cmd.targets,
         output,
         untranslated,
         targetContent: cmd.targetContent ?? 'missing-keys',

@@ -1,5 +1,3 @@
-import type { LanguageCode } from '@ptt/shared'
-
 import { readLocalisationEntries } from './mod-keys.js'
 import { getModNamespace } from './naming.js'
 import { sumByLanguage } from './totals.js'
@@ -21,19 +19,19 @@ export async function readGeneratedMod(
   if (!(await fs.exists(modPath))) return undefined
 
   const { entries } = await readLocalisationEntries(modPath, gameDef, fs)
-  const byNamespace = new Map<string, Map<LanguageCode, Map<string, GeneratedEntry>>>()
+  const byNamespace = new Map<string, Map<string, Map<string, GeneratedEntry>>>()
 
   for (const entry of entries) {
     const namespace = entry.described.rest.length > 2 ? (entry.described.rest[1] ?? '') : ''
-    let languages = byNamespace.get(namespace)
-    if (!languages) {
-      languages = new Map()
-      byNamespace.set(namespace, languages)
+    let byToken = byNamespace.get(namespace)
+    if (!byToken) {
+      byToken = new Map()
+      byNamespace.set(namespace, byToken)
     }
-    let map = languages.get(entry.language)
+    let map = byToken.get(entry.token)
     if (!map) {
       map = new Map()
-      languages.set(entry.language, map)
+      byToken.set(entry.token, map)
     }
     if (map.has(entry.key)) continue
     map.set(entry.key, { value: entry.value, file: entry.file })
@@ -65,12 +63,12 @@ export function summariseGeneratedMod(
 
   let total = 0
   const orphanNamespaces: string[] = []
-  for (const [namespace, languages] of generated.byNamespace) {
+  for (const [namespace, byToken] of generated.byNamespace) {
     if (namespace !== '' && !known.has(namespace)) {
       orphanNamespaces.push(namespace)
       continue
     }
-    for (const keys of languages.values()) total += keys.size
+    for (const keys of byToken.values()) total += keys.size
   }
 
   return {

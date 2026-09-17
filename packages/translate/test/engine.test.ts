@@ -15,11 +15,30 @@ function tableProvider(
   onCall?: (texts: readonly string[], hints?: readonly Hint[]) => void
 ): Provider {
   return {
-    translate: async (texts, _language, hints) => {
+    translate: async (texts, _language, _sourceLanguage, hints) => {
       onCall?.(texts, hints)
       return texts.map(text => table[text])
     }
   }
+}
+
+interface RecordedLanguages {
+  language: string
+  sourceLanguage: string
+}
+
+function languageRecordingProvider(answer: string): {
+  provider: Provider
+  seen: RecordedLanguages[]
+} {
+  const seen: RecordedLanguages[] = []
+  const provider: Provider = {
+    translate: async (texts, language, sourceLanguage) => {
+      seen.push({ language, sourceLanguage })
+      return texts.map(() => answer)
+    }
+  }
+  return { provider, seen }
 }
 
 function flakyProvider(failures: number, table: Record<string, string>): Provider {
@@ -37,6 +56,7 @@ async function engineWith(over: Partial<EngineOptions> = {}): Promise<Translatio
   return new TranslationEngine({
     provider: tableProvider({}),
     memory,
+    sourceLanguage: 'en',
     batchSize: 10,
     concurrency: 2,
     retries: 1,
@@ -114,7 +134,8 @@ describe('TranslationEngine - the glossary bypasses the backend', () => {
     exact: new Map([['Men-at-Arms', 'Профессионалы']]),
     terms: new Map([['men-at-arms', { source: 'men-at-arms', target: 'Профессионалы' }]]),
     builtFrom: '/game',
-    files: 1
+    files: 1,
+    forLanguage: 'ru'
   }
 
   it('uses an official whole-string translation without asking a model', async () => {
@@ -141,6 +162,36 @@ describe('TranslationEngine - the glossary bypasses the backend', () => {
     })
     await engine.translate(['Recruit men-at-arms now'], 'ru')
     expect(hints).toEqual([{ source: 'men-at-arms', target: 'Профессионалы' }])
+  })
+
+  it('never hands its strings to another target language', async () => {
+    let asked: readonly string[] | undefined
+    let hints: readonly Hint[] | undefined
+    const engine = await engineWith({
+      glossary,
+      provider: tableProvider({ 'Men-at-Arms': 'Homes d’armes' }, (texts, h) => {
+        asked = texts
+        hints = h
+      })
+    })
+    const { results, stats } = await engine.translate(['Men-at-Arms'], 'Catalan')
+    expect(asked).toEqual(['Men-at-Arms'])
+    expect(hints).toBeUndefined()
+    expect(results.get('Men-at-Arms')).toBe('Homes d’armes')
+    expect(stats.cached).toBe(0)
+  })
+
+  it('still serves its own language when it is spelled as a label', async () => {
+    let called = false
+    const engine = await engineWith({
+      glossary,
+      provider: tableProvider({}, () => {
+        called = true
+      })
+    })
+    const { results } = await engine.translate(['Men-at-Arms'], 'Russian')
+    expect(results.get('Men-at-Arms')).toBe('Профессионалы')
+    expect(called).toBe(false)
   })
 })
 
@@ -410,6 +461,80 @@ describe('TranslationEngine - concurrent mods', () => {
     const engine = await engineWith({ batchSize: 1, concurrency: 2, provider })
     await engine.translate(['a', 'b', 'c', 'd', 'e', 'f'], 'fr')
     expect(peak).toBeLessThanOrEqual(2)
+  })
+})
+
+describe('TranslationEngine - free-text languages', () => {
+  it('hands the provider the display name of a built-in code', async () => {
+    const { provider, seen } = languageRecordingProvider('Bir')
+    const engine = await engineWith({ provider })
+    await engine.translate(['one'], 'tr')
+    expect(seen[0]?.language).toBe('Turkish')
+  })
+
+  it('hands the provider an unrecognized label verbatim', async () => {
+    const { provider, seen } = languageRecordingProvider('un')
+    const engine = await engineWith({ provider })
+    await engine.translate(['one'], 'Catalan')
+    expect(seen[0]?.language).toBe('Catalan')
+  })
+
+  it('names the run source language in the prompt, never English by default', async () => {
+    const { provider, seen } = languageRecordingProvider('un')
+    const engine = await engineWith({ provider, sourceLanguage: 'ru' })
+    await engine.translate(['one'], 'Catalan')
+    expect(seen[0]?.sourceLanguage).toBe('Russian')
+  })
+
+  it('remembers a free-text language under its own label', async () => {
+    const memory = new TranslationMemory('mem', new MemoryFs())
+    const engine = await engineWith({ memory, provider: tableProvider({ one: 'u' }) })
+    await engine.translate(['one'], 'Catalan')
+    expect(memory.get('Catalan', 'one')).toBe('u')
+  })
+
+  it('round-trips a refusal keyed by a free-text label', async () => {
+    const engine = await engineWith({ provider: tableProvider({ 'Gain $A$': 'Guanya' }) })
+    await engine.translate(['Gain $A$'], 'Catalan')
+    const refusal = engine.refusalFor('Catalan', 'Gain $A$')
+    expect(refusal?.reason).toBe('markup')
+    expect(refusal?.language).toBe('Catalan')
+  })
+
+  it('keeps two labels apart in the refusal key', async () => {
+    const engine = await engineWith({ provider: tableProvider({ 'Gain $A$': 'x' }) })
+    await engine.translate(['Gain $A$'], 'Catalan')
+    await engine.translate(['Gain $A$'], 'Occitan')
+    expect(
+      engine
+        .getRefusals()
+        .list.map(r => r.language)
+        .toSorted()
+    ).toEqual(['Catalan', 'Occitan'])
+  })
+})
+
+describe('TranslationEngine - the source language is never a target', () => {
+  it('refuses the source language itself', async () => {
+    let called = false
+    const engine = await engineWith({
+      provider: tableProvider({ one: 'one' }, () => {
+        called = true
+      })
+    })
+    await expect(engine.translate(['one'], 'en')).rejects.toThrow(/reads from/)
+    expect(called).toBe(false)
+  })
+
+  it('refuses a label that normalizes to the source language', async () => {
+    const engine = await engineWith({ provider: tableProvider({ one: 'one' }) })
+    await expect(engine.translate(['one'], 'English')).rejects.toThrow(/reads from/)
+  })
+
+  it('still translates into another language of the same run', async () => {
+    const engine = await engineWith({ provider: tableProvider({ one: 'un' }) })
+    const { results } = await engine.translate(['one'], 'fr')
+    expect(results.get('one')).toBe('un')
   })
 })
 

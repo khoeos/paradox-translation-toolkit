@@ -1,15 +1,18 @@
 import Store from 'electron-store'
 import { z } from 'zod'
 
-import { getAllGameIds } from '@ptt/games'
+import { getAllGameIds, getGame } from '@ptt/games'
 import { DEFAULT_UI_LANGUAGE, VALID_UI_LANGUAGES, type UiLanguage } from '@ptt/i18n'
 import {
   ConvertModeSchema,
   LanguageCodeSchema,
   TargetContentSchema,
+  TranslationTargetSchema,
+  targetsFromLanguages,
   type ConvertMode,
   type LanguageCode,
-  type TargetContent
+  type TargetContent,
+  type TranslationTarget
 } from '@ptt/shared'
 
 import { log } from '../log.js'
@@ -40,6 +43,7 @@ export interface SettingsSchema {
   defaultSourceLanguage: LanguageCode
   sourceLanguage: Partial<Record<string, LanguageCode>>
   targetLanguages: Partial<Record<string, LanguageCode[]>>
+  targets: Partial<Record<string, TranslationTarget[]>>
   mode: ConvertMode
   targetContent: TargetContent
   themeOverride: 'system' | 'light' | 'dark'
@@ -62,6 +66,7 @@ export const DEFAULTS: SettingsSchema = {
   defaultSourceLanguage: 'en',
   sourceLanguage: {},
   targetLanguages: {},
+  targets: {},
   mode: 'add-to-current',
   targetContent: 'missing-keys',
   themeOverride: 'system',
@@ -90,6 +95,7 @@ export const SettingsSchemaZod = z.object({
   defaultSourceLanguage: LanguageCodeSchema,
   sourceLanguage: z.partialRecord(GameIdSchema, LanguageCodeSchema),
   targetLanguages: z.partialRecord(GameIdSchema, z.array(LanguageCodeSchema)),
+  targets: z.partialRecord(GameIdSchema, z.array(TranslationTargetSchema)),
   mode: ConvertModeSchema,
   targetContent: TargetContentSchema,
   themeOverride: z.enum(['system', 'light', 'dark']),
@@ -105,12 +111,51 @@ interface LegacyKeyStore {
   delete(key: string): void
 }
 
-export const migrateSettings = (raw: unknown): SettingsPatch => {
+const migrateOverwrite = (raw: unknown): SettingsPatch => {
   if (typeof raw !== 'object' || raw === null || !('overwrite' in raw)) return {}
   const legacy = raw.overwrite
   if (typeof legacy !== 'boolean') return {}
   return { targetContent: legacy ? 'complete-file' : 'missing-keys' }
 }
+
+const migrateTargets = (raw: unknown): SettingsPatch => {
+  if (typeof raw !== 'object' || raw === null || !('targetLanguages' in raw)) return {}
+  const legacy = raw.targetLanguages
+  if (typeof legacy !== 'object' || legacy === null) return {}
+
+  const existing = new Map(
+    'targets' in raw && typeof raw.targets === 'object' && raw.targets !== null
+      ? Object.entries(raw.targets)
+      : []
+  )
+
+  const derivedTargets: Partial<Record<string, TranslationTarget[]>> = {}
+  for (const [gameId, languages] of Object.entries(legacy)) {
+    if (!Array.isArray(languages)) continue
+    const already = existing.get(gameId)
+    if (Array.isArray(already) && already.length > 0) continue
+
+    const tokens = getGame(gameId)?.languageFileToken ?? {}
+    const derived = targetsFromLanguages(
+      languages.filter((language: unknown) => typeof language === 'string'),
+      tokens
+    )
+    if (derived.length > 0) derivedTargets[gameId] = derived
+  }
+
+  if (Object.keys(derivedTargets).length === 0) return {}
+
+  const targets: Partial<Record<string, TranslationTarget[]>> = {}
+  for (const [gameId, entry] of existing) {
+    if (Array.isArray(entry)) targets[gameId] = entry
+  }
+  return { targets: { ...targets, ...derivedTargets } }
+}
+
+export const migrateSettings = (raw: unknown): SettingsPatch => ({
+  ...migrateOverwrite(raw),
+  ...migrateTargets(raw)
+})
 
 export interface FilterKnownPathsResult {
   entries: KnownPathEntry[]
@@ -427,5 +472,5 @@ export class SettingsService {
 const isSettingsKey = (key: string): key is keyof SettingsSchema => key in DEFAULTS
 
 const resetField = <K extends keyof SettingsSchema>(target: SettingsSchema, key: K): void => {
-  target[key] = DEFAULTS[key]
+  target[key] = structuredClone(DEFAULTS[key])
 }

@@ -2,6 +2,8 @@ import { posixDirname, resolveGeneratedMod, scanMods, sumByLanguage } from '@ptt
 import type { GeneratedModPaths, KeyReport, ScanOutput, ScannedMod } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
 import { writeKeyCsv } from '@ptt/report'
+import { uniqueTargetLanguages, usesOwnToken } from '@ptt/shared'
+import type { TranslationTarget } from '@ptt/shared/languages'
 import { openTranslationMemory } from '@ptt/translate'
 import type { TranslationMemory } from '@ptt/translate'
 
@@ -13,14 +15,25 @@ export function sumMissing(output: ScanOutput): number {
   return output.mods.reduce((sum, mod) => sum + sumByLanguage(mod.missingKeys), 0)
 }
 
+function targetLabel(options: CliOptions, target: CliOptions['targets'][number]): string {
+  return usesOwnToken(target, options.game.languageFileToken)
+    ? target.language
+    : `${target.language} (l_${target.fileToken})`
+}
+
 export function printHeader(options: CliOptions): void {
+  const targets = options.targets.map(target => targetLabel(options, target)).join(', ')
   facts([
     ['game', `${options.game.displayName} (${options.game.id})`],
     ['path', options.rootDir],
-    ['languages', `${options.sourceLanguage} → ${options.targetLanguages.join(', ')}`],
+    ['languages', `${options.sourceLanguage} → ${targets}`],
     ['generated mod', options.modName],
     ['app data', options.userDataPath]
   ])
+}
+
+export function targetLanguagesOf(options: CliOptions): string[] {
+  return uniqueTargetLanguages(options.targets)
 }
 
 export async function openMemory(options: CliOptions): Promise<TranslationMemory> {
@@ -28,7 +41,7 @@ export async function openMemory(options: CliOptions): Promise<TranslationMemory
     options.userDataPath,
     options.game.id,
     options.translate,
-    options.targetLanguages,
+    targetLanguagesOf(options),
     nodeFs
   )
 }
@@ -47,7 +60,7 @@ export async function runScan(options: CliOptions, detail: boolean): Promise<Sca
       rootDir: options.rootDir,
       gameDef: options.game,
       sourceLanguage: options.sourceLanguage,
-      targetLanguages: options.targetLanguages,
+      targets: options.targets,
       countLines: options.translate?.enabled === true,
       detail,
       targetContent: options.targetContent,
@@ -153,31 +166,35 @@ export async function writeOutputs(
   }
 
   if (options.csvOut !== undefined) {
-    const rows = keys.length > 0 ? keys : toModRows(output.mods)
+    const rows = keys.length > 0 ? keys : toModRows(output.mods, options.targets)
     const written = await writeKeyCsv(options.csvOut, rows, nodeFs)
     console.log(dim(`  csv  → ${options.csvOut} (${num(written.rows)} rows)`))
   }
 }
 
-export function toModRows(mods: readonly ScannedMod[]): KeyReport[] {
+export function toModRows(
+  mods: readonly ScannedMod[],
+  targets: readonly TranslationTarget[]
+): KeyReport[] {
+  const tokenByLanguage = new Map(targets.map(target => [target.language, target.fileToken]))
   return mods.flatMap(mod =>
-    Object.keys(mod.missingKeys).flatMap(languageRaw => {
-      const language = languageRaw as keyof typeof mod.missingKeys
-      return [
-        {
-          modId: mod.id,
-          modName: mod.name,
-          language,
-          key: '',
-          file: mod.path,
-          source: '',
-          state: 'missing' as const,
-          reason:
-            `${mod.missingKeys[language] ?? 0} missing, ` +
-            `${mod.coveredKeys[language] ?? 0} covered, ` +
-            `${mod.englishKeys[language] ?? 0} in the source language`
-        }
-      ]
+    Object.keys(mod.missingKeys).map(language => {
+      const row: KeyReport = {
+        modId: mod.id,
+        modName: mod.name,
+        language,
+        key: '',
+        file: mod.path,
+        source: '',
+        state: 'missing',
+        reason:
+          `${mod.missingKeys[language] ?? 0} missing, ` +
+          `${mod.coveredKeys[language] ?? 0} covered, ` +
+          `${mod.englishKeys[language] ?? 0} in the source language`
+      }
+      const fileToken = tokenByLanguage.get(language)
+      if (fileToken !== undefined) row.fileToken = fileToken
+      return row
     })
   )
 }

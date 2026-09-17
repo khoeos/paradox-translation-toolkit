@@ -1,11 +1,36 @@
 import { useEffect, useRef } from 'react'
 
+import type { LanguageCode } from '@ptt/shared'
+import type { GameTokens, TranslationTarget } from '@ptt/shared/languages'
+import {
+  isLanguageCode,
+  normalizeTargets,
+  targetsFromLanguages,
+  uniqueTargetLanguages
+} from '@ptt/shared/languages'
+
 import { trpc } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 
 type SettingsPatch = Parameters<ReturnType<typeof trpc.settings.update.useMutation>['mutate']>[0]
 
 const PERSIST_DEBOUNCE_MS = 400
+
+export function resolveStoredTargets(
+  gameId: string,
+  targets: Partial<Record<string, TranslationTarget[]>>,
+  targetLanguages: Partial<Record<string, LanguageCode[]>>,
+  tokens: GameTokens
+): TranslationTarget[] {
+  const stored = targets[gameId]
+  if (stored && stored.length > 0) return normalizeTargets(stored)
+  const languages = targetLanguages[gameId] ?? []
+  return normalizeTargets(targetsFromLanguages(languages, tokens))
+}
+
+export function deriveLegacyTargetLanguages(targets: readonly TranslationTarget[]): LanguageCode[] {
+  return uniqueTargetLanguages(targets).filter(isLanguageCode)
+}
 
 /**
  * Two-way sync between the form store and persisted settings:
@@ -15,6 +40,7 @@ const PERSIST_DEBOUNCE_MS = 400
 export function useSettingsSync(): void {
   const utils = trpc.useUtils()
   const settingsQuery = trpc.settings.getAll.useQuery()
+  const gamesQuery = trpc.games.list.useQuery()
   const updateMutation = trpc.settings.update.useMutation({
     onSuccess: data => utils.settings.getAll.setData(undefined, data)
   })
@@ -24,32 +50,34 @@ export function useSettingsSync(): void {
   persistRef.current = updateMutation.mutate
   const utilsRef = useRef(utils)
   utilsRef.current = utils
+  const gamesRef = useRef(gamesQuery.data)
+  gamesRef.current = gamesQuery.data
 
   const hydrated = useRef(false)
   const isHydrating = useRef(false)
 
-  // Initial hydration: runs once when the first `getAll` resolves.
   useEffect(() => {
-    if (!settingsQuery.data || hydrated.current) return
+    if (!settingsQuery.data || !gamesQuery.data || hydrated.current) return
     hydrated.current = true
 
     const s = settingsQuery.data
     const store = useConverterFormStore.getState()
 
     if (s.lastGameId) {
+      const tokens = gamesQuery.data.find(g => g.id === s.lastGameId)?.languageFileToken ?? {}
       isHydrating.current = true
       store.loadGame(s.lastGameId, {
         modFolder: s.lastModFolder[s.lastGameId] ?? '',
         outputFolder: s.lastOutputFolder[s.lastGameId] ?? '',
         sourceLanguage: s.sourceLanguage[s.lastGameId] ?? s.defaultSourceLanguage,
-        targetLanguages: s.targetLanguages[s.lastGameId] ?? [],
+        targets: resolveStoredTargets(s.lastGameId, s.targets, s.targetLanguages, tokens),
         gamePath: s.gamePath[s.lastGameId] ?? ''
       })
       isHydrating.current = false
     }
     store.setMode(s.mode)
     store.setTargetContent(s.targetContent)
-  }, [settingsQuery.data])
+  }, [settingsQuery.data, gamesQuery.data])
 
   // Subscribe once.
   useEffect(() => {
@@ -84,12 +112,13 @@ export function useSettingsSync(): void {
       if (newGameId) {
         patch.lastGameId = newGameId
         if (fresh) {
+          const tokens = gamesRef.current?.find(g => g.id === newGameId)?.languageFileToken ?? {}
           isHydrating.current = true
           useConverterFormStore.getState().loadGame(newGameId, {
             modFolder: fresh.lastModFolder[newGameId] ?? '',
             outputFolder: fresh.lastOutputFolder[newGameId] ?? '',
             sourceLanguage: fresh.sourceLanguage[newGameId] ?? fresh.defaultSourceLanguage,
-            targetLanguages: fresh.targetLanguages[newGameId] ?? [],
+            targets: resolveStoredTargets(newGameId, fresh.targets, fresh.targetLanguages, tokens),
             gamePath: fresh.gamePath[newGameId] ?? ''
           })
           isHydrating.current = false
@@ -107,12 +136,12 @@ export function useSettingsSync(): void {
           const current = fresh?.sourceLanguage ?? {}
           patch.sourceLanguage = { ...current, [state.selectedGameId]: state.sourceLanguage }
         }
-        if (state.targetLanguages !== prev.targetLanguages && state.selectedGameId) {
-          const current = fresh?.targetLanguages ?? {}
-          patch.targetLanguages = {
-            ...current,
-            [state.selectedGameId]: Array.from(state.targetLanguages)
-          }
+        if (state.targets !== prev.targets && state.selectedGameId) {
+          const currentTargets = fresh?.targets ?? {}
+          patch.targets = { ...currentTargets, [state.selectedGameId]: state.targets }
+          const currentLanguages = fresh?.targetLanguages ?? {}
+          const derivedLanguages = deriveLegacyTargetLanguages(state.targets)
+          patch.targetLanguages = { ...currentLanguages, [state.selectedGameId]: derivedLanguages }
         }
         if (state.translate.gamePath !== prev.translate.gamePath && state.selectedGameId) {
           const current = fresh?.gamePath ?? {}

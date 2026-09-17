@@ -1,6 +1,5 @@
-import type { LanguageCode } from '@ptt/shared'
-
 import { pathKey, posixJoin } from './path.js'
+import type { ResolvedTarget } from './target.js'
 import type { FsLike, GameContextRef, ModPlan, TranslationMod } from './types.js'
 import { stringifyError, walkFiles } from './walk.js'
 
@@ -8,8 +7,8 @@ export interface PruneOptions {
   translationMod: TranslationMod
   gameDef: GameContextRef
   namespace: string
-  languages: readonly LanguageCode[]
-  produced: Map<LanguageCode, Set<string>>
+  targets: readonly ResolvedTarget[]
+  produced: Map<string, Set<string>>
 }
 
 export interface PruneReport {
@@ -18,14 +17,17 @@ export interface PruneReport {
 }
 
 export async function pruneNamespace(options: PruneOptions, fs: FsLike): Promise<PruneReport> {
-  const { translationMod, gameDef, namespace, languages, produced } = options
+  const { translationMod, gameDef, namespace, targets, produced } = options
   const report: PruneReport = { removed: 0, errors: [] }
 
-  for (const language of languages) {
-    const token = gameDef.languageFileToken[language]
-    if (token === undefined) continue
-    const folder = posixJoin(translationMod.path, gameDef.localisationDirName, token, namespace)
-    const kept = produced.get(language) ?? new Set<string>()
+  for (const target of targets) {
+    const folder = posixJoin(
+      translationMod.path,
+      gameDef.localisationDirName,
+      target.fileToken,
+      namespace
+    )
+    const kept = produced.get(target.language) ?? new Set<string>()
 
     const walked = await walkFiles(folder, fs, {
       acceptFile: lowerName => lowerName.endsWith('.yml')

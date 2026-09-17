@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 
 import type { ConversionOutput, ScanOutput } from '@ptt/converter'
 import type { DiagnosticSeverity, ScanPhase, ScanRunningTotals } from '@ptt/converter/progress'
-import type { LanguageCode } from '@ptt/shared'
+import type { GameTokens, TranslationTarget } from '@ptt/shared/languages'
 import { PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
 import {
   Accordion,
@@ -22,6 +22,7 @@ import { cn } from '@ptt/ui/lib/utils'
 import { estimateDuration } from '@renderer/lib/estimate'
 import { getLogSeverityStyle } from '@renderer/lib/log-severity'
 import { formatElapsed, scanPhasePercent } from '@renderer/lib/scan-progress'
+import { languageLabel, targetLabel } from '@renderer/lib/targets'
 import { trpc } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 import type { JobState, JobStatus, LogEntry } from '@renderer/store/jobs'
@@ -43,11 +44,10 @@ const TICK_MS = 1000
 
 type Translate = ReturnType<typeof useTranslation>['t']
 
-function createdByLanguage(output: ConversionOutput): Partial<Record<LanguageCode, string[]>> {
-  const merged: Partial<Record<LanguageCode, string[]>> = {}
+function createdByLanguage(output: ConversionOutput): Partial<Record<string, string[]>> {
+  const merged: Partial<Record<string, string[]>> = {}
   for (const mod of output.mods) {
-    for (const [languageRaw, files] of Object.entries(mod.created)) {
-      const language = languageRaw as LanguageCode
+    for (const [language, files] of Object.entries(mod.created)) {
       if (!files || files.length === 0) continue
       merged[language] = [...(merged[language] ?? []), ...files]
     }
@@ -98,12 +98,20 @@ const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
 interface FilesByLanguageSectionProps {
   files: Partial<Record<string, string[]>>
   onPick: (dir: string) => void
+  targets?: readonly TranslationTarget[]
+  tokens?: GameTokens
 }
 
-function FilesByLanguageSection({ files, onPick }: FilesByLanguageSectionProps) {
+function FilesByLanguageSection({ files, onPick, targets, tokens }: FilesByLanguageSectionProps) {
   const { t } = useTranslation()
   const entries = Object.entries(files)
   if (entries.length === 0) return null
+
+  const labelFor = (lang: string): string => {
+    const target = targets?.find(candidate => candidate.language === lang)
+    if (target && tokens) return targetLabel(t, target, tokens)
+    return languageLabel(t, lang)
+  }
 
   return (
     <div className="border rounded bg-muted/30">
@@ -113,7 +121,7 @@ function FilesByLanguageSection({ files, onPick }: FilesByLanguageSectionProps) 
           <AccordionItem key={lang} value={lang}>
             <AccordionTrigger>
               {t('modal.filesPerLang', {
-                lang: t(`languages.${lang}`),
+                lang: labelFor(lang),
                 count: langFiles?.length ?? 0
               })}
             </AccordionTrigger>
@@ -132,6 +140,9 @@ export function ProgressModal() {
   const activeJobId = useJobsStore(s => s.activeJobId)
   const job = useJobsStore(s => (activeJobId ? s.jobs.get(activeJobId) : null))
   const setActive = useJobsStore(s => s.setActive)
+  const { data: games } = trpc.games.list.useQuery()
+  const selectedGameId = useConverterFormStore(s => s.selectedGameId)
+  const tokens = games?.find(g => g.id === selectedGameId)?.languageFileToken
   const cancelMutation = trpc.converter.cancel.useMutation()
   const openPath = trpc.fs.openPath.useMutation({
     onError: err => {
@@ -194,7 +205,12 @@ export function ProgressModal() {
         {job.errorMessage ? <p className="text-sm text-destructive">{job.errorMessage}</p> : null}
 
         {job.status === 'done' && hasResults ? (
-          <FilesByLanguageSection files={created} onPick={dir => openPath.mutate({ path: dir })} />
+          <FilesByLanguageSection
+            files={created}
+            onPick={dir => openPath.mutate({ path: dir })}
+            {...(job.conversion?.targets && { targets: job.conversion.targets })}
+            {...(tokens && { tokens })}
+          />
         ) : null}
 
         {job.status === 'done' && !hasResults ? (

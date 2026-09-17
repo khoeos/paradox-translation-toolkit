@@ -1,5 +1,3 @@
-import type { LanguageCode } from '@ptt/shared'
-
 import { countTranslatableLines, pendingCount, planMod } from './key-plan.js'
 import type { FsLike, KeyPlanOptions, KeyReport, ModFolder, ScannedMod } from './types.js'
 
@@ -16,16 +14,15 @@ export async function scanMod(
 ): Promise<ScanModResult> {
   const plan = await planMod(mod, options, fs)
 
-  const missing: Partial<Record<LanguageCode, number>> = {}
-  const missingKeys: Partial<Record<LanguageCode, number>> = {}
-  const coveredKeys: Partial<Record<LanguageCode, number>> = {}
-  const englishKeys: Partial<Record<LanguageCode, number>> = {}
-  const keptKeys: Partial<Record<LanguageCode, number>> = {}
-  const shadowedKeys: Partial<Record<LanguageCode, number>> = {}
+  const missing: Partial<Record<string, number>> = {}
+  const missingKeys: Partial<Record<string, number>> = {}
+  const coveredKeys: Partial<Record<string, number>> = {}
+  const englishKeys: Partial<Record<string, number>> = {}
+  const keptKeys: Partial<Record<string, number>> = {}
+  const shadowedKeys: Partial<Record<string, number>> = {}
   let missingFiles = 0
 
-  for (const language of options.targetLanguages) {
-    if (language === options.sourceLanguage) continue
+  for (const language of plan.targetLanguages) {
     missing[language] = 0
     missingKeys[language] = 0
     coveredKeys[language] = plan.covered[language] ?? 0
@@ -34,8 +31,7 @@ export async function scanMod(
     shadowedKeys[language] = plan.shadowed[language] ?? 0
   }
 
-  for (const [languageRaw, jobs] of Object.entries(plan.jobs)) {
-    const language = languageRaw as LanguageCode
+  for (const [language, jobs] of Object.entries(plan.jobs)) {
     const pending = (jobs ?? []).filter(job => pendingCount(job) > 0)
     missing[language] = pending.length
     missingKeys[language] = pending.reduce((sum, job) => sum + pendingCount(job), 0)

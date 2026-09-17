@@ -15,6 +15,7 @@ export class OllamaProvider implements Provider {
   async translate(
     texts: readonly string[],
     language: string,
+    sourceLanguage: string,
     hints?: readonly Hint[],
     signal?: AbortSignal
   ): Promise<Array<string | undefined>> {
@@ -31,7 +32,12 @@ export class OllamaProvider implements Provider {
         think: false,
         format: 'json',
         options: { temperature: 0.2 },
-        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain, hints) }]
+        messages: [
+          {
+            role: 'user',
+            content: buildPrompt(texts, language, sourceLanguage, this.domain, hints)
+          }
+        ]
       })
     })
 

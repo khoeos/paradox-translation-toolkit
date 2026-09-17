@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { applyModJobs, planMod } from '../src/index.js'
 import type { Destination, KeyPlanOptions, ModPlan, TranslationMod } from '../src/index.js'
-import { localeFile, stellarisDef } from './fixtures.js'
+import { builtIn, localeFile, stellarisDef } from './fixtures.js'
 import { MemoryFs } from './memory-fs.js'
 
 const translationMod: TranslationMod = {
@@ -15,7 +15,7 @@ const translationMod: TranslationMod = {
 const planOptions = (over: Partial<KeyPlanOptions> = {}): KeyPlanOptions => ({
   gameDef: stellarisDef,
   sourceLanguage: 'en',
-  targetLanguages: ['ru'],
+  targets: builtIn('ru'),
   packed: true,
   ...over
 })
@@ -62,7 +62,7 @@ describe('applyModJobs - translation mod', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -86,7 +86,7 @@ describe('applyModJobs - translation mod', () => {
           mod: { id, path: `workshop/${id}` },
           gameDef: stellarisDef,
           sourceLanguage: 'en',
-          targetLanguages: ['ru'],
+          targets: builtIn('ru'),
           destination: intoTranslationMod
         },
         fs
@@ -111,7 +111,7 @@ describe('applyModJobs - translation mod', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod,
         translations: new Map([['ru', new Map([['text', 'текст']])]])
       },
@@ -130,7 +130,7 @@ describe('applyModJobs - translation mod', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -143,7 +143,7 @@ describe('applyModJobs - translation mod', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -160,12 +160,149 @@ describe('applyModJobs - translation mod', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
     )
     expect([...fs.snapshot().keys()].some(p => p.endsWith('.tmp'))).toBe(false)
+  })
+})
+
+describe('applyModJobs - a target writing under another language file name', () => {
+  const turkishAsEnglish = [{ language: 'tr', fileToken: 'english' }] as const
+
+  it('writes the source file name and header, with the target language as the map key', async () => {
+    const fs = sourceMod([['K', 'text']])
+    const plan = await planFor(fs, { targets: turkishAsEnglish })
+    const result = await applyModJobs(
+      {
+        plan,
+        mod: { id: 'mymod', path: 'workshop/mymod' },
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: turkishAsEnglish,
+        destination: intoTranslationMod,
+        translations: new Map([['tr', new Map([['text', 'metin']])]])
+      },
+      fs
+    )
+    const written =
+      'documents/mod/missing_translations/localisation/english/mymod_my_mod/a_l_english.yml'
+    expect(result.created.tr).toEqual([written])
+    expect(result.created.en).toBeUndefined()
+    const content = fs.snapshot().get(written)
+    expect(content?.replace('﻿', '').split('\n')[0]).toBe('l_english:')
+    expect(content).toContain('metin')
+  })
+
+  it('replaces the owner files in place under a replacing content, with a warning', async () => {
+    const fs = sourceMod([['K', 'text']])
+    const source = 'workshop/mymod/localisation/english/a_l_english.yml'
+    const plan = await planFor(fs, {
+      targets: turkishAsEnglish,
+      packed: false,
+      targetContent: 'complete-file'
+    })
+    expect(plan.jobs.tr).toHaveLength(1)
+
+    const result = await applyModJobs(
+      {
+        plan,
+        mod: { id: 'mymod', path: 'workshop/mymod' },
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: turkishAsEnglish,
+        destination: { kind: 'in-place' },
+        translations: new Map([['tr', new Map([['text', 'metin']])]])
+      },
+      fs
+    )
+    expect(result.createdCount).toBe(1)
+    expect(result.created.tr).toEqual([source])
+    expect(result.errors).toEqual([])
+    expect(result.warnings?.join('\n')).toContain(
+      'Turkish written under "l_english" replaces the English files inside the mod'
+    )
+    expect(fs.snapshot().get(source)).toContain('metin')
+    expect(fs.snapshot().get(`${source}.bak`)).toContain('text')
+  })
+
+  it('skips the owner files it would replace under missing-keys, and takes no .bak', async () => {
+    const fs = sourceMod([['K', 'text']])
+    const source = 'workshop/mymod/localisation/english/a_l_english.yml'
+    const before = fs.snapshot().get(source)
+    const plan = await planFor(fs, { targets: turkishAsEnglish, packed: false })
+    expect(plan.jobs.tr).toHaveLength(1)
+
+    const result = await applyModJobs(
+      {
+        plan,
+        mod: { id: 'mymod', path: 'workshop/mymod' },
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: turkishAsEnglish,
+        destination: { kind: 'in-place' },
+        translations: new Map([['tr', new Map([['text', 'metin']])]])
+      },
+      fs
+    )
+    expect(result.createdCount).toBe(0)
+    expect(result.skippedCount).toBe(1)
+    expect(result.errors).toEqual([])
+    expect(result.warnings?.join('\n')).toContain(
+      'Turkish written under "l_english" only creates the English files the mod does not already have'
+    )
+    expect(fs.snapshot().get(source)).toBe(before)
+    expect([...fs.snapshot().keys()].some(path => path.endsWith('.bak'))).toBe(false)
+  })
+
+  it('creates the owner file the mod does not have, keyed by the free-text label', async () => {
+    const catalanAsFrench = [{ language: 'Catalan', fileToken: 'french' }] as const
+    const fs = sourceMod([['K', 'text']])
+    const plan = await planFor(fs, { targets: catalanAsFrench, packed: false })
+    expect(plan.jobs.Catalan).toHaveLength(1)
+
+    const result = await applyModJobs(
+      {
+        plan,
+        mod: { id: 'mymod', path: 'workshop/mymod' },
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: catalanAsFrench,
+        destination: { kind: 'in-place' },
+        translations: new Map([['Catalan', new Map([['text', 'text en catala']])]])
+      },
+      fs
+    )
+    const written = 'workshop/mymod/localisation/french/a_l_french.yml'
+    expect(result.created.Catalan).toEqual([written])
+    expect(result.errors).toEqual([])
+    const content = fs.snapshot().get(written)
+    expect(content?.replace('﻿', '').split('\n')[0]).toBe('l_french:')
+    expect(content).toContain('text en catala')
+    expect([...fs.snapshot().keys()].some(path => path.endsWith('.bak'))).toBe(false)
+  })
+
+  it('skips a job list whose language is not a target any more', async () => {
+    const fs = sourceMod([['K', 'text']])
+    const plan = await planFor(fs)
+    expect(plan.jobs.ru).toHaveLength(1)
+    const result = await applyModJobs(
+      {
+        plan,
+        mod: { id: 'mymod', path: 'workshop/mymod' },
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: builtIn('fr'),
+        destination: intoTranslationMod
+      },
+      fs
+    )
+    expect(result.createdCount).toBe(0)
+    expect([...fs.snapshot().keys()].some(path => path.includes('missing_translations'))).toBe(
+      false
+    )
   })
 })
 
@@ -187,7 +324,7 @@ describe('applyModJobs - pruning', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -220,7 +357,7 @@ describe('applyModJobs - pruning', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -249,7 +386,7 @@ describe('applyModJobs - pruning', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -260,13 +397,44 @@ describe('applyModJobs - pruning', () => {
     expect(fs.snapshot().has(stale)).toBe(false)
   })
 
+  it('prunes a mod whose only problem is a file token this game does not use', async () => {
+    const fs = new MemoryFs({
+      'workshop/mymod/descriptor.mod': 'name="My Mod"',
+      'workshop/mymod/localisation/english/a_l_english.yml': localeFile('english', [['K', 'text']]),
+      'workshop/mymod/localisation/other_l_klingon.yml': localeFile('klingon', [['X', 'tlh']])
+    })
+    const stale =
+      'documents/mod/missing_translations/localisation/russian/mymod_my_mod/old_l_russian.yml'
+    fs.seedFile(stale, localeFile('russian', [['OLD', 'старое']]))
+
+    const plan = await planFor(fs)
+    expect(plan.errors).toEqual([])
+    expect(plan.warnings).toHaveLength(1)
+    const result = await applyModJobs(
+      {
+        plan,
+        mod: { id: 'mymod', path: 'workshop/mymod' },
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: builtIn('ru'),
+        destination: intoTranslationMod
+      },
+      fs
+    )
+    expect(result.prunedCount).toBe(1)
+    expect(fs.snapshot().has(stale)).toBe(false)
+  })
+
   it('still refuses to prune when one warning sits next to one error', async () => {
     const fs = new MemoryFs({
       'workshop/mymod/descriptor.mod': 'name="My Mod"',
       'workshop/mymod/localisation/english/a_l_english.yml': `${localeFile('english', [
         ['K', 'text']
       ])}40kmega_hive_planet\n`,
-      'workshop/mymod/localisation/other_l_klingon.yml': localeFile('klingon', [['X', 'tlh']])
+      'workshop/mymod/localisation/other_l_english.yml': `${localeFile('english', [
+        ['X', 'other']
+      ])} NEVER_CLOSED:0 "runs off
+`
     })
     const stale =
       'documents/mod/missing_translations/localisation/russian/mymod_my_mod/old_l_russian.yml'
@@ -281,7 +449,7 @@ describe('applyModJobs - pruning', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -303,7 +471,7 @@ describe('applyModJobs - pruning', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -323,7 +491,7 @@ describe('applyModJobs - pruning', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod,
         isCancelled: () => true
       },
@@ -344,7 +512,7 @@ describe('applyModJobs - pruning', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -362,7 +530,7 @@ describe('applyModJobs - in place and output folder', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: { kind: 'in-place' }
       },
       fs
@@ -380,7 +548,7 @@ describe('applyModJobs - in place and output folder', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: { kind: 'in-place' }
       },
       fs
@@ -398,7 +566,7 @@ describe('applyModJobs - in place and output folder', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: { kind: 'output-dir', outputDir: 'out' }
       },
       fs
@@ -421,7 +589,7 @@ describe('applyModJobs - failures', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -440,7 +608,7 @@ describe('applyModJobs - failures', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -456,7 +624,7 @@ describe('applyModJobs - failures', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod
       },
       fs
@@ -474,7 +642,7 @@ describe('applyModJobs - failures', () => {
         mod: { id: 'mymod', path: 'workshop/mymod' },
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: intoTranslationMod,
         onFileWritten: path => seen.push(path)
       },
@@ -498,7 +666,7 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
@@ -516,7 +684,7 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
@@ -537,7 +705,7 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
@@ -559,7 +727,7 @@ describe('applyModJobs - target content', () => {
           mod,
           gameDef: stellarisDef,
           sourceLanguage: 'en',
-          targetLanguages: ['ru'],
+          targets: builtIn('ru'),
           destination: inPlace
         },
         fs
@@ -576,7 +744,7 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       beside
@@ -590,7 +758,7 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fresh
@@ -608,7 +776,7 @@ describe('applyModJobs - target content', () => {
             mod,
             gameDef: stellarisDef,
             sourceLanguage: 'en',
-            targetLanguages: ['ru'],
+            targets: builtIn('ru'),
             destination: inPlace
           },
           fs
@@ -629,7 +797,7 @@ describe('applyModJobs - target content', () => {
           mod,
           gameDef: stellarisDef,
           sourceLanguage: 'en',
-          targetLanguages: ['ru'],
+          targets: builtIn('ru'),
           destination: inPlace
         },
         fs
@@ -641,9 +809,10 @@ describe('applyModJobs - target content', () => {
     }
   })
 
-  it('reports a backup it could not take without holding the write back', async () => {
+  it('holds the write back when it could not take the backup', async () => {
     const fs = collidingMod()
     const plan = await planFor(fs, { packed: false, targetContent: 'complete-file' })
+    const before = fs.snapshot().get(natural)
     fs.copyFile = async () => {
       throw new Error('EACCES')
     }
@@ -653,17 +822,19 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
     )
-    expect(result.createdCount).toBe(1)
-    expect(result.failedCount).toBe(0)
-    expect(result.errors.some(error => error.includes('.bak : ') && error.includes('EACCES'))).toBe(
+    expect(result.createdCount).toBe(0)
+    expect(result.failedCount).toBe(1)
+    expect(result.errors.some(error => error.includes('.bak') && error.includes('EACCES'))).toBe(
       true
     )
-    expect(fs.snapshot().get(natural)).toContain('K2')
+    expect(fs.snapshot().get(natural)).toBe(before)
+    expect([...fs.snapshot().keys()].some(path => path.endsWith('.bak'))).toBe(false)
+    expect([...fs.snapshot().keys()].some(path => path.endsWith('.tmp'))).toBe(false)
   })
 
   it('leaves the original in place when the replacement fails', async () => {
@@ -680,7 +851,7 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
@@ -705,7 +876,7 @@ describe('applyModJobs - target content', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
@@ -725,7 +896,7 @@ describe('applyModJobs - target content', () => {
           mod,
           gameDef: stellarisDef,
           sourceLanguage: 'en',
-          targetLanguages: ['ru'],
+          targets: builtIn('ru'),
           destination: inPlace
         },
         fs
@@ -755,7 +926,7 @@ describe('applyModJobs - write guards', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
@@ -777,7 +948,7 @@ describe('applyModJobs - write guards', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs
@@ -804,7 +975,7 @@ describe('applyModJobs - write guards', () => {
         mod,
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         destination: inPlace
       },
       fs

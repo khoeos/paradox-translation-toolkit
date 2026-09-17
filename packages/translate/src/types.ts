@@ -1,4 +1,4 @@
-import type { LanguageCode } from '@ptt/shared'
+import type { LanguageCode } from '@ptt/shared/languages'
 
 export const TRANSLATE_PROVIDERS = ['ollama', 'openai', 'rapidapi'] as const
 
@@ -15,6 +15,7 @@ export interface Provider {
   translate(
     texts: readonly string[],
     language: string,
+    sourceLanguage: string,
     hints?: readonly Hint[],
     signal?: AbortSignal
   ): Promise<Array<string | undefined>>
@@ -44,7 +45,7 @@ export type RefusalReason = 'markup' | 'empty' | 'backend' | 'control'
 
 export interface Refusal {
   value: string
-  language: LanguageCode
+  language: string
   reason: RefusalReason
   detail?: string
 }
@@ -54,4 +55,5 @@ export interface Glossary {
   terms: Map<string, Hint>
   builtFrom: string
   files: number
+  forLanguage: LanguageCode
 }

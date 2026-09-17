@@ -26,6 +26,7 @@ import {
   reconcileSettingsState,
   removeKnownPathEntry,
   sameKnownPathOn,
+  SettingsSchemaZod,
   togglePinKnownPathEntry,
   type KnownPathEntry,
   type SettingsSchema
@@ -55,6 +56,79 @@ describe('migrateSettings', () => {
     expect(migrateSettings(undefined)).toEqual({})
     expect(migrateSettings('overwrite')).toEqual({})
     expect(migrateSettings(42)).toEqual({})
+  })
+
+  it('derives built-in targets from a 3.0.0 store with no overwrite key at all', () => {
+    const raw = { targetLanguages: { stellaris: ['fr', 'tr'] } }
+    expect(migrateSettings(raw)).toEqual({
+      targets: { stellaris: [{ language: 'fr', fileToken: 'french' }] }
+    })
+  })
+
+  it('drops a target language the game does not ship, from every entry', () => {
+    expect(migrateSettings({ targetLanguages: { stellaris: ['tr'] } })).toEqual({})
+  })
+
+  it('drops every language for an unknown game id', () => {
+    expect(migrateSettings({ targetLanguages: { madeUpGame: ['fr'] } })).toEqual({})
+  })
+
+  it('skips a targetLanguages entry that is not an array', () => {
+    expect(migrateSettings({ targetLanguages: { stellaris: 'fr' } })).toEqual({})
+  })
+
+  it('leaves a game with an already non-empty targets entry untouched', () => {
+    const raw = {
+      targetLanguages: { stellaris: ['fr'] },
+      targets: { stellaris: [{ language: 'de', fileToken: 'german' }] }
+    }
+    expect(migrateSettings(raw)).toEqual({})
+  })
+
+  it('still derives targets for a game whose existing targets entry is empty', () => {
+    const raw = { targetLanguages: { stellaris: ['fr'] }, targets: { stellaris: [] } }
+    expect(migrateSettings(raw)).toEqual({
+      targets: { stellaris: [{ language: 'fr', fileToken: 'french' }] }
+    })
+  })
+
+  it('carries other games through the patch, since targets is replaced as a whole key', () => {
+    const raw = {
+      targetLanguages: { stellaris: ['fr'] },
+      targets: { stellaris: [], eu4: [{ language: 'Catalan', fileToken: 'english' }] }
+    }
+    expect(migrateSettings(raw)).toEqual({
+      targets: {
+        stellaris: [{ language: 'fr', fileToken: 'french' }],
+        eu4: [{ language: 'Catalan', fileToken: 'english' }]
+      }
+    })
+  })
+
+  it('still migrates overwrite alongside targets when both legacy keys are present', () => {
+    const raw = { overwrite: true, targetLanguages: { stellaris: ['fr'] } }
+    expect(migrateSettings(raw)).toEqual({
+      targetContent: 'complete-file',
+      targets: { stellaris: [{ language: 'fr', fileToken: 'french' }] }
+    })
+  })
+})
+
+describe('SettingsSchemaZod.shape.targets', () => {
+  it('round trips a per-game list of translation targets, custom token included', () => {
+    const value = { stellaris: [{ language: 'tr', fileToken: 'english' }] }
+    const result = SettingsSchemaZod.shape.targets.safeParse(value)
+    expect(result).toMatchObject({ success: true, data: value })
+  })
+
+  it('accepts an empty array, a legal saved state with nothing selected', () => {
+    expect(SettingsSchemaZod.shape.targets.safeParse({ stellaris: [] }).success).toBe(true)
+  })
+
+  it('rejects a target with an invalid file token, without affecting other fields', () => {
+    const invalid = { stellaris: [{ language: 'tr', fileToken: 'L_BAD' }] }
+    expect(SettingsSchemaZod.shape.targets.safeParse(invalid).success).toBe(false)
+    expect(SettingsSchemaZod.shape.mode.safeParse('add-to-current').success).toBe(true)
   })
 })
 

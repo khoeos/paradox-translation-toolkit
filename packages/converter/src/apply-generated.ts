@@ -1,10 +1,10 @@
-import type { LanguageCode } from '@ptt/shared'
-
 import { buildTargetContent } from './build-target.js'
 import { mapWithConcurrency } from './concurrency.js'
 import { MOD_CONCURRENCY } from './constants.js'
 import { pathKey, posixContains, posixDirname, posixJoin, posixSplit } from './path.js'
 import { canPrune, pruneNamespace } from './prune.js'
+import { describeInPlaceShadowing, resolveTargets } from './target.js'
+import type { ResolvedTarget } from './target.js'
 import type {
   ApplyModOptions,
   CreationJob,
@@ -17,16 +17,21 @@ import type {
 import { stringifyError } from './walk.js'
 
 type Write =
-  | { outcome: 'written'; target: string; backupError?: string }
+  | { outcome: 'written'; target: string }
   | { outcome: 'skipped' }
   | { outcome: 'unchanged' }
   | { outcome: 'failed'; target: string; error: string }
 
 export async function applyModJobs(options: ApplyModOptions, fs: FsLike): Promise<ModResult> {
-  const { plan, mod, gameDef, sourceLanguage, targetLanguages, destination } = options
+  const { plan, mod, gameDef, sourceLanguage, targets, destination } = options
   const { translations, isCancelled, onFileWritten } = options
 
-  const created: Partial<Record<LanguageCode, string[]>> = {}
+  const resolved = resolveTargets(gameDef, sourceLanguage, targets)
+  const byLanguage = new Map<string, ResolvedTarget>()
+  for (const target of resolved.targets) byLanguage.set(target.language, target)
+
+  const created: Partial<Record<string, string[]>> = {}
+  const warnings: string[] = [...plan.warnings]
   const result: ModResult = {
     id: mod.id,
     name: plan.name,
@@ -41,21 +46,26 @@ export async function applyModJobs(options: ApplyModOptions, fs: FsLike): Promis
     created,
     ...(plan.supportedVersion !== undefined && { supportedVersion: plan.supportedVersion }),
     errors: [...plan.errors],
-    warnings: [...plan.warnings]
+    warnings
   }
 
-  const producedByLanguage = new Map<LanguageCode, Set<string>>()
+  const producedByLanguage = new Map<string, Set<string>>()
   let cancelled = false
 
-  for (const [languageRaw, jobs] of Object.entries(plan.jobs)) {
+  for (const [language, jobs] of Object.entries(plan.jobs)) {
     if (isCancelled?.() === true) {
       cancelled = true
       break
     }
-    const language = languageRaw as LanguageCode
-    const targetToken = gameDef.languageFileToken[language]
-    if (targetToken === undefined || !jobs) continue
+    const target = byLanguage.get(language)
+    if (target === undefined || !jobs) continue
 
+    if (destination.kind === 'in-place' && target.shadowsLanguage !== undefined) {
+      const replacing = jobs.some(job => job.content !== 'missing-keys')
+      warnings.push(describeInPlaceShadowing(target, target.shadowsLanguage, replacing))
+    }
+
+    const targetToken = target.fileToken
     const produced = new Set<string>()
     producedByLanguage.set(language, produced)
     const languageFiles: string[] = []
@@ -67,32 +77,28 @@ export async function applyModJobs(options: ApplyModOptions, fs: FsLike): Promis
           { job, targetToken, ...(forLanguage !== undefined && { translations: forLanguage }) },
           fs
         )
-        const target = resolveDestination(job, mod.path, gameDef, plan, language, destination)
+        const path = resolveDestination(job, mod.path, gameDef, plan, targetToken, destination)
 
         const sandbox = sandboxRoot(mod.path, destination)
-        if (!posixContains(sandbox, target)) {
-          throw new Error(`Refusing to write outside "${sandbox}": ${target}`)
+        if (!posixContains(sandbox, path)) {
+          throw new Error(`Refusing to write outside "${sandbox}": ${path}`)
         }
 
-        const dir = posixDirname(target)
+        const dir = posixDirname(path)
         if (dir.length > 0) await fs.mkdir(dir, { recursive: true })
 
-        if (destination.kind === 'translation-mod') produced.add(pathKey(target))
+        if (destination.kind === 'translation-mod') produced.add(pathKey(path))
 
         if (job.content === 'missing-keys' && destination.kind !== 'translation-mod') {
-          if (await fs.exists(target)) return { outcome: 'skipped' }
+          if (await fs.exists(path)) return { outcome: 'skipped' }
         }
 
-        const before = await fs.readFile(target, 'utf-8').catch(() => undefined)
+        const before = await fs.readFile(path, 'utf-8').catch(() => undefined)
         if (before === content) return { outcome: 'unchanged' }
 
-        const replacing = job.content !== 'missing-keys' && (await fs.exists(target))
-        const { backupError } = await writeAtomic(target, content, fs, replacing)
-        return {
-          outcome: 'written',
-          target,
-          ...(backupError !== undefined && { backupError })
-        }
+        const replacing = job.content !== 'missing-keys' && (await fs.exists(path))
+        await writeAtomic(path, content, fs, replacing)
+        return { outcome: 'written', target: path }
       } catch (err) {
         return { outcome: 'failed', target: job.target, error: stringifyError(err) }
       }
@@ -101,9 +107,6 @@ export async function applyModJobs(options: ApplyModOptions, fs: FsLike): Promis
     for (const write of writes) {
       if (write.outcome === 'written') {
         languageFiles.push(write.target)
-        if (write.backupError !== undefined) {
-          result.errors.push(`${write.target}.bak : ${write.backupError}`)
-        }
         onFileWritten?.(write.target)
       } else if (write.outcome === 'skipped') {
         result.skippedCount++
@@ -127,7 +130,7 @@ export async function applyModJobs(options: ApplyModOptions, fs: FsLike): Promis
         translationMod: destination.mod,
         gameDef,
         namespace: plan.namespace,
-        languages: targetLanguages.filter(language => language !== sourceLanguage),
+        targets: resolved.targets,
         produced: producedByLanguage
       },
       fs
@@ -150,15 +153,14 @@ function resolveDestination(
   modPath: string,
   gameDef: GameContextRef,
   plan: ModPlan,
-  language: LanguageCode,
+  targetToken: string,
   destination: Destination
 ): string {
   if (destination.kind === 'translation-mod') {
-    const token = gameDef.languageFileToken[language] ?? language
     return posixJoin(
       destination.mod.path,
       gameDef.localisationDirName,
-      token,
+      targetToken,
       plan.namespace,
       ...job.packed
     )
@@ -182,10 +184,9 @@ async function writeAtomic(
   content: string,
   fs: FsLike,
   backup: boolean
-): Promise<{ backupError?: string }> {
+): Promise<void> {
   const temporary = `${target}.tmp`
   let copied = false
-  let backupError: string | undefined
   try {
     await fs.writeFile(temporary, content, 'utf-8')
     if (backup) {
@@ -193,7 +194,9 @@ async function writeAtomic(
         await fs.copyFile(target, `${target}.bak`)
         copied = true
       } catch (err) {
-        backupError = stringifyError(err)
+        throw new Error(`could not back up to ${target}.bak : ${stringifyError(err)}`, {
+          cause: err
+        })
       }
     }
     await fs.rename(temporary, target)
@@ -202,5 +205,4 @@ async function writeAtomic(
     if (copied) await fs.unlink(`${target}.bak`).catch(() => {})
     throw err
   }
-  return backupError !== undefined ? { backupError } : {}
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { buildTargetContent, planMod } from '../src/index.js'
 import type { CreationJob } from '../src/index.js'
-import { localeFile, stellarisDef } from './fixtures.js'
+import { builtIn, localeFile, stellarisDef } from './fixtures.js'
 import { MemoryFs } from './memory-fs.js'
 
 const job = (over: Partial<CreationJob> = {}): CreationJob => ({
@@ -178,7 +178,7 @@ describe('buildTargetContent', () => {
       {
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         packed: false
       },
       fs
@@ -191,6 +191,76 @@ describe('buildTargetContent', () => {
     expect(reparsed.ok).toBe(true)
     expect(reparsed.file.language).toBe('russian')
     expect(reparsed.file.entries.map(e => e.key).toSorted()).toEqual(['K1', 'K2'])
+  })
+
+  it('keeps the l_english header while holding Turkish, for a target under that token', async () => {
+    const fs = new MemoryFs({
+      'mod/localisation/english/a_l_english.yml': localeFile('english', [
+        ['K1', 'one'],
+        ['K2', 'two']
+      ])
+    })
+    const plan = await planMod(
+      { id: 'mod', path: 'mod' },
+      {
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: [{ language: 'tr', fileToken: 'english' }],
+        packed: false
+      },
+      fs
+    )
+    const planned = plan.jobs.tr?.[0]
+    expect(planned?.keys.size).toBe(2)
+
+    const content = await buildTargetContent(
+      {
+        job: planned!,
+        targetToken: 'english',
+        translations: new Map([
+          ['one', 'bir'],
+          ['two', 'iki']
+        ])
+      },
+      fs
+    )
+    const { parse } = await import('@ptt/parser')
+    const reparsed = parse(content)
+    expect(reparsed.ok).toBe(true)
+    expect(reparsed.file.language).toBe('english')
+    expect(reparsed.file.entries.map(e => e.value).toSorted()).toEqual(['bir', 'iki'])
+  })
+
+  it('carries the owner header for a free-text language written under a declared token', async () => {
+    const fs = new MemoryFs({
+      'mod/localisation/english/a_l_english.yml': localeFile('english', [['K1', 'one']])
+    })
+    const plan = await planMod(
+      { id: 'mod', path: 'mod' },
+      {
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: [{ language: 'Catalan', fileToken: 'french' }],
+        packed: false
+      },
+      fs
+    )
+    const planned = plan.jobs.Catalan?.[0]
+    expect(planned?.target).toBe('mod/localisation/french/a_l_french.yml')
+
+    const content = await buildTargetContent(
+      {
+        job: planned!,
+        targetToken: 'french',
+        translations: new Map([['one', 'un']])
+      },
+      fs
+    )
+    const { parse } = await import('@ptt/parser')
+    const reparsed = parse(content)
+    expect(reparsed.ok).toBe(true)
+    expect(reparsed.file.language).toBe('french')
+    expect(reparsed.file.entries.map(e => e.value)).toEqual(['un'])
   })
 })
 

@@ -56,7 +56,20 @@ describe('scan invalidation', () => {
 
   it('drops the scan when a target language is toggled', () => {
     seed()
-    state().toggleTargetLanguage('ru')
+    state().toggleTargetLanguage('ru', 'russian')
+    expect(state().scannedMods).toEqual([])
+  })
+
+  it('drops the scan when a custom target is added', () => {
+    seed()
+    state().addCustomTarget({ language: 'tr', fileToken: 'english' })
+    expect(state().scannedMods).toEqual([])
+  })
+
+  it('drops the scan when a target is removed', () => {
+    state().addCustomTarget({ language: 'tr', fileToken: 'english' })
+    seed()
+    state().removeTarget('tr')
     expect(state().scannedMods).toEqual([])
   })
 
@@ -72,7 +85,7 @@ describe('scan invalidation', () => {
       modFolder: 'workshop',
       outputFolder: '',
       sourceLanguage: 'en',
-      targetLanguages: ['ru'],
+      targets: [{ language: 'ru', fileToken: 'russian' }],
       gamePath: ''
     })
     expect(state().scannedMods).toEqual([])
@@ -91,7 +104,7 @@ describe('the game installation folder', () => {
       modFolder: 'workshop',
       outputFolder: '',
       sourceLanguage: 'en',
-      targetLanguages: [],
+      targets: [],
       gamePath: 'C:/Games/Stellaris'
     })
     expect(state().translate.gamePath).toBe('C:/Games/Stellaris')
@@ -103,7 +116,7 @@ describe('the game installation folder', () => {
       modFolder: '',
       outputFolder: '',
       sourceLanguage: 'en',
-      targetLanguages: [],
+      targets: [],
       gamePath: ''
     })
     expect(state().translate.gamePath).toBe('')
@@ -115,10 +128,99 @@ describe('the game installation folder', () => {
       modFolder: '',
       outputFolder: '',
       sourceLanguage: 'en',
-      targetLanguages: [],
+      targets: [],
       gamePath: 'C:/Games/Stellaris'
     })
     expect(state().translate.model).toBe('my-finetune:v3')
+  })
+})
+
+describe('loadGame snapshot', () => {
+  it('carries the targets over verbatim', () => {
+    state().loadGame('stellaris', {
+      modFolder: '',
+      outputFolder: '',
+      sourceLanguage: 'en',
+      targets: [
+        { language: 'ru', fileToken: 'russian' },
+        { language: 'tr', fileToken: 'english' }
+      ],
+      gamePath: ''
+    })
+    expect(state().targets).toEqual([
+      { language: 'ru', fileToken: 'russian' },
+      { language: 'tr', fileToken: 'english' }
+    ])
+  })
+})
+
+describe('toggleTargetLanguage', () => {
+  it('adds a target for a language with no target yet', () => {
+    state().toggleTargetLanguage('ru', 'russian')
+    expect(state().targets).toEqual([{ language: 'ru', fileToken: 'russian' }])
+  })
+
+  it('removes the existing target for that language, whatever its token', () => {
+    state().addCustomTarget({ language: 'ru', fileToken: 'mylang' })
+    state().toggleTargetLanguage('ru', 'russian')
+    expect(state().targets).toEqual([])
+  })
+})
+
+describe('addCustomTarget', () => {
+  it('replaces a same-language target rather than duplicating it', () => {
+    state().toggleTargetLanguage('ru', 'russian')
+    state().addCustomTarget({ language: 'ru', fileToken: 'english' })
+    expect(state().targets).toEqual([{ language: 'ru', fileToken: 'english' }])
+  })
+
+  it('adds alongside targets for other languages', () => {
+    state().toggleTargetLanguage('ru', 'russian')
+    state().addCustomTarget({ language: 'tr', fileToken: 'english' })
+    expect(state().targets).toEqual([
+      { language: 'ru', fileToken: 'russian' },
+      { language: 'tr', fileToken: 'english' }
+    ])
+  })
+
+  it('replaces a same-language target across spellings, rather than duplicating it', () => {
+    state().addCustomTarget({ language: 'tr', fileToken: 'turkish' })
+    state().addCustomTarget({ language: 'Turkish', fileToken: 'english' })
+    expect(state().targets).toEqual([{ language: 'tr', fileToken: 'english' }])
+  })
+
+  it('stores the language normalized, whatever spelling was passed in', () => {
+    state().addCustomTarget({ language: 'Catalan ', fileToken: 'english' })
+    expect(state().targets).toEqual([{ language: 'Catalan', fileToken: 'english' }])
+  })
+})
+
+describe('removeTarget', () => {
+  it('removes only the target for the given language', () => {
+    state().toggleTargetLanguage('ru', 'russian')
+    state().addCustomTarget({ language: 'tr', fileToken: 'english' })
+    state().removeTarget('ru')
+    expect(state().targets).toEqual([{ language: 'tr', fileToken: 'english' }])
+  })
+
+  it('removes a free-text label target', () => {
+    state().addCustomTarget({ language: 'Catalan', fileToken: 'english' })
+    state().removeTarget('Catalan')
+    expect(state().targets).toEqual([])
+  })
+})
+
+describe('setSourceLanguage', () => {
+  it('drops the target that would now equal the source', () => {
+    state().toggleTargetLanguage('fr', 'french')
+    state().setSourceLanguage('fr')
+    expect(state().targets).toEqual([])
+  })
+
+  it('leaves other targets alone', () => {
+    state().toggleTargetLanguage('ru', 'russian')
+    state().setSourceLanguage('fr')
+    expect(state().targets).toEqual([{ language: 'ru', fileToken: 'russian' }])
   })
 })
 
@@ -211,13 +313,13 @@ describe('canRun', () => {
     expect(canRun(state())).toBe(false)
     state().setModFolder('workshop')
     expect(canRun(state())).toBe(false)
-    state().toggleTargetLanguage('ru')
+    state().toggleTargetLanguage('ru', 'russian')
     expect(canRun(state())).toBe(true)
   })
 
   it('needs an output folder in extract mode', () => {
     state().setModFolder('workshop')
-    state().toggleTargetLanguage('ru')
+    state().toggleTargetLanguage('ru', 'russian')
     state().setMode('extract-to-folder')
     expect(canRun(state())).toBe(false)
     state().setOutputFolder('out')

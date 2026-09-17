@@ -60,10 +60,16 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   90 ; branches 85 parser, 80 elsewhere) ; each library's `vitest.config.ts` is a two-line call
   to `libraryVitestConfig()`. They are NOT a gate : `test` is `vitest run` with no
   `--coverage`, so CI never evaluates them. Run
-  `pnpm --filter @ptt/converter exec vitest run --coverage` to check. `converter` misses all
-  four today (statements 86.87, branches 77.87 against the 80 floor, functions 88.40, lines
-  89.07), because `run.ts` (`runConvert`, the orchestrator both front ends share, at 1.11%)
-  and `generated-mod-paths.ts` (0%) have no test file at all.
+  `pnpm --filter @ptt/converter exec vitest run --coverage` to check. `converter` used to miss
+  all four (statements 86.87, branches 77.87 against the 80 floor, functions 88.40, lines 89.07)
+  because `run.ts` (`runConvert`, the orchestrator both front ends share, at 1.11%) had no test
+  file at all. The custom-target work added `test/run.test.ts` (`runConvert` end to end),
+  `test/target.test.ts` and `test/prune.test.ts`, so those percentages are stale. They are also
+  currently **unmeasurable** : on Windows + vitest 5 the `--coverage` run completes but reports
+  0% for every file (the v8 instrumentation never attaches), so it fails all four thresholds
+  regardless of the tests. Fix the reporter before trusting any figure here.
+  `generated-mod-paths.ts` is still the one converter module with no test file of its own
+  (`apps/desktop`'s own copy at `main/services/generated-mod-paths.ts` is tested).
 - `apps/desktop`'s vitest runs in `environment: 'node'`, so nothing that renders JSX is
   tested. Keep renderer logic in stores and `lib/` modules where it can be
   (`lib/estimate.ts` exists for that reason) ; see `docs/testing.md` for what a jsdom
@@ -82,11 +88,25 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   assertion here but the replacement (`LANGUAGE_CODES`, `VALID_UI_LANGUAGES` are
   `as const` tuples so `z.enum()` can derive the union).
 - Legitimate and staying : key widening from `Object.entries()` / `Object.keys()`
-  over a `Partial<Record<K, V>>` (`converter/src/plan.ts`, `scan.ts`,
-  `games/src/index.ts`) ; external types that are wrong or closed
-  (electron-store `Store.set`, tRPC `_def._config`, `TRPCClientError.from`) ;
-  `packages/ui` (vendored shadcn, never hand-edited) ; fixture traversal in tests.
-  Add a one-line reason at the site : 17 of the 19 current sites have none.
+  over a `Partial<Record<K, V>>` (`converter/src/plan.ts`, `scan.ts`) ; external
+  types that are wrong or closed (electron-store `Store.set`, tRPC
+  `_def._config`, `TRPCClientError.from`) ; `packages/ui` (vendored shadcn,
+  never hand-edited) ; fixture traversal in tests.
+  Add a one-line reason at the site : 16 of the 18 current sites have none.
+  Five sites removed by the custom-target work, once `TranslationTarget.language`
+  widened from `LanguageCode` to `string` : `games/src/index.ts`'s `toGameSummary`
+  used to do `Object.keys(...) as LanguageCode[]`, now
+  `Object.keys(game.languageFileToken).filter(isLanguageCode)` (a type guard,
+  no assertion) ; `converter/src/apply-generated.ts:63` and `run.ts:282`
+  (`languageRaw as LanguageCode`, both deleted : `Object.entries` over a
+  now-`string`-keyed record already yields `string`) ; `converter/src/scan-mod.ts:39`
+  (same reason) ; `cli/commands/shared.ts:178` (`as keyof typeof mod.missingKeys`,
+  deleted : indexing `Partial<Record<string, number>>` with a `string` needs no
+  cast). One site stays and is the only `as LanguageCode` / `as keyof typeof` left
+  in the repo : `converter/src/mod-keys.ts:20`'s `lc as LanguageCode`, a legitimate
+  `Object.entries` key widening over a `LanguageCode`-keyed record. Verify with
+  `grep -rn "as LanguageCode\|as keyof typeof" packages apps --include=*.ts --include=*.tsx | grep -v dist-deploy`
+  (expect exactly that one line).
 - Boundaries : `renderer -> main` is validated (`RequestSchema.safeParse` in
   `main/ipc/bridge.ts`), but `main -> renderer` and `main -> worker` are not
   (`renderer/src/lib/ipc-link.ts`, `main/workers/converter.worker.ts` cast raw
@@ -172,8 +192,9 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
 - Tests are always `*.test.ts` (no `.spec.`, no `__tests__/`) ; location is
   per-workspace : `packages/*` use a `test/` sibling of `src/`,
   `apps/desktop` and `apps/cli` colocate as `src/**/*.test.ts`. Every workspace with a
-  `vitest.config.ts` pins an `include`, 8 of them : the six `packages/*` libraries through
-  `libraryVitestConfig()`'s `test/**/*.test.ts`, plus the two apps' `src/**/*.test.ts`.
+  `vitest.config.ts` pins an `include`, 9 of them : the seven `packages/*` libraries through
+  `libraryVitestConfig()`'s `test/**/*.test.ts` (`shared` joined them with the custom-target
+  work), plus the two apps' `src/**/*.test.ts`.
   There, a test outside the glob is never run and `pnpm test` stays green, so a colocated
   `src/foo.test.ts` in a `packages/*` library is a file nothing executes. Shared helpers must
   keep no `.test` segment (`converter/test/memory-fs.ts`, `fixtures.ts`).

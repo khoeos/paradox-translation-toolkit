@@ -37,6 +37,8 @@
     "**/coverage/**",
     "**/node_modules/**",
     ".changeset/**",
-    "**/CHANGELOG.md"
+    "**/CHANGELOG.md",
+    "LICENSE.md",
+    "**/LICENSE*"
   ]
 }

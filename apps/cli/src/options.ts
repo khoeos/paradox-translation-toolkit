@@ -1,13 +1,23 @@
-import { DEFAULT_MOD_NAME, posixJoin } from '@ptt/converter'
+import { DEFAULT_MOD_NAME, posixJoin, resolveTargets } from '@ptt/converter'
 import { getAllGameIds, getGame } from '@ptt/games'
 import type { GameDefinition } from '@ptt/shared'
 import {
   CONVERT_MODES,
   LANGUAGE_CODES,
   LanguageCodeSchema,
-  TARGET_CONTENTS
+  TARGET_CONTENTS,
+  describeTargetListProblem,
+  findNothingToWriteTarget,
+  findTargetListProblem,
+  findUnrecognizedTarget,
+  isFileToken,
+  isGameToken,
+  isLanguageCode,
+  isLanguageLabel,
+  normalizeFileToken,
+  normalizeTargetLanguage
 } from '@ptt/shared'
-import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
+import type { ConvertMode, LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
 import type { TranslateConfig } from '@ptt/translate'
 import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 
@@ -37,7 +47,7 @@ export interface CliOptions {
   rootDir: string
   game: GameDefinition
   sourceLanguage: LanguageCode
-  targetLanguages: LanguageCode[]
+  targets: TranslationTarget[]
   mode: ConvertMode
   targetContent: TargetContent
   outputDir?: string
@@ -86,6 +96,28 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
     )
   }
 
+  const sourceLanguage = parseSourceLanguage(game, asString(flags.from) ?? 'en')
+  const targets = parseTargets(game, asString(flags.to) ?? 'ru')
+
+  const dropped = describeDroppedTargets(game, sourceLanguage, targets)
+  if (dropped) {
+    throw new Error(`Every --to target was dropped, so the run would write nothing: ${dropped}`)
+  }
+
+  const nothingToWrite = findNothingToWriteTarget(
+    targets,
+    game.languageFileToken,
+    sourceLanguage,
+    mode,
+    targetContent
+  )
+  if (nothingToWrite) {
+    throw new Error(
+      `l_${nothingToWrite.fileToken} is already how this mod is written: with "Only missing keys" ` +
+        'there is nothing to add. Pick "Complete file", or use "Create a translation mod".'
+    )
+  }
+
   const userDataPath = resolveUserData(asString(flags['user-data']))
   const documentsPath = await resolveDocuments(asString(flags.documents))
   const outputDir = asString(flags.out)
@@ -95,12 +127,20 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
   const selectedMods = asList(flags.mods)
   const translate = buildTranslate(flags, game)
 
+  const unsupported = findUnsupportedTarget(translate, targets)
+  if (unsupported) {
+    throw new Error(
+      `The RapidAPI provider cannot translate into "${unsupported.language}": it only supports ` +
+        `${LANGUAGE_CODES.join(', ')}. Pick a built-in language, or use the OpenAI or Ollama provider.`
+    )
+  }
+
   return {
     command: args.command,
     rootDir: rootDir ?? '',
     game,
-    sourceLanguage: parseLanguages(game, asString(flags.from) ?? 'en')[0] ?? 'en',
-    targetLanguages: parseLanguages(game, asString(flags.to) ?? 'ru'),
+    sourceLanguage,
+    targets,
     mode,
     targetContent,
     modName: asString(flags['mod-name']) ?? DEFAULT_MOD_NAME,
@@ -149,22 +189,98 @@ function buildTranslate(
   }
 }
 
-export function parseLanguages(game: GameDefinition, codes: string): LanguageCode[] {
-  const parsed: LanguageCode[] = []
-  for (const raw of codes.split(',')) {
-    const code = raw.trim()
-    if (code.length === 0) continue
-    const validated = LanguageCodeSchema.safeParse(code)
-    if (!validated.success) {
-      throw new Error(`Unknown language "${code}", expected one of ${LANGUAGE_CODES.join(', ')}`)
-    }
-    if (game.languageFileToken[validated.data] === undefined) {
-      throw new Error(`${game.displayName} has no localisation for "${code}"`)
-    }
-    parsed.push(validated.data)
+export function parseSourceLanguage(game: GameDefinition, spec: string): LanguageCode {
+  const code = spec.trim()
+  if (code.includes(':')) {
+    throw new Error(
+      '--from takes a language only: the source language is always one the game ships, no token to pick'
+    )
   }
-  if (parsed.length === 0) throw new Error(`No language given in "${codes}"`)
-  return parsed
+  const validated = LanguageCodeSchema.safeParse(code)
+  if (!validated.success) {
+    throw new Error(`Unknown language "${code}", expected one of ${LANGUAGE_CODES.join(', ')}`)
+  }
+  if (game.languageFileToken[validated.data] === undefined) {
+    throw new Error(`${game.displayName} has no localisation for "${code}"`)
+  }
+  return validated.data
+}
+
+export function parseTargets(game: GameDefinition, codes: string): TranslationTarget[] {
+  const targets: TranslationTarget[] = []
+  for (const raw of codes.split(',')) {
+    const entry = raw.trim()
+    if (entry.length === 0) continue
+
+    const colon = entry.indexOf(':')
+    const languagePart = colon === -1 ? entry : entry.slice(0, colon)
+    const tokenPart = colon === -1 ? undefined : entry.slice(colon + 1)
+
+    const language = normalizeTargetLanguage(languagePart)
+    if (!isLanguageLabel(language)) {
+      throw new Error(`Invalid target language "${languagePart.trim()}"`)
+    }
+
+    const fileToken =
+      tokenPart === undefined
+        ? builtInTokenFor(game, language)
+        : parseCustomToken(tokenPart, language, game)
+
+    targets.push({ language, fileToken })
+  }
+  if (targets.length === 0) throw new Error(`No target given in "${codes}"`)
+
+  const problem = findTargetListProblem(targets, game.languageFileToken)
+  if (problem) throw new Error(describeTargetListProblem(problem, targets, game))
+
+  return targets
+}
+
+function builtInTokenFor(game: GameDefinition, language: string): string {
+  const fileToken = isLanguageCode(language) ? game.languageFileToken[language] : undefined
+  if (fileToken === undefined) {
+    throw new Error(
+      `"${language}" is not a language ${game.displayName} ships a file name for: write ` +
+        `"${language}:<token>" with one of ${Object.values(game.languageFileToken).join(', ')}`
+    )
+  }
+  return fileToken
+}
+
+function parseCustomToken(raw: string, language: string, game: GameDefinition): string {
+  const fileToken = normalizeFileToken(raw)
+  if (!isFileToken(fileToken)) {
+    throw new Error(
+      `Invalid file token "${raw}" for "${language}": a file token is lowercase letters and ` +
+        'underscores, without "l_"'
+    )
+  }
+  if (!isGameToken(fileToken, game.languageFileToken)) {
+    throw new Error(
+      `${game.displayName} writes no l_${fileToken}: expected one of ` +
+        Object.values(game.languageFileToken).join(', ')
+    )
+  }
+  return fileToken
+}
+
+function describeDroppedTargets(
+  game: GameDefinition,
+  sourceLanguage: LanguageCode,
+  targets: readonly TranslationTarget[]
+): string | undefined {
+  const resolved = resolveTargets(game, sourceLanguage, targets)
+  if (resolved.targets.length > 0) return undefined
+  return resolved.warnings.length > 0
+    ? resolved.warnings.join(' ; ')
+    : 'no target survived resolution'
+}
+
+export function findUnsupportedTarget(
+  translate: TranslateConfig | undefined,
+  targets: readonly TranslationTarget[]
+): TranslationTarget | undefined {
+  return translate?.provider === 'rapidapi' ? findUnrecognizedTarget(targets) : undefined
 }
 
 function isConvertMode(value: string): value is ConvertMode {

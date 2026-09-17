@@ -1,4 +1,4 @@
-import type { GameDefinition, LanguageCode, TargetContent } from '@ptt/shared'
+import type { GameDefinition, LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
 
 import type { ModDiagnostic } from './diagnostics.js'
 
@@ -42,7 +42,8 @@ export interface LocalisationEntry {
   key: string
   file: string
   described: LocalisationFilePath
-  language: LanguageCode
+  token: string
+  language?: LanguageCode
   value: string
 }
 
@@ -72,7 +73,7 @@ export interface GeneratedEntry {
 
 export interface GeneratedMod {
   path: string
-  byNamespace: Map<string, Map<LanguageCode, Map<string, GeneratedEntry>>>
+  byNamespace: Map<string, Map<string, Map<string, GeneratedEntry>>>
 }
 
 export interface GeneratedModSummary {
@@ -89,11 +90,12 @@ export type KeyState = 'own' | 'patch' | 'generated' | 'english' | 'kept' | 'mis
 export interface KeyReport {
   modId: string
   modName: string
-  language: LanguageCode
+  language: string
   key: string
   file: string
   source: string
   state: KeyState
+  fileToken?: string
   provider?: string
   reason?: string
   markupOnly?: boolean
@@ -117,24 +119,25 @@ export interface ModPlan {
   supportedVersion?: string
   localisationFiles: number
   sourceFiles: number
-  jobs: Partial<Record<LanguageCode, CreationJob[]>>
-  covered: Partial<Record<LanguageCode, number>>
-  english: Partial<Record<LanguageCode, number>>
-  kept: Partial<Record<LanguageCode, number>>
-  shadowed: Partial<Record<LanguageCode, number>>
+  targetLanguages: string[]
+  jobs: Partial<Record<string, CreationJob[]>>
+  covered: Partial<Record<string, number>>
+  english: Partial<Record<string, number>>
+  kept: Partial<Record<string, number>>
+  shadowed: Partial<Record<string, number>>
   keyStates: KeyReport[]
   errors: string[]
   warnings: string[]
 }
 
 export interface TranslationMemoryPort {
-  get(language: LanguageCode, value: string): string | undefined
+  get(language: string, value: string): string | undefined
 }
 
 export interface KeyPlanOptions {
   gameDef: GameContextRef
   sourceLanguage: LanguageCode
-  targetLanguages: readonly LanguageCode[]
+  targets: readonly TranslationTarget[]
   packed: boolean
   coverage?: Coverage
   generated?: GeneratedMod
@@ -152,12 +155,12 @@ export interface ScannedMod {
   sourceKeys: number
   otherSpelling: boolean
   coveredBy: string[]
-  missing: Partial<Record<LanguageCode, number>>
-  missingKeys: Partial<Record<LanguageCode, number>>
-  coveredKeys: Partial<Record<LanguageCode, number>>
-  englishKeys: Partial<Record<LanguageCode, number>>
-  keptKeys: Partial<Record<LanguageCode, number>>
-  shadowedKeys: Partial<Record<LanguageCode, number>>
+  missing: Partial<Record<string, number>>
+  missingKeys: Partial<Record<string, number>>
+  coveredKeys: Partial<Record<string, number>>
+  englishKeys: Partial<Record<string, number>>
+  keptKeys: Partial<Record<string, number>>
+  shadowedKeys: Partial<Record<string, number>>
   missingFiles: number
   missingLines: number
   supportedVersion?: string
@@ -179,6 +182,7 @@ export interface ScanTotals {
 
 export interface ScanOutput {
   mods: ScannedMod[]
+  targets: readonly TranslationTarget[]
   totals: ScanTotals
   selfCopy?: string
   generatedMod?: GeneratedModSummary
@@ -202,9 +206,9 @@ export interface ApplyModOptions {
   mod: ModFolder
   gameDef: GameContextRef
   sourceLanguage: LanguageCode
-  targetLanguages: readonly LanguageCode[]
+  targets: readonly TranslationTarget[]
   destination: Destination
-  translations?: Map<LanguageCode, Map<string, string>>
+  translations?: Map<string, Map<string, string>>
   isCancelled?: () => boolean
   onFileWritten?: (path: string) => void
 }
@@ -220,7 +224,7 @@ export interface ModResult {
   unchangedCount: number
   failedCount: number
   prunedCount: number
-  created: Partial<Record<LanguageCode, string[]>>
+  created: Partial<Record<string, string[]>>
   supportedVersion?: string
   translation?: { translated: number; cached: number; failed: number }
   errors: string[]
@@ -240,6 +244,7 @@ export interface ConversionTotals {
 
 export interface ConversionOutput {
   mods: ModResult[]
+  targets: readonly TranslationTarget[]
   translationMod?: TranslationMod
   translation?: { translated: number; cached: number; failed: number }
   cancelled?: boolean

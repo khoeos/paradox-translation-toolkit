@@ -113,43 +113,51 @@ describe('buildAnswerSchema', () => {
 })
 
 describe('buildPrompt', () => {
-  it('names the target language', () => {
-    expect(buildPrompt(['one'], 'Russian')).toContain('English to Russian')
+  it('names the source and the target language', () => {
+    expect(buildPrompt(['one'], 'Russian', 'English')).toContain('from English to Russian')
+  })
+
+  it('never assumes the source is English', () => {
+    const prompt = buildPrompt(['one'], 'Catalan', 'French')
+    expect(prompt).toContain('from French to Catalan')
+    expect(prompt).not.toContain('from English')
   })
 
   it('states how many entries are expected', () => {
-    expect(buildPrompt(['a', 'b', 'c'], 'French')).toContain('exactly 3 entries')
+    expect(buildPrompt(['a', 'b', 'c'], 'French', 'English')).toContain('exactly 3 entries')
   })
 
   it('sends the batch index-keyed, so a reorder is harmless (S-4)', () => {
-    const prompt = buildPrompt(['first', 'second'], 'French')
+    const prompt = buildPrompt(['first', 'second'], 'French', 'English')
     expect(prompt).toContain('"0": "first"')
     expect(prompt).toContain('"1": "second"')
   })
 
   it('includes the game domain when there is one', () => {
-    expect(buildPrompt(['one'], 'French', 'Stellaris, a space game')).toContain(
+    expect(buildPrompt(['one'], 'French', 'English', 'Stellaris, a space game')).toContain(
       'a mod for Stellaris, a space game'
     )
   })
 
   it('omits the domain block when there is none', () => {
-    expect(buildPrompt(['one'], 'French')).not.toContain('belong to a mod for')
+    expect(buildPrompt(['one'], 'French', 'English')).not.toContain('belong to a mod for')
   })
 
   it('lists the glossary hints as source = target pairs', () => {
-    const prompt = buildPrompt(['one'], 'Russian', undefined, [
+    const prompt = buildPrompt(['one'], 'Russian', 'English', undefined, [
       { source: 'men-at-arms', target: 'Профессионалы' }
     ])
     expect(prompt).toContain('men-at-arms = Профессионалы')
   })
 
   it('omits the hint block when there is none', () => {
-    expect(buildPrompt(['one'], 'French', undefined, [])).not.toContain('base game already')
+    expect(buildPrompt(['one'], 'French', 'English', undefined, [])).not.toContain(
+      'base game already'
+    )
   })
 
   it('always spells out the markup rule', () => {
-    expect(buildPrompt(['one'], 'French')).toContain('$VARIABLE$')
+    expect(buildPrompt(['one'], 'French', 'English')).toContain('$VARIABLE$')
   })
 })
 

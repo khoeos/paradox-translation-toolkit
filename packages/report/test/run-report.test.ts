@@ -95,11 +95,53 @@ describe('buildRunReport', () => {
       mode: 'create-translation-mod',
       targetContent: 'complete-file',
       sourceLanguage: 'en',
-      targetLanguages: ['ru'],
+      targets: [{ language: 'ru', fileToken: 'russian' }],
       output: { totals, mods: [modResult()] },
       untranslated: []
     })
     expect(built.request.targetContent).toBe('complete-file')
+  })
+
+  it('derives targetLanguages from targets, deduped', () => {
+    const built = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'missing-keys',
+      sourceLanguage: 'en',
+      targets: [
+        { language: 'tr', fileToken: 'english' },
+        { language: 'tr', fileToken: 'english' },
+        { language: 'ru', fileToken: 'russian' }
+      ],
+      output: { totals, mods: [modResult()] },
+      untranslated: []
+    })
+    expect(built.request.targetLanguages).toEqual(['tr', 'ru'])
+    expect(built.request.targets).toEqual([
+      { language: 'tr', fileToken: 'english' },
+      { language: 'tr', fileToken: 'english' },
+      { language: 'ru', fileToken: 'russian' }
+    ])
+  })
+
+  it('carries a free-text language through targetLanguages and targets', () => {
+    const built = buildRunReport({
+      startedAt: STARTED,
+      finishedAt: FINISHED,
+      rootDir: 'workshop',
+      gameId: 'stellaris',
+      mode: 'create-translation-mod',
+      targetContent: 'missing-keys',
+      sourceLanguage: 'en',
+      targets: [{ language: 'Catalan', fileToken: 'english' }],
+      output: { totals, mods: [modResult()] },
+      untranslated: []
+    })
+    expect(built.request.targetLanguages).toEqual(['Catalan'])
+    expect(built.request.targets).toEqual([{ language: 'Catalan', fileToken: 'english' }])
   })
 
   it('marks the report cancelled only when the output says so', () => {
@@ -111,7 +153,7 @@ describe('buildRunReport', () => {
       mode: 'create-translation-mod',
       targetContent: 'complete-file',
       sourceLanguage: 'en',
-      targetLanguages: ['ru'],
+      targets: [{ language: 'ru', fileToken: 'russian' }],
       output: { totals, mods: [modResult()], cancelled: true },
       untranslated: []
     })
@@ -125,7 +167,7 @@ describe('buildRunReport', () => {
       mode: 'create-translation-mod',
       targetContent: 'complete-file',
       sourceLanguage: 'en',
-      targetLanguages: ['ru'],
+      targets: [{ language: 'ru', fileToken: 'russian' }],
       output: { totals, mods: [modResult()], cancelled: false },
       untranslated: []
     })
@@ -314,6 +356,63 @@ describe('StoredRunReportSchema', () => {
     expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
   })
 
+  it('accepts a report written before targets existed (v3.0.0)', async () => {
+    const fs = new MemoryFs()
+    const written = await writeRunReport('reports', report(), fs)
+    const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
+    delete raw.request.targets
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
+  })
+
+  it('accepts an untranslated key without a fileToken', async () => {
+    const fs = new MemoryFs()
+    const written = await writeRunReport(
+      'reports',
+      report({
+        untranslated: [
+          {
+            modId: 'mymod',
+            modName: 'My Mod',
+            language: 'ru',
+            key: 'K',
+            file: 'a_l_english.yml',
+            source: 'text',
+            state: 'missing'
+          }
+        ]
+      }),
+      fs
+    )
+    const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
+    expect('fileToken' in raw.untranslated[0]).toBe(false)
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
+  })
+
+  it('accepts an untranslated key with a fileToken', async () => {
+    const fs = new MemoryFs()
+    const written = await writeRunReport(
+      'reports',
+      report({
+        untranslated: [
+          {
+            modId: 'mymod',
+            modName: 'My Mod',
+            language: 'tr',
+            key: 'K',
+            file: 'a_l_english.yml',
+            source: 'text',
+            state: 'missing',
+            fileToken: 'english'
+          }
+        ]
+      }),
+      fs
+    )
+    const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
+    expect(raw.untranslated[0].fileToken).toBe('english')
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
+  })
+
   it('reads back a state the enum is a hand-written copy of', async () => {
     const fs = new MemoryFs()
     const written = await writeRunReport(
@@ -335,5 +434,68 @@ describe('StoredRunReportSchema', () => {
     )
     const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
     expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
+  })
+
+  it('accepts a free-text target language, in the request and in an untranslated key', async () => {
+    const fs = new MemoryFs()
+    const written = await writeRunReport(
+      'reports',
+      report({
+        request: {
+          ...report().request,
+          targetLanguages: ['Catalan'],
+          targets: [{ language: 'Catalan', fileToken: 'english' }]
+        },
+        untranslated: [
+          {
+            modId: 'mymod',
+            modName: 'My Mod',
+            language: 'Catalan',
+            key: 'K',
+            file: 'a_l_english.yml',
+            source: 'text',
+            state: 'missing',
+            fileToken: 'english'
+          }
+        ]
+      }),
+      fs
+    )
+    const raw = JSON.parse(fs.snapshot().get(written?.jsonPath ?? '') ?? '')
+    expect(raw.request.targetLanguages).toEqual(['Catalan'])
+    expect(raw.untranslated[0].language).toBe('Catalan')
+    expect(StoredRunReportSchema.safeParse(raw).success).toBe(true)
+  })
+
+  it('still parses a stored v3.0.0 report whose targetLanguages and untranslated keys hold plain codes', async () => {
+    const stored = {
+      startedAt: '2026-08-08T14:37:33.000Z',
+      finishedAt: '2026-08-08T14:38:38.000Z',
+      seconds: 65,
+      request: {
+        path: 'workshop',
+        game: 'stellaris',
+        mode: 'create-translation-mod',
+        sourceLanguage: 'en',
+        targetLanguages: ['ru'],
+        selectedMods: 'all'
+      },
+      totals,
+      refusalsByReason: {},
+      refusalsDropped: 0,
+      mods: [],
+      untranslated: [
+        {
+          modId: 'mymod',
+          modName: 'My Mod',
+          language: 'ru',
+          key: 'K',
+          file: 'a_l_english.yml',
+          source: 'text',
+          state: 'missing'
+        }
+      ]
+    }
+    expect(StoredRunReportSchema.safeParse(stored).success).toBe(true)
   })
 })

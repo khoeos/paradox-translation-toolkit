@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 
-import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
 import type { ScannedMod } from '@ptt/converter'
+import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
+import type { TranslationTarget } from '@ptt/shared/languages'
+import { normalizeTargetLanguage } from '@ptt/shared/languages'
 import type { TranslateConfig } from '@ptt/translate'
 import { TRANSLATE_DEFAULTS, isDefaultBaseUrl, PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
 
@@ -9,7 +11,7 @@ interface GameFormSnapshot {
   modFolder: string
   outputFolder: string
   sourceLanguage: LanguageCode
-  targetLanguages: LanguageCode[]
+  targets: TranslationTarget[]
   gamePath: string
 }
 
@@ -20,7 +22,7 @@ interface ConverterFormState {
   modFolder: string
   outputFolder: string
   sourceLanguage: LanguageCode
-  targetLanguages: Set<LanguageCode>
+  targets: TranslationTarget[]
   mode: ConvertMode
   targetContent: TargetContent
   modName: string
@@ -38,7 +40,9 @@ interface ConverterFormState {
   setMode: (mode: ConvertMode) => void
   setSourceLanguage: (lang: LanguageCode) => void
   setTargetContent: (targetContent: TargetContent) => void
-  toggleTargetLanguage: (lang: LanguageCode) => void
+  toggleTargetLanguage: (language: LanguageCode, fileToken: string) => void
+  addCustomTarget: (target: TranslationTarget) => void
+  removeTarget: (language: string) => void
   setModName: (name: string) => void
   setScannedMods: (mods: ScannedMod[]) => void
   toggleMod: (id: string) => void
@@ -53,12 +57,20 @@ function invalidateScan(): Pick<ConverterFormState, 'scannedMods' | 'selectedMod
   return { scannedMods: [], selectedMods: new Set<string>() }
 }
 
+const withoutLanguage = (
+  targets: readonly TranslationTarget[],
+  language: string
+): TranslationTarget[] => {
+  const normalized = normalizeTargetLanguage(language)
+  return targets.filter(target => normalizeTargetLanguage(target.language) !== normalized)
+}
+
 export const useConverterFormStore = create<ConverterFormState>(set => ({
   selectedGameId: null,
   modFolder: '',
   outputFolder: '',
   sourceLanguage: 'en',
-  targetLanguages: new Set<LanguageCode>(),
+  targets: [],
   mode: 'add-to-current',
   targetContent: 'missing-keys',
   modName: '',
@@ -74,7 +86,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       modFolder: snapshot.modFolder,
       outputFolder: snapshot.outputFolder,
       sourceLanguage: snapshot.sourceLanguage,
-      targetLanguages: new Set(snapshot.targetLanguages),
+      targets: [...snapshot.targets],
       translate: { ...state.translate, gamePath: snapshot.gamePath },
       ...invalidateScan()
     })),
@@ -82,19 +94,31 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   setOutputFolder: outputFolder => set({ outputFolder }),
   setMode: mode => set({ mode }),
   setSourceLanguage: lang =>
-    set(state => {
-      const next = new Set(state.targetLanguages)
-      next.delete(lang)
-      return { sourceLanguage: lang, targetLanguages: next, ...invalidateScan() }
-    }),
+    set(state => ({
+      sourceLanguage: lang,
+      targets: withoutLanguage(state.targets, lang),
+      ...invalidateScan()
+    })),
   setTargetContent: targetContent => set({ targetContent }),
-  toggleTargetLanguage: lang =>
+  toggleTargetLanguage: (language, fileToken) =>
     set(state => {
-      const next = new Set(state.targetLanguages)
-      if (next.has(lang)) next.delete(lang)
-      else next.add(lang)
-      return { targetLanguages: next, ...invalidateScan() }
+      const withoutIt = withoutLanguage(state.targets, language)
+      const targets =
+        withoutIt.length === state.targets.length
+          ? [...state.targets, { language, fileToken }]
+          : withoutIt
+      return { targets, ...invalidateScan() }
     }),
+  addCustomTarget: target =>
+    set(state => {
+      const language = normalizeTargetLanguage(target.language)
+      return {
+        targets: [...withoutLanguage(state.targets, language), { ...target, language }],
+        ...invalidateScan()
+      }
+    }),
+  removeTarget: language =>
+    set(state => ({ targets: withoutLanguage(state.targets, language), ...invalidateScan() })),
   setModName: modName => set({ modName }),
   setScannedMods: mods =>
     set({
@@ -128,7 +152,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       modFolder: '',
       outputFolder: '',
       sourceLanguage: 'en',
-      targetLanguages: new Set<LanguageCode>(),
+      targets: [],
       mode: 'add-to-current',
       targetContent: 'missing-keys',
       modName: '',
@@ -145,7 +169,7 @@ function isDefaultModel(model: string): boolean {
 export function canRun(state: ConverterFormState): boolean {
   if (!state.selectedGameId) return false
   if (state.modFolder.length === 0) return false
-  if (state.targetLanguages.size === 0) return false
+  if (state.targets.length === 0) return false
   if (state.mode === 'extract-to-folder' && state.outputFolder.length === 0) return false
   return true
 }

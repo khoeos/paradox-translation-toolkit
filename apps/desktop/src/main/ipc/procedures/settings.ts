@@ -4,7 +4,12 @@ import { z } from 'zod'
 
 import { getAllGameIds } from '@ptt/games'
 import { VALID_UI_LANGUAGES } from '@ptt/i18n'
-import { ConvertModeSchema, LanguageCodeSchema, TargetContentSchema } from '@ptt/shared'
+import {
+  ConvertModeSchema,
+  LanguageCodeSchema,
+  TargetContentSchema,
+  TranslationTargetSchema
+} from '@ptt/shared'
 
 import { isCriticalFolder } from '../../services/path-policy.js'
 import { KNOWN_PATH_KINDS } from '../../services/settings-service.js'
@@ -21,6 +26,7 @@ export const SettingsPatchSchema = z
     defaultSourceLanguage: LanguageCodeSchema,
     sourceLanguage: z.partialRecord(GameIdSchema, LanguageCodeSchema),
     targetLanguages: z.partialRecord(GameIdSchema, z.array(LanguageCodeSchema)),
+    targets: z.partialRecord(GameIdSchema, z.array(TranslationTargetSchema)),
     mode: ConvertModeSchema,
     targetContent: TargetContentSchema,
     themeOverride: z.enum(['system', 'light', 'dark']),

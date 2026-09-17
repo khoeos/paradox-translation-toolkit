@@ -1,8 +1,8 @@
 import { extractTokens, tokensMatch } from '@ptt/parser'
-import type { LanguageCode } from '@ptt/shared'
+import { getLanguageDisplayName, normalizeTargetLanguage } from '@ptt/shared/languages'
+import type { LanguageCode } from '@ptt/shared/languages'
 
 import { collectHints } from './glossary.js'
-import { LANGUAGE_DISPLAY_NAMES } from './language-codes.js'
 import type { TranslationMemory } from './memory.js'
 import type { Glossary, Provider, Refusal, RefusalReason, TranslationCounters } from './types.js'
 
@@ -26,6 +26,7 @@ export class TranslationFailure extends Error {}
 export interface EngineOptions {
   provider: Provider
   memory: TranslationMemory
+  sourceLanguage: LanguageCode
   batchSize: number
   concurrency: number
   retries: number
@@ -74,12 +75,12 @@ export class TranslationEngine {
     return this.backendDown
   }
 
-  refusalFor(language: LanguageCode, value: string): Refusal | undefined {
+  refusalFor(language: string, value: string): Refusal | undefined {
     return this.refusals.get(refusalKey(language, value))
   }
 
   private refuse(
-    language: LanguageCode,
+    language: string,
     value: string,
     reason: RefusalReason,
     detail: string | undefined,
@@ -102,7 +103,7 @@ export class TranslationEngine {
 
   private abandonBatch(
     batch: readonly string[],
-    language: LanguageCode,
+    language: string,
     stats: TranslationCounters
   ): never {
     for (const value of batch) {
@@ -129,9 +130,15 @@ export class TranslationEngine {
     this.options.onProgress?.(this.getCounters())
   }
 
+  private glossaryFor(language: string): Glossary | undefined {
+    const glossary = this.options.glossary
+    if (!glossary) return undefined
+    return normalizeTargetLanguage(language) === glossary.forLanguage ? glossary : undefined
+  }
+
   private async runBatch(
     batch: string[],
-    language: LanguageCode,
+    language: string,
     results: Map<string, string>,
     stats: TranslationCounters
   ): Promise<void> {
@@ -149,10 +156,12 @@ export class TranslationEngine {
         this.abandonBatch(batch, language, stats)
       }
       try {
-        const hints = this.options.glossary ? collectHints(this.options.glossary, batch) : undefined
+        const glossary = this.glossaryFor(language)
+        const hints = glossary ? collectHints(glossary, batch) : undefined
         answer = await this.options.provider.translate(
           batch,
-          LANGUAGE_DISPLAY_NAMES[language],
+          getLanguageDisplayName(language),
+          getLanguageDisplayName(this.options.sourceLanguage),
           hints,
           this.options.signal
         )
@@ -211,7 +220,16 @@ export class TranslationEngine {
     this.report()
   }
 
-  async translate(values: readonly string[], language: LanguageCode): Promise<TranslateResult> {
+  async translate(values: readonly string[], language: string): Promise<TranslateResult> {
+    if (
+      normalizeTargetLanguage(language) === normalizeTargetLanguage(this.options.sourceLanguage)
+    ) {
+      throw new Error(
+        `Cannot translate into "${getLanguageDisplayName(language)}": it is the language this run ` +
+          `reads from. Pick another target language.`
+      )
+    }
+
     await this.options.memory.load(language)
 
     const stats: TranslationCounters = { translated: 0, cached: 0, failed: 0 }
@@ -220,9 +238,10 @@ export class TranslationEngine {
     const todo: string[] = []
     const waitFor: Array<Promise<void>> = []
     const unique = [...new Set(values)]
+    const glossary = this.glossaryFor(language)
 
     for (const value of unique) {
-      const official = this.options.glossary?.exact.get(value)
+      const official = glossary?.exact.get(value)
       if (official) {
         results.set(value, official)
         this.counters.cached++
@@ -302,6 +321,6 @@ export class TranslationEngine {
   }
 }
 
-function refusalKey(language: LanguageCode, value: string): string {
+function refusalKey(language: string, value: string): string {
   return `${language}::${value}`
 }

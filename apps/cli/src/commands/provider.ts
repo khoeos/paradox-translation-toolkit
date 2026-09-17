@@ -1,5 +1,6 @@
 import { nodeFetch } from '@ptt/fs-node'
-import { LANGUAGE_DISPLAY_NAMES, createProvider } from '@ptt/translate'
+import { getLanguageDisplayName } from '@ptt/shared'
+import { createProvider } from '@ptt/translate'
 
 import type { Args } from '../args.js'
 import type { CliOptions } from '../options.js'
@@ -13,7 +14,7 @@ export async function commandProvider(options: CliOptions, args: Args): Promise<
   if (!config) throw new Error('Pass --translate together with the provider flags')
 
   const sample = args.rest.length > 0 ? args.rest : DEFAULT_SAMPLE
-  const language = options.targetLanguages[0]
+  const language = options.targets[0]?.language
   if (language === undefined) throw new Error('--to must name a language')
 
   facts([
@@ -26,12 +27,16 @@ export async function commandProvider(options: CliOptions, args: Args): Promise<
         ? `${config.apiKey.slice(0, KEY_PREVIEW_CHARS)}… (${config.apiKey.length} chars)`
         : dim('none')
     ],
-    ['language', `${language} (${LANGUAGE_DISPLAY_NAMES[language]})`]
+    ['language', `${language} (${getLanguageDisplayName(language)})`]
   ])
 
   const started = Date.now()
   const provider = createProvider(config, language, nodeFetch)
-  const answers = await provider.translate(sample, LANGUAGE_DISPLAY_NAMES[language])
+  const answers = await provider.translate(
+    sample,
+    getLanguageDisplayName(language),
+    getLanguageDisplayName(options.sourceLanguage)
+  )
 
   section(`Answer in ${Date.now() - started} ms`)
   sample.forEach((text, index) => {

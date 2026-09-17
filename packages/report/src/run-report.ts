@@ -1,6 +1,7 @@
 import type { ConversionTotals, FsLike, KeyReport, ModResult, TranslationMod } from '@ptt/converter'
 import { posixJoin } from '@ptt/converter'
-import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
+import { uniqueTargetLanguages } from '@ptt/shared'
+import type { ConvertMode, LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
 import type { Refusal, RefusalReason, TranslateProvider, TranslationCounters } from '@ptt/translate'
 
 import { writeKeyCsv } from './csv.js'
@@ -13,7 +14,8 @@ export interface RunReportRequest {
   mode: ConvertMode
   targetContent: TargetContent
   sourceLanguage: LanguageCode
-  targetLanguages: readonly LanguageCode[]
+  targetLanguages: readonly string[]
+  targets?: readonly TranslationTarget[]
   selectedMods?: readonly string[]
   translate?: {
     provider: TranslateProvider
@@ -51,7 +53,7 @@ export interface RunReportInputs {
   mode: ConvertMode
   targetContent: TargetContent
   sourceLanguage: LanguageCode
-  targetLanguages: readonly LanguageCode[]
+  targets: readonly TranslationTarget[]
   selectedMods?: readonly string[]
   translate?: TranslateConfigLike
   output: {
@@ -66,6 +68,7 @@ export interface RunReportInputs {
 }
 
 export function buildRunReport(inputs: RunReportInputs): RunReport {
+  const targetLanguages = uniqueTargetLanguages(inputs.targets)
   return {
     startedAt: inputs.startedAt,
     finishedAt: inputs.finishedAt,
@@ -75,7 +78,8 @@ export function buildRunReport(inputs: RunReportInputs): RunReport {
       mode: inputs.mode,
       targetContent: inputs.targetContent,
       sourceLanguage: inputs.sourceLanguage,
-      targetLanguages: inputs.targetLanguages,
+      targetLanguages,
+      targets: inputs.targets,
       ...(inputs.selectedMods !== undefined && { selectedMods: inputs.selectedMods }),
       ...(inputs.translate !== undefined && {
         translate: {

@@ -103,6 +103,30 @@ describe('keyRow', () => {
     const unset = keyRow(key())
     expect(unset[KEY_COLUMNS.indexOf('shadowed')]).toBe('')
   })
+
+  it('carries the file token, empty when absent', () => {
+    const withToken = keyRow(key({ fileToken: 'english' }))
+    expect(withToken[KEY_COLUMNS.indexOf('fileToken')]).toBe('english')
+    const withoutToken = keyRow(key())
+    expect(withoutToken[KEY_COLUMNS.indexOf('fileToken')]).toBeUndefined()
+  })
+
+  it('appends the new column, so every 3.0.0 column keeps its position', () => {
+    expect(KEY_COLUMNS.indexOf('fileToken')).toBe(KEY_COLUMNS.length - 1)
+    expect([...KEY_COLUMNS].slice(0, -1)).toEqual([
+      'mod',
+      'modId',
+      'language',
+      'key',
+      'state',
+      'reason',
+      'markupOnly',
+      'shadowed',
+      'source',
+      'provider',
+      'file'
+    ])
+  })
 })
 
 describe('writeKeyCsv', () => {

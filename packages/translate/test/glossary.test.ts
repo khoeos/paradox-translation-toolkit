@@ -141,7 +141,8 @@ describe('collectHints', () => {
       ['vassal', { source: 'vassal', target: 'Вассал' }]
     ]),
     builtFrom: '/game',
-    files: 1
+    files: 1,
+    forLanguage: 'ru'
   }
 
   it('returns only the terms the batch actually uses', () => {
@@ -172,7 +173,8 @@ describe('collectHints', () => {
         ])
       ),
       builtFrom: '/game',
-      files: 1
+      files: 1,
+      forLanguage: 'ru'
     }
     const text = Array.from({ length: MAX_HINTS_PER_BATCH + 40 }, (_, i) => `term${i}`).join(' ')
     expect(collectHints(many, [text]).length).toBeLessThanOrEqual(MAX_HINTS_PER_BATCH)

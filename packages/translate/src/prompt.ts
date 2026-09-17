@@ -3,6 +3,7 @@ import type { Hint } from './types.js'
 export function buildPrompt(
   texts: readonly string[],
   language: string,
+  sourceLanguage: string,
   domain?: string,
   hints?: readonly Hint[]
 ): string {
@@ -15,7 +16,7 @@ export function buildPrompt(
           .join('\n')}\n\n`
       : ''
 
-  return `You translate video game localisation strings from English to ${language}.
+  return `You translate video game localisation strings from ${sourceLanguage} to ${language}.
 
 ${domainBlock}${hintBlock}Rules:
 - Translate only the human readable text.

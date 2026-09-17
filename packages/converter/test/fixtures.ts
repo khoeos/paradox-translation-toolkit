@@ -1,4 +1,5 @@
-import type { GameDefinition } from '@ptt/shared'
+import type { GameDefinition, LanguageCode, TranslationTarget } from '@ptt/shared'
+import { builtInTargetFor } from '@ptt/shared/languages'
 
 import type { GameContextRef } from '../src/index.js'
 
@@ -46,6 +47,9 @@ export const ck3Def: GameContextRef = {
     ja: 'japanese'
   }
 }
+
+export const builtIn = (...languages: readonly LanguageCode[]): TranslationTarget[] =>
+  languages.flatMap(language => builtInTargetFor(language, stellarisDef.languageFileToken) ?? [])
 
 export function localeFile(language: string, entries: Array<[string, string]> = []): string {
   let content = `${BOM}l_${language}:\n`

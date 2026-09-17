@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import type { LanguageCode } from '@ptt/shared'
-
+import type { TranslationTarget } from '@ptt/shared/languages'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +16,8 @@ import {
 } from '@ptt/ui/components/alert-dialog'
 import { Button } from '@ptt/ui/components/button'
 
+import { useTargetValidation } from '@renderer/hooks/useTargetValidation'
+import { findShadowingTarget, languageLabel } from '@renderer/lib/targets'
 import { trpc } from '@renderer/lib/trpc'
 import { canRun, runTranslateConfig, useConverterFormStore } from '@renderer/store/converter-form'
 import { useJobsStore } from '@renderer/store/jobs'
@@ -24,7 +26,7 @@ function commonInput(): {
   gameId: string
   rootDir: string
   sourceLanguage: LanguageCode
-  targetLanguages: LanguageCode[]
+  targets: TranslationTarget[]
   modName?: string
   translate?: NonNullable<ReturnType<typeof runTranslateConfig>>
 } | null {
@@ -35,7 +37,7 @@ function commonInput(): {
     gameId: form.selectedGameId,
     rootDir: form.modFolder,
     sourceLanguage: form.sourceLanguage,
-    targetLanguages: [...form.targetLanguages],
+    targets: form.targets,
     ...(form.modName.length > 0 && { modName: form.modName }),
     ...(translate !== undefined && { translate })
   }
@@ -43,12 +45,18 @@ function commonInput(): {
 
 export function RunButton() {
   const { t } = useTranslation()
+  const targets = useConverterFormStore(s => s.targets)
+  const mode = useConverterFormStore(s => s.mode)
+  const targetContent = useConverterFormStore(s => s.targetContent)
   const scannedCount = useConverterFormStore(s => s.scannedMods.length)
   const selectedCount = useConverterFormStore(s => s.selectedMods.size)
   const ready = useConverterFormStore(canRun)
   const startJob = useJobsStore(s => s.startJob)
   const [confirming, setConfirming] = useState(false)
   const cancelRef = useRef<HTMLButtonElement>(null)
+
+  const { tokens, error: targetError } = useTargetValidation()
+  const blocked = targetError !== undefined
 
   const onError = (message: string): void => {
     // Most common cause: another job already running (CONFLICT).
@@ -86,14 +94,25 @@ export function RunButton() {
     })
   }
 
+  const shadowing = findShadowingTarget(targets, tokens)
+
   const handleConvert = (): void => {
     const form = useConverterFormStore.getState()
-    if (form.mode === 'add-to-current' && form.targetContent === 'regenerate-file') {
+    const replacing = form.targetContent !== 'missing-keys'
+    if (
+      form.mode === 'add-to-current' &&
+      (form.targetContent === 'regenerate-file' || (replacing && shadowing !== undefined))
+    ) {
       setConfirming(true)
       return
     }
     startConvert()
   }
+
+  const inPlaceShadowConfirm =
+    mode === 'add-to-current' && targetContent !== 'missing-keys' && shadowing !== undefined
+  const ownerLabel = shadowing !== undefined ? languageLabel(t, shadowing.owner) : ''
+  const shadowingLabel = shadowing !== undefined ? languageLabel(t, shadowing.target.language) : ''
 
   return (
     <div className="grid grid-cols-3 gap-2">
@@ -101,7 +120,7 @@ export function RunButton() {
         type="button"
         variant="outline"
         onClick={handleScan}
-        disabled={pending || !ready}
+        disabled={pending || !ready || blocked}
         size="lg"
       >
         {scanModsMutation.isPending ? t('converter.starting') : t('converter.scan')}
@@ -109,7 +128,7 @@ export function RunButton() {
       <Button
         type="button"
         onClick={handleConvert}
-        disabled={pending || !ready || emptySelection}
+        disabled={pending || !ready || blocked || emptySelection}
         className="col-span-2"
         size="lg"
       >
@@ -120,14 +139,29 @@ export function RunButton() {
             : t('converter.convert')}
       </Button>
 
+      {targetError ? <p className="col-span-3 text-xs text-destructive">{targetError}</p> : null}
+
       <AlertDialog open={confirming} onOpenChange={open => setConfirming(open)}>
         <AlertDialogContent initialFocus={cancelRef}>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('converter.regenerateConfirm.title')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('converter.regenerateConfirm.body')}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {inPlaceShadowConfirm
+                ? t('converter.inPlaceShadowConfirm.title', { owner: ownerLabel })
+                : t('converter.regenerateConfirm.title')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {inPlaceShadowConfirm
+                ? t('converter.inPlaceShadowConfirm.body', {
+                    language: shadowingLabel,
+                    owner: ownerLabel
+                  })
+                : t('converter.regenerateConfirm.body')}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <p className="text-xs/relaxed text-muted-foreground">
-            {t('converter.regenerateConfirm.cost')}
+            {inPlaceShadowConfirm
+              ? t('converter.inPlaceShadowConfirm.cost', { owner: ownerLabel })
+              : t('converter.regenerateConfirm.cost')}
           </p>
           <AlertDialogFooter>
             <AlertDialogCancel ref={cancelRef}>{t('common.cancel')}</AlertDialogCancel>

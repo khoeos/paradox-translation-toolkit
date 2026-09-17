@@ -3,38 +3,188 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { ck3, stellaris } from '@ptt/games'
+import { ck3, eu4, stellaris } from '@ptt/games'
+import type { TranslateConfig } from '@ptt/translate'
 import { TRANSLATE_DEFAULTS } from '@ptt/translate'
 
 import { parseArgs } from './args.js'
 import { readConfig } from './config.js'
-import { buildOptions, parseLanguages } from './options.js'
+import {
+  buildOptions,
+  findUnsupportedTarget,
+  parseSourceLanguage,
+  parseTargets
+} from './options.js'
 
 const build = (argv: string[]): ReturnType<typeof buildOptions> => buildOptions(parseArgs(argv))
 
-describe('parseLanguages', () => {
-  it('reads one code', () => {
-    expect(parseLanguages(ck3, 'ru')).toEqual(['ru'])
+describe('parseSourceLanguage', () => {
+  it('reads a plain code', () => {
+    expect(parseSourceLanguage(ck3, 'ru')).toBe('ru')
   })
 
-  it('reads several, keeping the order', () => {
-    expect(parseLanguages(stellaris, 'ru,fr,de')).toEqual(['ru', 'fr', 'de'])
-  })
-
-  it('trims and ignores blanks', () => {
-    expect(parseLanguages(ck3, ' ru , , fr ')).toEqual(['ru', 'fr'])
+  it('trims', () => {
+    expect(parseSourceLanguage(ck3, ' ru ')).toBe('ru')
   })
 
   it('refuses a code that is not a LanguageCode', () => {
-    expect(() => parseLanguages(ck3, 'klingon')).toThrow(/Unknown language "klingon"/)
+    expect(() => parseSourceLanguage(ck3, 'klingon')).toThrow(/Unknown language "klingon"/)
   })
 
   it('refuses a language the selected game has no localisation for', () => {
-    expect(() => parseLanguages(stellaris, 'tr')).toThrow(/no localisation for "tr"/)
+    expect(() => parseSourceLanguage(stellaris, 'tr')).toThrow(/no localisation for "tr"/)
+  })
+
+  it('rejects a code:token spec: the source is always one the game ships', () => {
+    expect(() => parseSourceLanguage(ck3, 'en:english')).toThrow(/no token to pick/)
+  })
+})
+
+describe('parseTargets', () => {
+  it('reads one built-in code', () => {
+    expect(parseTargets(ck3, 'ru')).toEqual([{ language: 'ru', fileToken: 'russian' }])
+  })
+
+  it("reads several, keeping the order and each one's own token", () => {
+    expect(parseTargets(stellaris, 'ru,fr,de')).toEqual([
+      { language: 'ru', fileToken: 'russian' },
+      { language: 'fr', fileToken: 'french' },
+      { language: 'de', fileToken: 'german' }
+    ])
+  })
+
+  it('trims and ignores blanks', () => {
+    expect(parseTargets(ck3, ' ru , , fr ')).toEqual([
+      { language: 'ru', fileToken: 'russian' },
+      { language: 'fr', fileToken: 'french' }
+    ])
+  })
+
+  it('reads a custom code:token pair, normalizing the token', () => {
+    expect(parseTargets(stellaris, 'tr:ENGLISH')).toEqual([
+      { language: 'tr', fileToken: 'english' }
+    ])
+  })
+
+  it('recognizes a language by its display name, not only its code', () => {
+    expect(parseTargets(stellaris, 'Russian')).toEqual([{ language: 'ru', fileToken: 'russian' }])
+  })
+
+  it('is case- and whitespace-insensitive when recognizing a code', () => {
+    expect(parseTargets(stellaris, ' TR :english')).toEqual([
+      { language: 'tr', fileToken: 'english' }
+    ])
+  })
+
+  it('accepts a free-text language that matches no built-in code', () => {
+    expect(parseTargets(stellaris, 'Catalan:english')).toEqual([
+      { language: 'Catalan', fileToken: 'english' }
+    ])
+  })
+
+  it('rejects a free-text language with no token: it is not one the game ships a file name for', () => {
+    expect(() => parseTargets(stellaris, 'Catalan')).toThrow(
+      /"Catalan" is not a language Stellaris ships a file name for.*"Catalan:<token>"/s
+    )
+  })
+
+  it('rejects a mistyped code with no token instead of writing it under the source token', () => {
+    expect(() => parseTargets(ck3, 'tr2')).toThrow(
+      /"tr2" is not a language .* ships a file name for/
+    )
+  })
+
+  it('refuses a built-in code the game has no localisation for, suggesting code:token', () => {
+    expect(() => parseTargets(stellaris, 'tr')).toThrow(
+      /"tr" is not a language Stellaris ships a file name for.*"tr:<token>"/s
+    )
+  })
+
+  it('refuses an invalid custom token', () => {
+    expect(() => parseTargets(stellaris, 'tr:A_l_b')).toThrow(/Invalid file token "A_l_b"/)
+  })
+
+  it('refuses a token the game does not declare for any language', () => {
+    expect(() => parseTargets(ck3, 'tr:turkish')).toThrow(/Crusader Kings III writes no l_turkish/)
+  })
+
+  it('refuses a token declared by a game with few of them, listing what it does declare', () => {
+    expect(() => parseTargets(eu4, 'tr:turkish')).toThrow(/expected one of english, french/)
+  })
+
+  it('refuses a duplicate target language', () => {
+    expect(() => parseTargets(stellaris, 'tr:english,tr:french')).toThrow(/given more than once/)
+  })
+
+  it('refuses two spellings of the same target language', () => {
+    expect(() => parseTargets(stellaris, 'tr:english,Turkish:french')).toThrow(
+      /given more than once/
+    )
+  })
+
+  it('refuses a duplicate target token', () => {
+    expect(() => parseTargets(stellaris, 'tr:english,ja:english')).toThrow(/given more than once/)
+  })
+
+  it('does not reject a target equal to the source: resolveTargets drops it downstream', () => {
+    expect(parseTargets(ck3, 'en')).toEqual([{ language: 'en', fileToken: 'english' }])
   })
 
   it('refuses an empty list', () => {
-    expect(() => parseLanguages(ck3, ' , ')).toThrow(/No language given/)
+    expect(() => parseTargets(ck3, ' , ')).toThrow(/No target given/)
+  })
+
+  it('splits "a,b:english" on the comma, so the language part alone must resolve', () => {
+    expect(() => parseTargets(stellaris, 'a,b:english')).toThrow(
+      /"a" is not a language Stellaris ships a file name for/
+    )
+  })
+
+  it('splits "a:b:english" on the first colon, so the rest is one invalid token', () => {
+    expect(() => parseTargets(stellaris, 'a:b:english')).toThrow(/Invalid file token "b:english"/)
+  })
+
+  it('allows a shadowing custom target: resolveTargets and the pipeline decide what it does', () => {
+    expect(parseTargets(stellaris, 'tr:english')).toEqual([
+      { language: 'tr', fileToken: 'english' }
+    ])
+    expect(parseTargets(stellaris, 'Catalan:english')).toEqual([
+      { language: 'Catalan', fileToken: 'english' }
+    ])
+  })
+})
+
+const translateConfig = (provider: 'openai' | 'rapidapi'): TranslateConfig => ({
+  enabled: true,
+  provider,
+  baseUrl: '',
+  model: '',
+  batchSize: 1,
+  concurrency: 1,
+  retries: 1,
+  timeout: 1000
+})
+
+describe('findUnsupportedTarget', () => {
+  const targets = [{ language: 'Catalan', fileToken: 'english' }]
+
+  it('is undefined when translation is off', () => {
+    expect(findUnsupportedTarget(undefined, targets)).toBeUndefined()
+  })
+
+  it('is undefined for a provider other than rapidapi', () => {
+    expect(findUnsupportedTarget(translateConfig('openai'), targets)).toBeUndefined()
+  })
+
+  it('finds the first unrecognized target for rapidapi', () => {
+    expect(findUnsupportedTarget(translateConfig('rapidapi'), targets)).toEqual(targets[0])
+  })
+
+  it('is undefined for rapidapi when every target is a built-in code', () => {
+    const translate = translateConfig('rapidapi')
+    expect(
+      findUnsupportedTarget(translate, [{ language: 'tr', fileToken: 'turkish' }])
+    ).toBeUndefined()
   })
 })
 
@@ -80,6 +230,112 @@ describe('buildOptions - games and modes', () => {
 
   it('refuses an unknown mode', async () => {
     await expect(build(['memory', '--mode', 'delete'])).rejects.toThrow(/Unknown --mode/)
+  })
+})
+
+describe('buildOptions - targets', () => {
+  it('defaults --to to ru', async () => {
+    expect((await build(['memory'])).targets).toEqual([{ language: 'ru', fileToken: 'russian' }])
+  })
+
+  it('reads a custom code:token target', async () => {
+    expect((await build(['memory', '--game', 'stellaris', '--to', 'tr:english'])).targets).toEqual([
+      { language: 'tr', fileToken: 'english' }
+    ])
+  })
+
+  it('refuses a --to list resolveTargets drops entirely, instead of a silent zero-work run', async () => {
+    await expect(
+      build(['memory', '--game', 'stellaris', '--from', 'en', '--to', 'English:french'])
+    ).rejects.toThrow(/would write nothing.*source language/s)
+  })
+
+  it('accepts a shadowing custom target combined with --mode add, with content complete-file', async () => {
+    expect(
+      (
+        await build([
+          'memory',
+          '--game',
+          'stellaris',
+          '--to',
+          'tr:english',
+          '--mode',
+          'add',
+          '--content',
+          'complete'
+        ])
+      ).targets
+    ).toEqual([{ language: 'tr', fileToken: 'english' }])
+  })
+
+  it('rejects a shadowing custom target combined with --mode add on the source token, missing-keys', async () => {
+    await expect(
+      build([
+        'memory',
+        '--game',
+        'stellaris',
+        '--to',
+        'tr:english',
+        '--mode',
+        'add',
+        '--content',
+        'missing'
+      ])
+    ).rejects.toThrow(/l_english is already how this mod is written/)
+  })
+
+  it('accepts the same shadowing target in add-to-current when it targets another token', async () => {
+    expect(
+      (
+        await build([
+          'memory',
+          '--game',
+          'stellaris',
+          '--to',
+          'tr:french',
+          '--mode',
+          'add',
+          '--content',
+          'missing'
+        ])
+      ).targets
+    ).toEqual([{ language: 'tr', fileToken: 'french' }])
+  })
+
+  it('rejects --from with a code:token spec', async () => {
+    await expect(build(['memory', '--from', 'en:english'])).rejects.toThrow(/no token to pick/)
+  })
+
+  it('rejects an unrecognized language with rapidapi', async () => {
+    await expect(
+      build([
+        'memory',
+        '--game',
+        'stellaris',
+        '--to',
+        'Catalan:english',
+        '--translate',
+        '--provider',
+        'rapidapi'
+      ])
+    ).rejects.toThrow(/RapidAPI provider cannot translate into "Catalan"/)
+  })
+
+  it('accepts the same unrecognized language with a provider other than rapidapi', async () => {
+    expect(
+      (
+        await build([
+          'memory',
+          '--game',
+          'stellaris',
+          '--to',
+          'Catalan:english',
+          '--translate',
+          '--provider',
+          'openai'
+        ])
+      ).targets
+    ).toEqual([{ language: 'Catalan', fileToken: 'english' }])
   })
 })
 

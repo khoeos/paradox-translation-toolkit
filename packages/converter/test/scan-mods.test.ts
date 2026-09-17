@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { SCAN_DIAGNOSTICS_PER_MOD, SCAN_PHASES, scanMod, scanMods } from '../src/index.js'
 import type { ScanModsOptions, ScanPhase, ScanRunningTotals } from '../src/index.js'
-import { localeFile, stellarisDef } from './fixtures.js'
+import { builtIn, localeFile, stellarisDef } from './fixtures.js'
 import { MemoryFs } from './memory-fs.js'
 
 const base = (over: Partial<ScanModsOptions> = {}): ScanModsOptions => ({
   rootDir: 'workshop',
   gameDef: stellarisDef,
   sourceLanguage: 'en',
-  targetLanguages: ['ru'],
+  targets: builtIn('ru'),
   ...over
 })
 
@@ -24,7 +24,7 @@ describe('scanMod', () => {
       {
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru', 'fr'],
+        targets: builtIn('ru', 'fr'),
         packed: false
       },
       fs
@@ -47,7 +47,7 @@ describe('scanMod', () => {
       {
         gameDef: stellarisDef,
         sourceLanguage: 'en',
-        targetLanguages: ['ru'],
+        targets: builtIn('ru'),
         packed: false,
         ...(generated !== undefined && { generated })
       },
@@ -64,7 +64,7 @@ describe('scanMod', () => {
     const options = {
       gameDef: stellarisDef,
       sourceLanguage: 'en' as const,
-      targetLanguages: ['ru' as const],
+      targets: builtIn('ru'),
       packed: false
     }
     const mod = { id: 'mymod', path: 'mymod' }
@@ -84,6 +84,49 @@ describe('scanMods', () => {
     'workshop/b/localisation/english/b_l_english.yml': localeFile('english', [['K3', 'three']]),
     'workshop/b/localisation/russian/b_l_russian.yml': localeFile('russian', [['K3', 'три']])
   }
+
+  it('reports the target list it was given', async () => {
+    const fs = new MemoryFs(collection)
+    expect((await scanMods(base(), fs)).targets).toEqual([{ language: 'ru', fileToken: 'russian' }])
+    const cancelled = await scanMods(base({ isCancelled: () => true }), fs)
+    expect(cancelled.targets).toEqual([{ language: 'ru', fileToken: 'russian' }])
+  })
+
+  it('counts a custom-token target under its own language', async () => {
+    const fs = new MemoryFs(collection)
+    const output = await scanMods(base({ targets: [{ language: 'tr', fileToken: 'english' }] }), fs)
+    const modA = output.mods.find(m => m.id === 'a')
+    expect(modA?.missingKeys.tr).toBe(2)
+    expect(modA?.missingKeys.ru).toBeUndefined()
+    expect(output.totals.missingFiles).toBe(2)
+  })
+
+  it('counts a free-text target language under its own label', async () => {
+    const fs = new MemoryFs(collection)
+    const output = await scanMods(
+      base({ targets: [{ language: 'Catalan', fileToken: 'english' }] }),
+      fs
+    )
+    const modA = output.mods.find(m => m.id === 'a')
+    expect(modA?.missingKeys.Catalan).toBe(2)
+    expect(modA?.coveredKeys.Catalan).toBe(0)
+    expect(output.totals.missingFiles).toBe(2)
+  })
+
+  it('normalizes the target list it reports, so the counters match it', async () => {
+    const fs = new MemoryFs(collection)
+    const output = await scanMods(
+      base({ targets: [{ language: 'Turkish', fileToken: 'english' }] }),
+      fs
+    )
+    expect(output.targets).toEqual([{ language: 'tr', fileToken: 'english' }])
+    expect(output.mods.find(m => m.id === 'a')?.missingKeys.tr).toBe(2)
+    const cancelled = await scanMods(
+      base({ targets: [{ language: 'Turkish', fileToken: 'english' }], isCancelled: () => true }),
+      fs
+    )
+    expect(cancelled.targets).toEqual([{ language: 'tr', fileToken: 'english' }])
+  })
 
   it('scans every mod of the collection', async () => {
     const fs = new MemoryFs(collection)
@@ -255,7 +298,10 @@ describe('scanMods', () => {
       'workshop/broken/localisation/english/b_l_english.yml': `${localeFile('english', [
         ['K4', 'four']
       ])} BAD "no colon"\n`,
-      'workshop/alien/localisation/c_l_klingon.yml': localeFile('klingon', [['K5', 'tlh']])
+      'workshop/alien/localisation/c_l_english.yml': `${localeFile('english', [
+        ['K5', 'five']
+      ])} NEVER_CLOSED:0 "runs off
+`
     })
     let last: ScanRunningTotals | undefined
     const output = await scanMods(
@@ -309,7 +355,10 @@ describe('scanMods', () => {
         ['K1', 'one']
       ])} BAD "no colon"\n`,
       'workshop/b/descriptor.mod': 'name="Mod B"',
-      'workshop/b/localisation/b_l_klingon.yml': localeFile('klingon', [['K2', 'tlh']])
+      'workshop/b/localisation/b_l_english.yml': `${localeFile('english', [
+        ['K2', 'two']
+      ])} NEVER_CLOSED:0 "runs off
+`
     })
     const seen: Array<[string, string]> = []
     await scanMods(
@@ -320,7 +369,7 @@ describe('scanMods', () => {
       'Mod A : workshop/a/localisation/english/a_l_english.yml:3 : Dangling line: no `:` and no value, line skipped (the game skips it too)',
       'warning'
     ])
-    expect(seen.find(([message]) => message.includes('klingon'))?.[1]).toBe('error')
+    expect(seen.find(([message]) => message.includes('b_l_english.yml'))?.[1]).toBe('error')
   })
 
   it('shows the errors of a mod before its warnings when it has to cap them', async () => {
@@ -330,7 +379,10 @@ describe('scanMods', () => {
       'workshop/a/localisation/english/a_l_english.yml': `${localeFile('english', [
         ['K1', 'one']
       ])}${dangling}\n`,
-      'workshop/a/localisation/english/z_l_klingon.yml': localeFile('klingon', [['K2', 'tlh']])
+      'workshop/a/localisation/english/z_l_english.yml': `${localeFile('english', [
+        ['K2', 'two']
+      ])} NEVER_CLOSED:0 "runs off
+`
     })
     const seen: Array<[string, string]> = []
     await scanMods(
@@ -338,7 +390,7 @@ describe('scanMods', () => {
       fs
     )
     expect(seen[0]?.[1]).toBe('error')
-    expect(seen[0]?.[0]).toContain('klingon')
+    expect(seen[0]?.[0]).toContain('z_l_english.yml')
   })
 
   it('caps the diagnostics of one mod and says how many it left out', async () => {

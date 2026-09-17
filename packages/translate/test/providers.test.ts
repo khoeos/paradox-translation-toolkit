@@ -15,7 +15,7 @@ describe('OllamaProvider', () => {
   it('posts to /api/chat with the model and the prompt', async () => {
     const fetch = ollamaAnswering({ '0': 'un' })
     const provider = new OllamaProvider('http://localhost:11434', 'qwen2.5:7b', TIMEOUT, fetch.fn)
-    expect(await provider.translate(['one'], 'French')).toEqual(['un'])
+    expect(await provider.translate(['one'], 'French', 'English')).toEqual(['un'])
 
     const call = fetch.calls[0]!
     expect(call.url).toBe('http://localhost:11434/api/chat')
@@ -26,7 +26,7 @@ describe('OllamaProvider', () => {
   it('trims a trailing slash off the base URL', async () => {
     const fetch = ollamaAnswering({ '0': 'un' })
     const provider = new OllamaProvider('http://localhost:11434/', 'm', TIMEOUT, fetch.fn)
-    await provider.translate(['one'], 'French')
+    await provider.translate(['one'], 'French', 'English')
     expect(fetch.calls[0]?.url).toBe('http://localhost:11434/api/chat')
   })
 
@@ -39,14 +39,23 @@ describe('OllamaProvider', () => {
       fetch.fn,
       'Crusader Kings III, a medieval dynasty game'
     )
-    await provider.translate(['one'], 'French')
+    await provider.translate(['one'], 'French', 'English')
     expect(JSON.stringify(fetch.calls[0]?.body)).toContain('Crusader Kings III')
+  })
+
+  it('names the source language of the run in the prompt', async () => {
+    const fetch = ollamaAnswering({ '0': 'un' })
+    const provider = new OllamaProvider('http://localhost:11434', 'm', TIMEOUT, fetch.fn)
+    await provider.translate(['one'], 'Catalan', 'Russian')
+    const body = JSON.stringify(fetch.calls[0]?.body)
+    expect(body).toContain('from Russian to Catalan')
+    expect(body).not.toContain('from English')
   })
 
   it('passes the glossary hints into the prompt', async () => {
     const fetch = ollamaAnswering({ '0': 'un' })
     const provider = new OllamaProvider('http://localhost:11434', 'm', TIMEOUT, fetch.fn)
-    await provider.translate(['men-at-arms'], 'Russian', [
+    await provider.translate(['men-at-arms'], 'Russian', 'English', [
       { source: 'men-at-arms', target: 'Профессионалы' }
     ])
     expect(JSON.stringify(fetch.calls[0]?.body)).toContain('Профессионалы')
@@ -60,13 +69,13 @@ describe('OllamaProvider', () => {
       text: async () => 'model "nope" not found'
     }))
     const provider = new OllamaProvider('http://localhost:11434', 'nope', TIMEOUT, fetch.fn)
-    await expect(provider.translate(['one'], 'French')).rejects.toThrow(/404.*not found/)
+    await expect(provider.translate(['one'], 'French', 'English')).rejects.toThrow(/404.*not found/)
   })
 
   it('throws when the answer carries no content', async () => {
     const fetch = fakeFetch(() => ({ json: async () => ({}) }))
     const provider = new OllamaProvider('http://localhost:11434', 'm', TIMEOUT, fetch.fn)
-    await expect(provider.translate(['one'], 'French')).rejects.toThrow(/JSON/)
+    await expect(provider.translate(['one'], 'French', 'English')).rejects.toThrow(/JSON/)
   })
 })
 
@@ -80,7 +89,7 @@ describe('OpenAiProvider', () => {
       TIMEOUT,
       fetch.fn
     )
-    expect(await provider.translate(['one'], 'French')).toEqual(['un'])
+    expect(await provider.translate(['one'], 'French', 'English')).toEqual(['un'])
 
     const call = fetch.calls[0]!
     expect(call.url).toBe('https://api.openai.com/v1/chat/completions')
@@ -93,7 +102,7 @@ describe('OpenAiProvider', () => {
   it('sends a strict json_schema with one required slot per input, never json_object', async () => {
     const fetch = openAiAnswering({ '0': 'un', '1': 'deux' })
     const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
-    await provider.translate(['one', 'two'], 'French')
+    await provider.translate(['one', 'two'], 'French', 'English')
     expect(fetch.calls[0]?.body).toMatchObject({
       response_format: {
         type: 'json_schema',
@@ -113,30 +122,37 @@ describe('OpenAiProvider', () => {
     })
   })
 
+  it('names the source language of the run in the prompt', async () => {
+    const fetch = openAiAnswering({ '0': 'un' })
+    const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
+    await provider.translate(['one'], 'Catalan', 'French')
+    expect(JSON.stringify(fetch.calls[0]?.body)).toContain('from French to Catalan')
+  })
+
   it('sends no Authorization header when there is no key', async () => {
     const fetch = openAiAnswering({ '0': 'un' })
     const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
-    await provider.translate(['one'], 'French')
+    await provider.translate(['one'], 'French', 'English')
     expect(fetch.calls[0]?.init.headers.Authorization).toBeUndefined()
   })
 
   it('refuses to send a key over plain http to a remote host (S-13)', async () => {
     const fetch = openAiAnswering({ '0': 'un' })
     const provider = new OpenAiProvider('http://evil.example.com/v1', 'm', 'sk', TIMEOUT, fetch.fn)
-    await expect(provider.translate(['one'], 'French')).rejects.toThrow(/plain http/)
+    await expect(provider.translate(['one'], 'French', 'English')).rejects.toThrow(/plain http/)
     expect(fetch.calls).toHaveLength(0)
   })
 
   it('maps a reordered answer by index (S-4)', async () => {
     const fetch = openAiAnswering({ '1': 'deux', '0': 'un' })
     const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
-    expect(await provider.translate(['one', 'two'], 'French')).toEqual(['un', 'deux'])
+    expect(await provider.translate(['one', 'two'], 'French', 'English')).toEqual(['un', 'deux'])
   })
 
   it('leaves a non-string slot undefined (S-5)', async () => {
     const fetch = openAiAnswering({ '0': 'un', '1': null })
     const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
-    expect(await provider.translate(['one', 'two'], 'French')).toEqual(['un', undefined])
+    expect(await provider.translate(['one', 'two'], 'French', 'English')).toEqual(['un', undefined])
   })
 })
 
@@ -147,14 +163,8 @@ describe('RapidApiProvider', () => {
       sent.push(call.body)
       return { json: async () => ({ translated_json: { '0': 'Gagne {0} maintenant' } }) }
     })
-    const provider = new RapidApiProvider(
-      'https://hub.example.com/t',
-      'key',
-      TIMEOUT,
-      'fr',
-      fetch.fn
-    )
-    expect(await provider.translate(['Gain £energy£ now'], 'French')).toEqual([
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'key', TIMEOUT, fetch.fn)
+    expect(await provider.translate(['Gain £energy£ now'], 'French', 'English')).toEqual([
       'Gagne £energy£ maintenant'
     ])
     expect(sent[0]).toMatchObject({ json_content: { '0': 'Gain {0} now' } })
@@ -162,21 +172,22 @@ describe('RapidApiProvider', () => {
 
   it('sends the service language code, not the language name', async () => {
     const fetch = fakeFetch(() => ({ json: async () => ({ translated_json: { '0': 'x' } }) }))
-    const provider = new RapidApiProvider(
-      'https://hub.example.com/t',
-      'key',
-      TIMEOUT,
-      'zh-Hans',
-      fetch.fn
-    )
-    await provider.translate(['one'], 'Simplified Chinese')
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'key', TIMEOUT, fetch.fn)
+    await provider.translate(['one'], 'Simplified Chinese', 'English')
     expect(fetch.calls[0]?.body).toMatchObject({ origin_language: 'en', target_language: 'zh' })
+  })
+
+  it('sends the source language of the run, not always en', async () => {
+    const fetch = fakeFetch(() => ({ json: async () => ({ translated_json: { '0': 'x' } }) }))
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'key', TIMEOUT, fetch.fn)
+    await provider.translate(['one'], 'Turkish', 'Brazilian Portuguese')
+    expect(fetch.calls[0]?.body).toMatchObject({ origin_language: 'pt', target_language: 'tr' })
   })
 
   it('sends the key in the rapidapi headers', async () => {
     const fetch = fakeFetch(() => ({ json: async () => ({ translated_json: { '0': 'x' } }) }))
-    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, 'fr', fetch.fn)
-    await provider.translate(['one'], 'French')
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, fetch.fn)
+    await provider.translate(['one'], 'French', 'English')
     expect(fetch.calls[0]?.init.headers['x-rapidapi-key']).toBe('k')
     expect(fetch.calls[0]?.init.headers['x-rapidapi-host']).toBe('hub.example.com')
   })
@@ -185,20 +196,40 @@ describe('RapidApiProvider', () => {
     const fetch = fakeFetch(() => ({
       json: async () => ({ translated_json: { '0': 'no token' } })
     }))
-    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, 'fr', fetch.fn)
-    expect(await provider.translate(['Gain $AMOUNT$'], 'French')).toEqual([undefined])
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, fetch.fn)
+    expect(await provider.translate(['Gain $AMOUNT$'], 'French', 'English')).toEqual([undefined])
   })
 
   it('leaves a non-string answer undefined', async () => {
     const fetch = fakeFetch(() => ({ json: async () => ({ translated_json: { '0': 7 } }) }))
-    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, 'fr', fetch.fn)
-    expect(await provider.translate(['one'], 'French')).toEqual([undefined])
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, fetch.fn)
+    expect(await provider.translate(['one'], 'French', 'English')).toEqual([undefined])
   })
 
   it('throws when translated_json is missing', async () => {
     const fetch = fakeFetch(() => ({ json: async () => ({ error: 'quota' }) }))
-    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, 'fr', fetch.fn)
-    await expect(provider.translate(['one'], 'French')).rejects.toThrow(/translated_json/)
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, fetch.fn)
+    await expect(provider.translate(['one'], 'French', 'English')).rejects.toThrow(
+      /translated_json/
+    )
+  })
+
+  it('sends the language of each call, not the one of the first call', async () => {
+    const fetch = fakeFetch(() => ({ json: async () => ({ translated_json: { '0': 'x' } }) }))
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, fetch.fn)
+    await provider.translate(['one'], 'German', 'English')
+    await provider.translate(['one'], 'Turkish', 'English')
+    expect(fetch.calls[0]?.body).toMatchObject({ target_language: 'de' })
+    expect(fetch.calls[1]?.body).toMatchObject({ target_language: 'tr' })
+  })
+
+  it('refuses a free-text language instead of falling back to another one', async () => {
+    const fetch = fakeFetch(() => ({ json: async () => ({ translated_json: { '0': 'x' } }) }))
+    const provider = new RapidApiProvider('https://hub.example.com/t', 'k', TIMEOUT, fetch.fn)
+    await expect(provider.translate(['one'], 'Catalan', 'English')).rejects.toThrow(
+      /cannot translate into "Catalan"/
+    )
+    expect(fetch.calls).toHaveLength(0)
   })
 })
 
@@ -215,5 +246,37 @@ describe('createProvider', () => {
     expect(
       createProvider({ ...TRANSLATE_DEFAULTS, provider: 'rapidapi' }, 'fr', fetch.fn)
     ).toBeInstanceOf(RapidApiProvider)
+  })
+
+  it('refuses a free-text language for rapidapi, naming the languages it does support', () => {
+    expect(() =>
+      createProvider({ ...TRANSLATE_DEFAULTS, provider: 'rapidapi' }, 'Catalan', fetch.fn)
+    ).toThrow(/RapidAPI provider cannot translate into "Catalan".*zh-Hans/s)
+  })
+
+  it('accepts a built-in code for rapidapi', () => {
+    expect(
+      createProvider({ ...TRANSLATE_DEFAULTS, provider: 'rapidapi' }, 'tr', fetch.fn)
+    ).toBeInstanceOf(RapidApiProvider)
+  })
+
+  it('never refuses a free-text language for the model providers', () => {
+    expect(
+      createProvider({ ...TRANSLATE_DEFAULTS, provider: 'ollama' }, 'Catalan', fetch.fn)
+    ).toBeInstanceOf(OllamaProvider)
+    expect(
+      createProvider({ ...TRANSLATE_DEFAULTS, provider: 'openai' }, 'Catalan', fetch.fn)
+    ).toBeInstanceOf(OpenAiProvider)
+  })
+
+  it('hands the rapidapi provider the run source language', async () => {
+    const answering = fakeFetch(() => ({ json: async () => ({ translated_json: { '0': 'x' } }) }))
+    const provider = createProvider(
+      { ...TRANSLATE_DEFAULTS, provider: 'rapidapi', apiKey: 'k' },
+      'tr',
+      answering.fn
+    )
+    await provider.translate(['one'], 'Turkish', 'French')
+    expect(answering.calls[0]?.body).toMatchObject({ origin_language: 'fr' })
   })
 })

@@ -48,7 +48,8 @@ export class TranslateService {
       const provider = createProvider(input, input.targetLanguage, this.fetchFn)
       const answer = await provider.translate(
         [PROBE_TEXT],
-        LANGUAGE_DISPLAY_NAMES[input.targetLanguage]
+        LANGUAGE_DISPLAY_NAMES[input.targetLanguage],
+        LANGUAGE_DISPLAY_NAMES.en
       )
       const translated = answer[0]
       if (translated === undefined || translated.trim().length === 0) {

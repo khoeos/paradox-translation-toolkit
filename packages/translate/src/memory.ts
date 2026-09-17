@@ -1,6 +1,6 @@
 import type { FsLike } from '@ptt/converter'
 import { posixJoin } from '@ptt/converter'
-import type { LanguageCode } from '@ptt/shared'
+import { isLanguageCode } from '@ptt/shared/languages'
 
 import { isRecord } from './guards.js'
 import type { TranslateConfig } from './types.js'
@@ -9,8 +9,21 @@ export const FLUSH_EVERY = 200
 
 const UNSAFE_NAME_CHARS = /[^a-z0-9_-]/gi
 
+const FNV_OFFSET_BASIS = 0x811c9dc5
+const FNV_PRIME = 0x01000193
+const HEX_RADIX = 16
+const DIGEST_CHARS = 8
+
 export function safeFileSegment(value: string): string {
   return value.replace(UNSAFE_NAME_CHARS, '_')
+}
+
+function digestOf(value: string): string {
+  let hash = FNV_OFFSET_BASIS
+  for (const char of value) {
+    hash = Math.imul(hash ^ (char.codePointAt(0) ?? 0), FNV_PRIME)
+  }
+  return (hash >>> 0).toString(HEX_RADIX).padStart(DIGEST_CHARS, '0')
 }
 
 export function translationMemoryDir(
@@ -26,7 +39,7 @@ export async function openTranslationMemory(
   userDataPath: string,
   gameId: string,
   translate: TranslateConfig | undefined,
-  languages: readonly LanguageCode[],
+  languages: readonly string[],
   fs: FsLike
 ): Promise<TranslationMemory> {
   const memory = new TranslationMemory(translationMemoryDir(userDataPath, gameId, translate), fs)
@@ -52,8 +65,8 @@ export async function clearMemoryFiles(directory: string, fs: FsLike): Promise<n
 }
 
 export class TranslationMemory {
-  private readonly entries = new Map<LanguageCode, Map<string, string>>()
-  private readonly dirty = new Set<LanguageCode>()
+  private readonly entries = new Map<string, Map<string, string>>()
+  private readonly dirty = new Set<string>()
   private pending = 0
 
   constructor(
@@ -61,11 +74,15 @@ export class TranslationMemory {
     private readonly fs: FsLike
   ) {}
 
-  file(language: LanguageCode): string {
-    return posixJoin(this.directory, `${safeFileSegment(language)}.json`)
+  file(language: string): string {
+    if (isLanguageCode(language)) return posixJoin(this.directory, `${language}.json`)
+    const folded = language.toLowerCase()
+    const segment = safeFileSegment(folded)
+    const name = segment === folded ? segment : `${segment}-${digestOf(folded)}`
+    return posixJoin(this.directory, `${name}.json`)
   }
 
-  async load(language: LanguageCode): Promise<void> {
+  async load(language: string): Promise<void> {
     if (this.entries.has(language)) return
     const map = new Map<string, string>()
     this.entries.set(language, map)
@@ -89,15 +106,15 @@ export class TranslationMemory {
     }
   }
 
-  isLoaded(language: LanguageCode): boolean {
+  isLoaded(language: string): boolean {
     return this.entries.has(language)
   }
 
-  get(language: LanguageCode, source: string): string | undefined {
+  get(language: string, source: string): string | undefined {
     return this.entries.get(language)?.get(source)
   }
 
-  async set(language: LanguageCode, source: string, translated: string): Promise<void> {
+  async set(language: string, source: string, translated: string): Promise<void> {
     const map = this.entries.get(language)
     if (!map) {
       throw new Error(`Translation memory for "${language}" was never loaded`)
@@ -131,7 +148,7 @@ export class TranslationMemory {
     }
   }
 
-  async clear(language?: LanguageCode): Promise<void> {
+  async clear(language?: string): Promise<void> {
     const languages = language ? [language] : [...this.entries.keys()]
     for (const lang of languages) {
       this.entries.delete(lang)

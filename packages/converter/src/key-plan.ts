@@ -1,10 +1,12 @@
 import { isTranslatable } from '@ptt/parser'
+import { isLanguageCode } from '@ptt/shared/languages'
 
 import { readDescriptor } from './descriptor.js'
 import { splitDiagnostics } from './diagnostics.js'
 import { readModKeys } from './mod-keys.js'
 import { getModNamespace, rewriteLanguageInPath, withPartialSuffix } from './naming.js'
 import { pathKey, posixBasename, posixRejoin, posixSplit } from './path.js'
+import { resolveTargets } from './target.js'
 import type {
   CreationJob,
   FsLike,
@@ -66,8 +68,7 @@ export async function planMod(
   options: KeyPlanOptions,
   fs: FsLike
 ): Promise<ModPlan> {
-  const { gameDef, sourceLanguage, targetLanguages, packed, coverage, generated, memory, detail } =
-    options
+  const { gameDef, sourceLanguage, targets, packed, coverage, generated, memory, detail } = options
   const targetContent = options.targetContent ?? 'missing-keys'
 
   const descriptor = await readDescriptor(mod.path, fs)
@@ -82,6 +83,7 @@ export async function planMod(
     localisationFiles: 0,
     sourceFiles: 0,
     sourceKeys: 0,
+    targetLanguages: [],
     jobs: {},
     covered: {},
     english: {},
@@ -97,6 +99,11 @@ export async function planMod(
   const split = splitDiagnostics(modKeys.diagnostics)
   plan.errors = split.errors
   plan.warnings = split.warnings
+
+  const resolved = resolveTargets(gameDef, sourceLanguage, targets)
+  plan.warnings.push(...resolved.warnings)
+  plan.targetLanguages = resolved.targets.map(target => target.language)
+
   plan.localisationFiles = modKeys.files
   if (modKeys.files === 0) return plan
 
@@ -105,7 +112,7 @@ export async function planMod(
   plan.sourceFiles = new Set([...sourceEntries.values()].map(entry => entry.file)).size
   plan.sourceKeys = sourceEntries.size
 
-  const sourceToken = gameDef.languageFileToken[sourceLanguage]
+  const { sourceToken } = resolved
   if (sourceToken === undefined) return plan
 
   const existingFiles = new Set<string>()
@@ -115,14 +122,13 @@ export async function planMod(
 
   const generatedForMod = generated?.byNamespace.get(plan.namespace)
 
-  for (const language of targetLanguages) {
-    if (language === sourceLanguage) continue
-    const targetToken = gameDef.languageFileToken[language]
-    if (targetToken === undefined) continue
+  for (const target of resolved.targets) {
+    const { language, fileToken } = target
 
-    const own = modKeys.byLanguage.get(language)
-    const patched = coverage?.byLanguage.get(language)
-    const ours = generatedForMod?.get(language)
+    const shipped = target.usesOwnToken && isLanguageCode(language) ? language : undefined
+    const own = shipped === undefined ? undefined : modKeys.byLanguage.get(shipped)
+    const patched = shipped === undefined ? undefined : coverage?.byLanguage.get(shipped)
+    const ours = generatedForMod?.get(fileToken)
 
     let covered = 0
     let english = 0
@@ -155,6 +161,7 @@ export async function planMod(
         file: entry.file,
         source: entry.value,
         state,
+        fileToken,
         markupOnly: !isTranslatable(entry.value),
         ...(provider !== undefined && { provider }),
         ...(shadowedByUs !== undefined && { shadowed: shadowedByUs })
@@ -221,12 +228,14 @@ export async function planMod(
     const languageJobs: CreationJob[] = []
 
     for (const { entry, keys, known, ownEntries } of byFile.values()) {
-      let target = targetPathFor(entry.described, sourceToken, targetToken)
-      if (pathKey(target) === pathKey(entry.file)) continue
-      if (targetContent === 'missing-keys' && existingFiles.has(pathKey(target))) {
-        target = withPartialSuffix(target)
+      let targetPath = targetPathFor(entry.described, sourceToken, fileToken)
+      if (target.usesOwnToken) {
+        if (pathKey(targetPath) === pathKey(entry.file)) continue
+        if (targetContent === 'missing-keys' && existingFiles.has(pathKey(targetPath))) {
+          targetPath = withPartialSuffix(targetPath)
+        }
       }
-      const key = pathKey(target)
+      const key = pathKey(targetPath)
       if (seen.has(key)) continue
       seen.add(key)
 
@@ -242,8 +251,8 @@ export async function planMod(
 
       languageJobs.push({
         source: entry.file,
-        target,
-        packed: packed ? getTranslationModPath(entry.described, target, sourceToken) : [],
+        target: targetPath,
+        packed: packed ? getTranslationModPath(entry.described, targetPath, sourceToken) : [],
         keys,
         known,
         content: targetContent

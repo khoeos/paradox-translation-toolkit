@@ -8,6 +8,36 @@
   "converter": {
     "convert": "转换翻译",
     "convertSelection_other": "转换 {{count}} 个模组",
+    "customTarget": {
+      "add": "添加自定义目标",
+      "badge": "{{language}} 作为 l_{{token}}",
+      "duplicateLang": "{{language}}已是目标；请先移除它",
+      "duplicateToken": "另一个目标已将内容写入 l_{{token}}",
+      "emptyLanguage": "输入要翻译成的语言",
+      "fileToken": "将文件写入为",
+      "inPlaceCreateOnly": "{{language}}写在 l_{{token}}下：仅创建模组还没有的 {{owner}} 文件。",
+      "invalidLanguage": "语言名称中不能含有 \":\" 或 \",\"，最多 64 个字符",
+      "invalidToken": "仅允许小写字母和下划线，不含 \"l_\"",
+      "language": "翻译成",
+      "languageClaimed": "{{language}} 已是下方的目标，写入 l_{{token}}。移除它才能写入其自身的文件名。",
+      "languageHint": "任何语言。已知的名称（如 \"Turkish\" 或 \"tr\"）会匹配到内置语言，这样术语表和翻译记忆都可以被重复使用。",
+      "nothingToWrite": "l_{{token}} 已经是该模组的写入方式：使用 \"仅缺失键\" 时无内容可写。改用其他文件名、选择 \"完整文件\" 或使用 \"创建翻译模组\"。",
+      "rapidapiUnsupported": "RapidAPI 提供商仅支持内置语言。为 \"{{language}}\" 选择内置语言，或使用 OpenAI 或 Ollama。",
+      "recognized": "匹配到 {{language}}",
+      "remove": "移除此目标",
+      "sameLanguage": "选择源语言以外的语言",
+      "shadows": "写在 {{owner}} 文件名下：游戏将显示此文本而不是其 {{owner}} 文本。",
+      "title": "自定义目标语言",
+      "tokenHintGame": "{{game}}读取这些文件名。",
+      "tokenOption": "l_{{token}} ({{owner}})",
+      "unknownToken": "{{game}}不使用 l_{{token}}",
+      "unrecognizedHint": "不是内置语言：\"{{language}}\" 按原样发送给模型，不带术语表。"
+    },
+    "inPlaceShadowConfirm": {
+      "body": "{{language}}将写入模组的 {{owner}} 文件。每个文件旁边都会保留一个 .bak，下次运行时将被覆盖。",
+      "cost": "第二次运行时将翻译重新作为 {{owner}} 读回并再次翻译。请保存副本或使用 \"创建翻译模组\"。",
+      "title": "替换模组中的 {{owner}} 文件？"
+    },
     "intro": "转换器会将源语言的本地化文件复制到目标语言中,以避免 Mod 显示原始翻译标签。",
     "mode": "模式",
     "modes": {
@@ -487,8 +517,9 @@
     },
     "test": "测试服务",
     "testFailed": "服务失败：{{message}}",
+    "testNeedsBuiltIn": "选择内置目标语言以测试连接。",
     "testOk": "服务返回：{{text}}",
-    "title": "机器翻译"
+    "title": "机器翻译 (实验性)"
   },
   "updater": {
     "autoCheckHint": "应用启动几秒后自动查找新版本。",

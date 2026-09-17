@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_MOD_LOCALISATION_BYTES, MAX_SOURCE_FILE_BYTES, readModKeys } from '../src/index.js'
+import {
+  MAX_MOD_LOCALISATION_BYTES,
+  MAX_SOURCE_FILE_BYTES,
+  readLocalisationEntries,
+  readModKeys
+} from '../src/index.js'
 import { localeFile, stellarisDef } from './fixtures.js'
 import { MemoryFs } from './memory-fs.js'
 
@@ -61,15 +66,15 @@ describe('readModKeys', () => {
     expect(keys.byLanguage.get('en')?.get('K')?.value).toBe('first')
   })
 
-  it('skips a language the game does not declare', async () => {
+  it('keeps a token the game does not declare out of byLanguage, with a warning', async () => {
     const fs = new MemoryFs({
       'mod/localisation/klingon/a_l_klingon.yml': localeFile('klingon', [['K', 'tlh']])
     })
     const keys = await readModKeys('mod', stellarisDef, fs)
     expect(keys.byLanguage.size).toBe(0)
     expect(keys.diagnostics).toContainEqual({
-      severity: 'error',
-      message: expect.stringContaining('klingon')
+      severity: 'warning',
+      message: expect.stringContaining('"klingon"')
     })
   })
 
@@ -211,5 +216,48 @@ describe('readModKeys', () => {
     const keys = await readModKeys('mod', stellarisDef, fs)
     expect(keys.files).toBe(0)
     expect(keys.byLanguage.size).toBe(0)
+  })
+})
+
+describe('readLocalisationEntries', () => {
+  it('carries the file token and the language it classifies to', async () => {
+    const fs = new MemoryFs({
+      'mod/localisation/english/a_l_english.yml': localeFile('english', [['K', 'A']])
+    })
+    const { entries } = await readLocalisationEntries('mod', stellarisDef, fs)
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.token).toBe('english')
+    expect(entries[0]?.language).toBe('en')
+  })
+
+  it('keeps the entries of an unknown token, with the token and no language', async () => {
+    const fs = new MemoryFs({
+      'mod/localisation/klingon/a_l_klingon.yml': localeFile('klingon', [
+        ['K', 'tlh'],
+        ['K2', 'tlh2']
+      ])
+    })
+    const { entries, diagnostics } = await readLocalisationEntries('mod', stellarisDef, fs)
+    expect(entries.map(entry => entry.key)).toEqual(['K', 'K2'])
+    expect(entries[0]?.token).toBe('klingon')
+    expect(entries[0]?.language).toBeUndefined()
+    expect(diagnostics).toEqual([
+      {
+        severity: 'warning',
+        message:
+          'Language token "klingon" in mod/localisation/klingon/a_l_klingon.yml is not used by this game, kept'
+      }
+    ])
+  })
+
+  it('still skips a file with an empty token without a token diagnostic of its own', async () => {
+    const fs = new MemoryFs({
+      'mod/localisation/russian/a_l_russian.yml': ' K:0 "no header above"\n'
+    })
+    const { entries, diagnostics } = await readLocalisationEntries('mod', stellarisDef, fs)
+    expect(entries).toEqual([])
+    expect(
+      diagnostics.some(diagnostic => diagnostic.message.includes('not used by this game'))
+    ).toBe(false)
   })
 })

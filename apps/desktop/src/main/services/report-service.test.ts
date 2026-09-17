@@ -20,8 +20,10 @@ const baseInput: ReportInput = {
   settings: 'Mode: add-to-current'
 }
 
-const makeService = (fetchFn: FetchLike, webhookUrl = 'https://discord.test/webhook'): ReportService =>
-  new ReportService(webhookUrl, '1.2.3', 'darwin arm64', fetchFn)
+const makeService = (
+  fetchFn: FetchLike,
+  webhookUrl = 'https://discord.test/webhook'
+): ReportService => new ReportService(webhookUrl, '1.2.3', 'darwin arm64', fetchFn)
 
 const parseEmbed = (fetchFn: ReturnType<typeof vi.fn>): Record<string, unknown> => {
   const [, init] = fetchFn.mock.calls[0]!

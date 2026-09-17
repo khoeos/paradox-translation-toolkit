@@ -3,8 +3,10 @@ import type {
   ConvertMode,
   GameDefinition,
   LanguageCode,
-  TargetContent
+  TargetContent,
+  TranslationTarget
 } from '@ptt/shared'
+import { getLanguageDisplayName, normalizeTargets } from '@ptt/shared/languages'
 
 import { applyModJobs } from './apply-generated.js'
 import { mapWithConcurrency } from './concurrency.js'
@@ -16,6 +18,8 @@ import { dropOurOwnMod, readGeneratedMod } from './generated-mod.js'
 import { planMod } from './key-plan.js'
 import { posixJoin } from './path.js'
 import type { JobEvent, ProgressPort, TranslationProgress } from './progress.js'
+import { describeInPlaceShadowing, resolveTargets } from './target.js'
+import type { ResolvedTarget } from './target.js'
 import type {
   ConversionOutput,
   ConversionTotals,
@@ -32,9 +36,9 @@ import type {
 export interface TranslationEnginePort {
   translate(
     values: readonly string[],
-    language: LanguageCode
+    language: string
   ): Promise<{ results: Map<string, string>; stats: TranslationProgress }>
-  refusalFor(language: LanguageCode, value: string): { reason: string; detail?: string } | undefined
+  refusalFor(language: string, value: string): { reason: string; detail?: string } | undefined
   getCounters(): TranslationProgress
 }
 
@@ -47,7 +51,7 @@ export interface ConvertRunOptions {
   rootDir: string
   game: GameDefinition
   sourceLanguage: LanguageCode
-  targetLanguages: readonly LanguageCode[]
+  targets: readonly TranslationTarget[]
   mode: ConvertMode
   outputDir?: string
   selectedMods?: readonly string[]
@@ -85,7 +89,6 @@ export async function runConvert(
     rootDir,
     game,
     sourceLanguage,
-    targetLanguages,
     mode,
     selectedMods,
     generatedMod,
@@ -99,20 +102,57 @@ export async function runConvert(
   const isCancelled = (): boolean => cancellation.requested
   const untranslated: KeyReport[] = []
 
+  const requestedTargets = normalizeTargets(options.targets)
+
+  const destination = resolveDestination(mode, options)
+  const targetContent = resolveTargetContent(mode, options)
+  const resolved = resolveTargets(game, sourceLanguage, requestedTargets)
+
+  const targets: ResolvedTarget[] = []
+  for (const target of resolved.targets) {
+    if (engine === undefined && !target.usesOwnToken) {
+      emit({
+        type: 'log',
+        jobId,
+        severity: 'warning',
+        message:
+          `${getLanguageDisplayName(target.language)} written under "l_${target.fileToken}" ` +
+          `needs a translation engine, skipped`
+      })
+      continue
+    }
+    if (destination.kind === 'in-place' && target.shadowsLanguage !== undefined) {
+      emit({
+        type: 'log',
+        jobId,
+        severity: 'warning',
+        message: describeInPlaceShadowing(
+          target,
+          target.shadowsLanguage,
+          targetContent !== 'missing-keys'
+        )
+      })
+    }
+    targets.push(target)
+  }
+
+  const tokenByLanguage = new Map(targets.map(target => [target.language, target.fileToken]))
+
   const generated = generatedMod ? await readGeneratedMod(generatedMod.path, game, fs) : undefined
-  if (isCancelled()) return { output: cancelledOutput(generatedMod), untranslated }
+  if (isCancelled())
+    return { output: cancelledOutput(requestedTargets, generatedMod), untranslated }
 
   const discovered = await discoverMods(rootDir, game, fs)
   const { mods: allMods } = dropOurOwnMod(discovered.mods, generatedMod?.folder)
-  if (isCancelled()) return { output: cancelledOutput(generatedMod), untranslated }
+  if (isCancelled())
+    return { output: cancelledOutput(requestedTargets, generatedMod), untranslated }
 
   const coverage = await buildCoverage(allMods, game, sourceLanguage, fs)
-  if (isCancelled()) return { output: cancelledOutput(generatedMod), untranslated }
+  if (isCancelled())
+    return { output: cancelledOutput(requestedTargets, generatedMod), untranslated }
 
   const mods = selectedMods ? allMods.filter(mod => selectedMods.includes(mod.id)) : allMods
   const concurrency = engine ? MOD_CONCURRENCY_WITH_BACKEND : MOD_CONCURRENCY
-  const destination = resolveDestination(mode, options)
-  const targetContent = resolveTargetContent(mode, options)
 
   let done = 0
   const results = await mapWithConcurrency(mods, concurrency, async mod => {
@@ -123,7 +163,7 @@ export async function runConvert(
       {
         gameDef: game,
         sourceLanguage,
-        targetLanguages,
+        targets,
         packed: mode === 'create-translation-mod',
         detail: false,
         targetContent,
@@ -136,7 +176,16 @@ export async function runConvert(
     if (isCancelled()) return undefined
 
     const translations = engine
-      ? await translateMod(plan, engine, sourceLanguage, untranslated, mod, emit, jobId)
+      ? await translateMod(
+          plan,
+          engine,
+          sourceLanguage,
+          untranslated,
+          mod,
+          tokenByLanguage,
+          emit,
+          jobId
+        )
       : undefined
     if (isCancelled()) return undefined
 
@@ -146,7 +195,7 @@ export async function runConvert(
         mod,
         gameDef: game,
         sourceLanguage,
-        targetLanguages,
+        targets,
         destination,
         isCancelled,
         ...(translations !== undefined && { translations: translations.byLanguage })
@@ -185,6 +234,7 @@ export async function runConvert(
   return {
     output: {
       mods: present,
+      targets: requestedTargets,
       totals,
       ...(writtenMod !== undefined && { translationMod: writtenMod }),
       ...(engine !== undefined && { translation: engine.getCounters() }),
@@ -197,7 +247,8 @@ export async function runConvert(
 export function collectUntranslated(
   plan: ModPlan,
   mod: ModFolder,
-  language: LanguageCode,
+  language: string,
+  fileToken: string | undefined,
   translated: Map<string, string>,
   describeRefusal: (value: string) => string
 ): KeyReport[] {
@@ -213,7 +264,8 @@ export function collectUntranslated(
         file: job.source,
         source: value,
         state: 'english',
-        reason: describeRefusal(value)
+        reason: describeRefusal(value),
+        ...(fileToken !== undefined && { fileToken })
       })
     }
   }
@@ -221,7 +273,7 @@ export function collectUntranslated(
 }
 
 interface ModTranslations {
-  byLanguage: Map<LanguageCode, Map<string, string>>
+  byLanguage: Map<string, Map<string, string>>
   stats: { translated: number; cached: number; failed: number }
 }
 
@@ -231,14 +283,14 @@ async function translateMod(
   sourceLanguage: LanguageCode,
   untranslated: KeyReport[],
   mod: ModFolder,
+  tokenByLanguage: ReadonlyMap<string, string>,
   emit: (event: JobEvent) => void,
   jobId: string
 ): Promise<ModTranslations> {
-  const byLanguage = new Map<LanguageCode, Map<string, string>>()
+  const byLanguage = new Map<string, Map<string, string>>()
   const stats = { translated: 0, cached: 0, failed: 0 }
 
-  for (const [languageRaw, jobs] of Object.entries(plan.jobs)) {
-    const language = languageRaw as LanguageCode
+  for (const [language, jobs] of Object.entries(plan.jobs)) {
     if (language === sourceLanguage || !jobs) continue
 
     const values: string[] = []
@@ -262,7 +314,7 @@ async function translateMod(
     emit({ type: 'translate-progress', jobId, counters: engine.getCounters() })
 
     untranslated.push(
-      ...collectUntranslated(plan, mod, language, results, value => {
+      ...collectUntranslated(plan, mod, language, tokenByLanguage.get(language), results, value => {
         const refusal = engine.refusalFor(language, value)
         if (!refusal) return 'not attempted'
         return refusal.detail ? `${refusal.reason}: ${refusal.detail}` : refusal.reason
@@ -294,9 +346,13 @@ async function writeDescriptors(mod: TranslationMod, modsDir: string, fs: FsLike
   await fs.writeFile(posixJoin(modsDir, `${mod.folder}.mod`), buildDescriptor(mod, true), 'utf-8')
 }
 
-function cancelledOutput(generatedMod?: TranslationMod): ConversionOutput {
+function cancelledOutput(
+  targets: readonly TranslationTarget[],
+  generatedMod?: TranslationMod
+): ConversionOutput {
   return {
     mods: [],
+    targets,
     totals: { ...EMPTY_TOTALS },
     cancelled: true,
     ...(generatedMod !== undefined && { translationMod: generatedMod })

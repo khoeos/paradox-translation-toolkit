@@ -64,15 +64,15 @@ export async function readLocalisationEntries(
       })
     }
 
-    const language = tokenToLanguage.get(parsed.file.language)
-    if (!language) {
-      if (parsed.file.language !== '') {
-        diagnostics.push({
-          severity: 'error',
-          message: `Unknown language token "${parsed.file.language}" in ${described.path}`
-        })
-      }
-      continue
+    const token = parsed.file.language
+    if (token === '') continue
+
+    const language = tokenToLanguage.get(token)
+    if (language === undefined) {
+      diagnostics.push({
+        severity: 'warning',
+        message: `Language token "${token}" in ${described.path} is not used by this game, kept`
+      })
     }
 
     for (const entry of parsed.file.entries) {
@@ -80,7 +80,8 @@ export async function readLocalisationEntries(
         key: entry.key,
         file: described.path,
         described,
-        language,
+        token,
+        ...(language !== undefined && { language }),
         value: entry.value
       })
     }
@@ -102,10 +103,12 @@ export async function readModKeys(
   const byLanguage = new Map<LanguageCode, Map<string, LocalisationEntry>>()
 
   for (const entry of entries) {
-    let keys = byLanguage.get(entry.language)
+    const { language } = entry
+    if (language === undefined) continue
+    let keys = byLanguage.get(language)
     if (!keys) {
       keys = new Map()
-      byLanguage.set(entry.language, keys)
+      byLanguage.set(language, keys)
     }
     if (keys.has(entry.key)) continue
     keys.set(entry.key, entry)

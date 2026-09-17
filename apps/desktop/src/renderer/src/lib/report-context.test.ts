@@ -12,6 +12,7 @@ const settings: ReportSettingsView = {
   defaultSourceLanguage: 'en',
   sourceLanguage: { stellaris: 'en' },
   targetLanguages: { stellaris: ['fr', 'de'] },
+  targets: {},
   mode: 'add-to-current',
   targetContent: 'missing-keys',
   themeOverride: 'system',
@@ -39,9 +40,27 @@ describe('formatReportSettings', () => {
   it('includes non-sensitive settings but never file paths', () => {
     const out = formatReportSettings(settings)
     expect(out).toContain('Mode: add-to-current')
-    expect(out).toContain('Target langs: stellaris=fr+de')
     expect(out).not.toContain('/home/me')
     expect(out).not.toContain('/games/stellaris')
+  })
+
+  it('falls back to targetLanguages when targets is empty', () => {
+    const out = formatReportSettings(settings)
+    expect(out).toContain('Target langs: stellaris=fr+de')
+  })
+
+  it('shows the file token, and prefers it over targetLanguages once set', () => {
+    const out = formatReportSettings({
+      ...settings,
+      targets: {
+        eu4: [
+          { language: 'tr', fileToken: 'english' },
+          { language: 'ru', fileToken: 'russian' }
+        ]
+      }
+    })
+    expect(out).toContain('Target langs: eu4=tr as l_english+ru as l_russian')
+    expect(out).not.toContain('stellaris=fr+de')
   })
 })
 

@@ -29,7 +29,7 @@ export async function loadGlossary(
 ): Promise<Glossary> {
   const file = posixJoin(cacheDir, `${cacheKey.replace(/[^a-z0-9_-]/gi, '_')}.json`)
 
-  const cached = await readCache(file, gamePath, fs)
+  const cached = await readCache(file, gamePath, targetLanguage, fs)
   if (cached) return cached
 
   const glossary = await buildGlossary(gamePath, gameDef, sourceLanguage, targetLanguage, fs)
@@ -58,6 +58,7 @@ export async function loadGlossary(
 async function readCache(
   file: string,
   gamePath: string,
+  targetLanguage: LanguageCode,
   fs: FsLike
 ): Promise<Glossary | undefined> {
   let parsed: unknown
@@ -77,7 +78,8 @@ async function readCache(
     exact,
     terms,
     builtFrom: gamePath,
-    files: typeof parsed.files === 'number' ? parsed.files : 0
+    files: typeof parsed.files === 'number' ? parsed.files : 0,
+    forLanguage: targetLanguage
   }
 }
 

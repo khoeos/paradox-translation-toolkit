@@ -1,4 +1,5 @@
-import type { LanguageCode, TargetContent } from '@ptt/shared'
+import type { LanguageCode, TargetContent, TranslationTarget } from '@ptt/shared'
+import { normalizeTargets } from '@ptt/shared/languages'
 
 import { mapWithConcurrency } from './concurrency.js'
 import { MOD_CONCURRENCY, SCAN_DIAGNOSTICS_PER_MOD } from './constants.js'
@@ -24,7 +25,7 @@ export interface ScanModsOptions {
   rootDir: string
   gameDef: GameContextRef
   sourceLanguage: LanguageCode
-  targetLanguages: readonly LanguageCode[]
+  targets: readonly TranslationTarget[]
   generatedModPath?: string
   generatedModFolder?: string
   memory?: TranslationMemoryPort
@@ -46,7 +47,7 @@ const EMPTY_TOTALS: ScanTotals = {
   coveredKeys: 0,
   englishKeys: 0,
   keptKeys: 0,
-  shadowedKeys: 0,
+  shadowedKeys: 0
 }
 
 const accumulate = (running: ScanRunningTotals, mod: ScannedMod): void => {
@@ -89,7 +90,7 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
     rootDir,
     gameDef,
     sourceLanguage,
-    targetLanguages,
+    targets,
     generatedModPath,
     generatedModFolder,
     memory,
@@ -102,16 +103,18 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
     isCancelled
   } = options
 
+  const requestedTargets = normalizeTargets(targets)
+
   onPhase?.('reading-generated')
   const generated: GeneratedMod | undefined = generatedModPath
     ? await readGeneratedMod(generatedModPath, gameDef, fs)
     : undefined
-  if (isCancelled?.() === true) return emptyOutput(generated)
+  if (isCancelled?.() === true) return emptyOutput(requestedTargets, generated)
 
   onPhase?.('discovering')
   const discovered = await discoverMods(rootDir, gameDef, fs)
   const { mods, selfCopy } = dropOurOwnMod(discovered.mods, generatedModFolder)
-  if (isCancelled?.() === true) return emptyOutput(generated, selfCopy)
+  if (isCancelled?.() === true) return emptyOutput(requestedTargets, generated, selfCopy)
 
   onPhase?.('building-coverage', 0, mods.length)
   const coverage = await buildCoverage(mods, gameDef, sourceLanguage, fs, {
@@ -120,7 +123,7 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
       onProgress: (read, total) => onPhase('building-coverage', read, total)
     })
   })
-  if (isCancelled?.() === true) return emptyOutput(generated, selfCopy)
+  if (isCancelled?.() === true) return emptyOutput(requestedTargets, generated, selfCopy)
 
   onPhase?.('planning', 0, mods.length)
   const running: ScanRunningTotals = {
@@ -141,7 +144,7 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
       {
         gameDef,
         sourceLanguage,
-        targetLanguages,
+        targets: requestedTargets,
         packed: false,
         detail,
         ...(targetContent !== undefined && { targetContent }),
@@ -172,7 +175,7 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
       coveredKeys: acc.coveredKeys + sumByLanguage(mod.coveredKeys),
       englishKeys: acc.englishKeys + sumByLanguage(mod.englishKeys),
       keptKeys: acc.keptKeys + sumByLanguage(mod.keptKeys),
-      shadowedKeys: acc.shadowedKeys + sumByLanguage(mod.shadowedKeys),
+      shadowedKeys: acc.shadowedKeys + sumByLanguage(mod.shadowedKeys)
     }),
     { ...EMPTY_TOTALS }
   )
@@ -183,6 +186,7 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
 
   return {
     mods: sorted,
+    targets: requestedTargets,
     totals,
     ...(selfCopy !== undefined && { selfCopy }),
     ...(generated !== undefined && { generatedMod: summariseGeneratedMod(generated, scanned) }),
@@ -190,10 +194,15 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
   }
 }
 
-function emptyOutput(generated: GeneratedMod | undefined, selfCopy?: string): ScanOutput {
+function emptyOutput(
+  targets: readonly TranslationTarget[],
+  generated: GeneratedMod | undefined,
+  selfCopy?: string
+): ScanOutput {
   const scanned: ScannedMod[] = []
   return {
     mods: scanned,
+    targets,
     totals: { ...EMPTY_TOTALS },
     ...(selfCopy !== undefined && { selfCopy }),
     ...(generated !== undefined && { generatedMod: summariseGeneratedMod(generated, scanned) })

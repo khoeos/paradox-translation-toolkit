@@ -10,6 +10,36 @@
     "convertSelection_one": "CONVERTIR {{count}} MOD",
     "convertSelection_many": "",
     "convertSelection_other": "CONVERTIR {{count}} MODS",
+    "customTarget": {
+      "add": "Ajouter une cible personnalisée",
+      "badge": "{{language}} en tant que l_{{token}}",
+      "duplicateLang": "{{language}} est déjà une cible ; supprimez-la d'abord",
+      "duplicateToken": "Une autre cible écrit déjà l_{{token}}",
+      "emptyLanguage": "Tapez la langue à traduire",
+      "fileToken": "Écrire les fichiers sous le token",
+      "inPlaceCreateOnly": "{{language}} écrit sous l_{{token}} crée uniquement les fichiers {{owner}} que le mod ne possède pas déjà.",
+      "invalidLanguage": "Pas de « : » ni « , » dans un nom de langue, 64 caractères au maximum",
+      "invalidToken": "Uniquement des lettres minuscules et tirets bas, pas de « l_ »",
+      "language": "Traduire en",
+      "languageClaimed": "{{language}} est déjà une cible ci-dessous, écrite sous l_{{token}}. Supprimez-la pour l’écrire sous son propre nom de fichier.",
+      "languageHint": "Toute langue. Un nom connu (« Turc », « tr ») correspond à une langue intégrée, de sorte que le glossaire et la mémoire de traduction sont réutilisés.",
+      "nothingToWrite": "l_{{token}} est déjà la façon dont ce mod est écrit : avec « Clés manquantes uniquement », il n’y a rien à ajouter. Écrivez sous un autre nom de fichier, choisissez « Fichier complet » ou utilisez « Créer un mod de traduction ».",
+      "rapidapiUnsupported": "Le provider RapidAPI ne traduit que les langues intégrées. Choisissez une langue intégrée pour « {{language}} », ou utilisez OpenAI ou Ollama.",
+      "recognized": "Correspond à {{language}}",
+      "remove": "Supprimer cette cible",
+      "sameLanguage": "Choisissez une langue différente de la langue source",
+      "shadows": "Écrit sous le nom de fichier {{owner}} : le jeu affiche ce texte à la place du texte {{owner}}.",
+      "title": "Langue cible personnalisée",
+      "tokenHintGame": "{{game}} lit ces noms de fichiers.",
+      "tokenOption": "l_{{token}} ({{owner}})",
+      "unknownToken": "{{game}} n'utilise pas l_{{token}}",
+      "unrecognizedHint": "Pas une langue intégrée : « {{language}} » est envoyé au modèle tel quel, sans glossaire."
+    },
+    "inPlaceShadowConfirm": {
+      "body": "{{language}} sera écrit sur les fichiers {{owner}} du mod. Un .bak est conservé à côté de chaque fichier, et le prochain run le remplace.",
+      "cost": "Exécuter une deuxième fois relit la traduction comme {{owner}} et la traduit à nouveau. Conservez une copie ou utilisez « Créer un mod de traduction ».",
+      "title": "Remplacer les fichiers {{owner}} du mod ?"
+    },
     "intro": "Le convertisseur copie les fichiers de localisation manquants depuis une langue source vers les langues cibles, pour que les mods n'affichent plus les clés de traduction brutes.",
     "mode": "Mode",
     "modes": {
@@ -571,8 +601,9 @@
     },
     "test": "Tester le provider",
     "testFailed": "Échec du backend : {{message}}",
+    "testNeedsBuiltIn": "Choisissez une langue cible intégrée pour tester la connexion.",
     "testOk": "Le backend a répondu : {{text}}",
-    "title": "TRADUCTION AUTOMATIQUE"
+    "title": "TRADUCTION AUTOMATIQUE (expérimentale)"
   },
   "updater": {
     "autoCheckHint": "Recherche automatique de nouvelles versions quelques secondes après le démarrage.",

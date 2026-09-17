@@ -7,7 +7,7 @@ import { createEngineForRun } from '@ptt/translate'
 import { consolePort } from '../console-port.js'
 import type { CliOptions } from '../options.js'
 import { dim, facts, green, num, red, section, yellow } from '../output.js'
-import { generatedModPaths, openMemory, printHeader } from './shared.js'
+import { generatedModPaths, openMemory, printHeader, targetLanguagesOf } from './shared.js'
 
 export async function commandConvert(options: CliOptions): Promise<void> {
   printHeader(options)
@@ -42,7 +42,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
           config: options.translate,
           game: options.game,
           sourceLanguage: options.sourceLanguage,
-          targetLanguages: options.targetLanguages,
+          targetLanguages: targetLanguagesOf(options),
           memory,
           userDataPath: options.userDataPath,
           signal: abort.signal,
@@ -66,7 +66,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       rootDir: options.rootDir,
       game: options.game,
       sourceLanguage: options.sourceLanguage,
-      targetLanguages: options.targetLanguages,
+      targets: options.targets,
       mode: options.mode,
       targetContent: options.targetContent,
       cancellation,
@@ -96,7 +96,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
       mode: options.mode,
       targetContent: options.targetContent,
       sourceLanguage: options.sourceLanguage,
-      targetLanguages: options.targetLanguages,
+      targets: options.targets,
       output,
       untranslated,
       ...(options.selectedMods !== undefined && { selectedMods: options.selectedMods }),
@@ -162,7 +162,7 @@ function printResult(
     mod => mod.errors.length === 0 && (mod.warnings?.length ?? 0) > 0
   )
   if (shrugged.length > 0) {
-    section(`Mods holding lines the game skips (${shrugged.length})`)
+    section(`Warnings (${shrugged.length})`)
     for (const mod of shrugged.slice(0, limit)) {
       console.log(`  ${yellow(mod.name)}`)
       for (const warning of (mod.warnings ?? []).slice(0, 3)) console.log(`    ${dim(warning)}`)

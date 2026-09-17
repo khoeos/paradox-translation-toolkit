@@ -16,6 +16,7 @@ export class OpenAiProvider implements Provider {
   async translate(
     texts: readonly string[],
     language: string,
+    sourceLanguage: string,
     hints?: readonly Hint[],
     signal?: AbortSignal
   ): Promise<Array<string | undefined>> {
@@ -40,7 +41,12 @@ export class OpenAiProvider implements Provider {
             schema: buildAnswerSchema(texts.length)
           }
         },
-        messages: [{ role: 'user', content: buildPrompt(texts, language, this.domain, hints) }]
+        messages: [
+          {
+            role: 'user',
+            content: buildPrompt(texts, language, sourceLanguage, this.domain, hints)
+          }
+        ]
       })
     })
 

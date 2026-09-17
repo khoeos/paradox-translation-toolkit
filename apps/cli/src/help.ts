@@ -28,8 +28,15 @@ ${bold('Common flags')}
   --path <dir>          Folder holding the mods (a workshop content folder, or one mod)
   --game <id>           ${getAllGameIds().join(', ')} (default ck3)
   --from <code>         Source language, default en
-  --to <codes>          Target languages, comma separated, default ru
-                        One of ${LANGUAGE_CODES.join(', ')}
+  --to <language[:token]>
+                        Target languages, comma separated, default ru. Any language name is
+                        accepted ("tr", "Turkish", "Catalan", ...); a recognized one (one of
+                        ${LANGUAGE_CODES.join(', ')}, by code or by name) reuses the glossary and
+                        the translation memory. "ru" uses the game's own file name; "tr:english"
+                        or "Catalan:english" translates into that language but writes
+                        <base>_l_english.yml, replacing the base game's English text. The file
+                        name must be one the game ships, and a language the game ships no name
+                        for needs the "<language>:<name>" form
   --mod-name <name>     Generated mod name, default "Missing Translations"
   --mod <text>          Only mods whose id or name contains this
   --limit <n>           Rows to print, default 30
@@ -74,5 +81,6 @@ ${bold('Examples')}
   ptt audit --state copy --csv v2-leftovers.csv
   ptt audit --mod "Muslim Enchantments" --state missing
   ptt convert --translate --provider rapidapi --batch 150
+  ptt convert --to tr:english --mode mod --translate
 `
 }

@@ -191,6 +191,65 @@ source value that already contains `{0}` collides with the scheme, the
 placeholders no longer line up, and the string is refused. It fails closed:
 the value stays in the source language, never half-translated.
 
+### A custom target added in place is not idempotent
+
+A target that writes under another language's file token (e.g. Catalan saved
+as `l_english`, "shadowing" English) is allowed in "Add to current mod", the
+only mode that writes in place, but what a run does with it depends on the
+content mode:
+
+- **Fill in what is missing** (the default) only creates the shadowed
+  language's files the mod doesn't already have, and never overwrites an
+  existing one. Re-running it is a no-op: safe, idempotent, but if the mod
+  already ships every file under that token (e.g. the target's token is the
+  mod's own source token), the run has nothing to add and is refused before
+  it starts.
+- **Complete the file** and **Translate everything again** replace the
+  shadowed language's files in the mod, exactly like any other in-place
+  replacement: the `.bak` next to each file is overwritten by the _next_ run,
+  so a second run reads its own translated output back as if it were the
+  source language and re-translates it. This is not a crash, but it is not
+  reversible past one run either.
+
+**Workaround:** use "Create a translation mod" or "Extract to folder" for a
+custom target that shadows another language's token if you want to keep
+re-running it safely, and keep a copy of the mod before using a replacing
+content mode with a shadowing target in place.
+
+### The RapidAPI provider only supports the built-in languages
+
+RapidAPI's translation endpoint only accepts one of the toolkit's built-in
+language codes as a target. A custom target whose language isn't recognized
+as one of those (a free-text label like "Catalan", or a mistyped code) is
+refused before the run starts. Pick a built-in language, or switch to the
+OpenAI or Ollama provider, which accept any target language.
+
+### No glossary for a language the game doesn't ship
+
+The glossary of official in-game terms is built from the base game's own
+localisation for the target language. A target language the game does not
+ship at all has nothing to build it from, so translation for that language
+proceeds with an empty glossary rather than failing.
+
+A run builds one glossary, for the first target language the game does ship,
+and uses it for that language only. So a run with a built-in target and a
+free-text one keeps its hints for the built-in one and sends the free-text
+one to the model with none: the base game's strings for one language are
+never handed to another.
+
+### One target per language, per run
+
+A run can hold at most one target per language: you cannot write Turkish
+under `l_turkish` and `l_english` in the same run. Two runs, one per token,
+cover that case; a single run keeps every per-language map in the pipeline
+(coverage, generated-mod state, the CLI rows, the progress accordion)
+unambiguous.
+
+A related edge case: if you switch a language from a built-in target to a
+custom token (or back), the folder generated under the previous token is not
+pruned, only the currently selected targets' folders are. A deselected
+target's old output is orphaned on disk until you remove it yourself.
+
 ### The glossary cache is invalidated by path only
 
 A glossary built from a game installation is cached and reused as long as the

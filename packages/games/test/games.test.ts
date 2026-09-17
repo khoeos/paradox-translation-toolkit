@@ -208,6 +208,11 @@ describe('getGameSummaries', () => {
     expect(summary.languages).toContain('zh-Hans')
   })
 
+  it('carries the languageFileToken map through', () => {
+    const summary = toGameSummary(stellaris)
+    expect(summary.languageFileToken).toEqual(stellaris.languageFileToken)
+  })
+
   it('includes the Steam App ID when present', () => {
     const summary = toGameSummary(stellaris)
     expect(summary.steamAppId).toBe(281990)
