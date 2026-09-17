@@ -28,6 +28,51 @@ pnpm --filter @ptt/parser test -- --watch          # watch mode
 pnpm --filter @ptt/parser test -- --coverage       # with coverage report
 ```
 
+## E2E (Playwright + Electron)
+
+`apps/desktop/e2e/` drives the **real Electron app** through Playwright's `_electron` API. It is
+deliberately **not** part of `pnpm test`: `turbo run test` stays Vitest-only and CI does not run E2E
+yet, so a flaky window never blocks a PR.
+
+```bash
+pnpm e2e                                  # builds the app (turbo-cached), then runs the suite
+pnpm --filter @ptt/desktop exec playwright test      # already built, skip turbo
+pnpm --filter @ptt/desktop run e2e:ui                # Playwright UI mode
+```
+
+- **Fixtures** live in `e2e/fixtures.ts`. The `electronApp` fixture launches `out/main/index.js`
+  through `electron.launch()` with a throwaway `--user-data-dir`, so `electron-store` settings and
+  the window-state file never leak between tests or touch your real profile. The `page` fixture is
+  the main window. A trace is recorded for every test and written to `test-results/` only on failure.
+- **`PTT_E2E=1`** is set by the fixture and read in `main/env.ts`. It suppresses the two things that
+  make an unpackaged run non-deterministic: the detached DevTools window (which would otherwise count
+  as a second window) and the auto-update check.
+- **File naming**: E2E files are `e2e/**/*.test.ts`, the repo-wide convention. They can't collide
+  with Vitest because `apps/desktop/vitest.config.ts` pins `include: ['src/**/*.test.ts']` and
+  `playwright.config.ts` pins `testDir: './e2e'`.
+- **Typecheck and lint** cover them: `tsconfig.e2e.json` is the third project in the app's
+  `typecheck` script, and the `lint` script is `oxlint src e2e`.
+- `workers: 1`, `fullyParallel: false`: each test boots its own Electron instance, and several at
+  once fight over the singleton lock and the screen.
+
+## Driving the app from Claude (MCP)
+
+`.mcp.json` declares a `playwright-electron` server: `@playwright/mcp` pointed at a CDP endpoint
+rather than launching its own Chromium. Start the app with remote debugging on, then the MCP tools
+(`browser_snapshot`, `browser_click`, ...) act on the live renderer:
+
+```bash
+pnpm --filter @ptt/desktop run dev:debug   # electron-vite dev -w --remoteDebuggingPort=9222
+```
+
+`main/env.ts` also reads `REMOTE_DEBUGGING_PORT` (set by electron-vite) to keep DevTools closed, so
+the CDP endpoint exposes exactly one page target: the app window. Without that guard the DevTools
+window shows up as a second target and the MCP can attach to the wrong one.
+
+Scope: this is the **renderer** only. The main process is not reachable this way, and neither is
+anything behind a native dialog. For main-process assertions use `electronApp.evaluate()` in an
+E2E test instead.
+
 ## i18n extraction gate
 
 CI runs `pnpm --filter @ptt/i18n run extract:check`, which invokes `i18next-cli extract --ci`. A PR introducing a new `t('foo.bar')` call without updating the locale JSONs fails the build.
@@ -41,8 +86,6 @@ pnpm --filter @ptt/i18n run extract  # appends missing keys with empty values
 Existing translations are never overwritten (see `packages/i18n/i18next.config.ts`).
 
 ## What's missing
-
-There is **no E2E yet** for the desktop app. Playwright + Electron is on the [roadmap](./roadmap.md).
 
 **Renderer components are not tested.** `apps/desktop/vitest.config.ts` runs in `environment: 'node'`, so anything that renders JSX has nowhere to render. The stores, the hooks' pure helpers and the formatting logic are covered; `ModList`, `TranslateSettings`, `RunButton` and `ProgressModal` are not. Closing that needs a DOM environment and a rendering library, which are not installed:
 

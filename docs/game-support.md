@@ -74,12 +74,19 @@ In `packages/games/test/games.test.ts`, add a row to the `rows` table (id, displ
 
 For the tab background, drop a `.webp` image at `apps/desktop/src/renderer/src/assets/img/<id>.webp` and add it to `gameImages` in [`apps/desktop/src/renderer/src/components/GameTabs.tsx`](../apps/desktop/src/renderer/src/components/GameTabs.tsx).
 
-## 5. Verify
+## 5. Update the E2E tab list
+
+`apps/desktop/e2e/app.test.ts` pins `GAME_TABS_IN_REGISTRY_ORDER` against the rendered
+tabs, because `builtInGames` order *is* the UI tab order and nothing else guards it.
+Add the new `displayName` at the same position you gave it in `builtInGames`.
+
+## 6. Verify
 
 ```bash
 pnpm --filter @ptt/games test
 pnpm typecheck
 pnpm test
+pnpm e2e
 ```
 
 No `pnpm install` is needed, there's no new workspace and no new dependency: the game lives inside the existing `packages/games` package. If all three are green, the new game shows up in the converter UI on the next `pnpm dev`.

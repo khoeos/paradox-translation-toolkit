@@ -8,7 +8,6 @@ For granular tasks, see the [GitHub Issues](https://github.com/khoeos/paradox-tr
 
 ## Next (planned for the upcoming versions)
 
-- Playwright + Electron E2E tests
 - Renderer-side unit tests (hooks, stores, components) before the editor work begins
 
 ## Later (ideas, no commitment)

@@ -16,6 +16,7 @@
     "dev": "turbo run dev",
     "lint": "turbo run lint && oxlint vitest.shared.ts",
     "test": "turbo run test",
+    "e2e": "turbo run e2e",
     "typecheck": "turbo run typecheck && tsc --noEmit -p tsconfig.json",
     "postinstall": "node scripts/fix-bin-modes.mjs",
     "format": "oxfmt .",

@@ -30,3 +30,16 @@ specific to this app.
   (11 of 12 do), and so do the route files : do not refactor them into presentational
   components. Hooks are one exported hook per file under `renderer/src/hooks/`, and
   app-wide subscriptions are mounted only in `routes/__root.tsx`.
+
+## Tests
+
+- Vitest (`src/**/*.test.ts`, `environment: 'node'`) and Playwright (`e2e/**/*.test.ts`) never
+  overlap: both configs pin their own `include` / `testDir`. `pnpm test` is Vitest only, `pnpm e2e`
+  is Playwright only, and CI runs the first one.
+- The E2E fixture launches the **built** app (`out/main/index.js`), so `pnpm e2e` goes through turbo
+  to rebuild first. Running `playwright test` directly tests whatever is in `out/`.
+- `main/env.ts` is the one place that reads automation env vars (`PTT_E2E`,
+  `REMOTE_DEBUGGING_PORT`). Both currently gate the detached DevTools window; `PTT_E2E` also gates
+  the startup update check. Do not scatter `process.env` reads for this.
+- Adding a game means updating `GAME_TABS_IN_REGISTRY_ORDER` in `e2e/app.test.ts`: it is what pins
+  the `builtInGames` order = tab order invariant to the actual UI.

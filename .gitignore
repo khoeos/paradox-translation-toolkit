@@ -8,6 +8,8 @@ out
 .turbo
 coverage
 .vitest
+test-results
+playwright-report
 
 .env
 .env.local

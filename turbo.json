@@ -40,7 +40,7 @@
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [],
-      "inputs": ["src/**", "test/**", "package.json", "tsconfig.json", "tsconfig.*.json"]
+      "inputs": ["src/**", "test/**", "e2e/**", "package.json", "tsconfig.json", "tsconfig.*.json"]
     },
     "test": {
       "dependsOn": ["^build"],
@@ -53,6 +53,10 @@
         "tsconfig.*.json",
         "vitest.config.*"
       ]
+    },
+    "e2e": {
+      "dependsOn": ["build"],
+      "cache": false
     },
     "clean": {
       "cache": false

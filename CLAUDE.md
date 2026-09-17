@@ -197,7 +197,9 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   work), plus the two apps' `src/**/*.test.ts`.
   There, a test outside the glob is never run and `pnpm test` stays green, so a colocated
   `src/foo.test.ts` in a `packages/*` library is a file nothing executes. Shared helpers must
-  keep no `.test` segment (`converter/test/memory-fs.ts`, `fixtures.ts`).
+  keep no `.test` segment (`converter/test/memory-fs.ts`, `fixtures.ts`). Playwright E2E is the
+  one thing outside vitest : `apps/desktop/e2e/**/*.test.ts`, run by `pnpm e2e`, never by
+  `pnpm test` (see `docs/testing.md`).
 
 ## Gotchas
 

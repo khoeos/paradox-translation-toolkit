@@ -3,6 +3,7 @@ import { app, BrowserWindow, crashReporter, session } from 'electron'
 
 import { nodeParadoxDataHome } from '@ptt/fs-node'
 
+import { isE2E } from './env.js'
 import { setupTrpcIpcBridge } from './ipc/bridge.js'
 import { createContext } from './ipc/context.js'
 import { appRouter } from './ipc/trpc-router.js'
@@ -101,7 +102,7 @@ void app.whenReady().then(() => {
 
   openable.add(app.getPath('logs'))
 
-  if (settingsSnapshot.autoCheckUpdates) {
+  if (settingsSnapshot.autoCheckUpdates && !isE2E) {
     setTimeout(() => {
       void updater.check()
     }, 5_000)

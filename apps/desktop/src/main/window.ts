@@ -3,6 +3,8 @@ import { BrowserWindow, shell } from 'electron'
 import windowStateKeeper from 'electron-window-state'
 import { join } from 'node:path'
 
+import { isE2E, isRemoteDebugging } from './env.js'
+
 export function createMainWindow(): BrowserWindow {
   const state = windowStateKeeper({
     defaultWidth: 1200,
@@ -64,7 +66,7 @@ export function createMainWindow(): BrowserWindow {
     void win.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  if (is.dev) {
+  if (is.dev && !isE2E && !isRemoteDebugging) {
     win.webContents.openDevTools({ mode: 'detach' })
   }
 
