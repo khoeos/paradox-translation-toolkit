@@ -64,6 +64,9 @@
       "errors_one": "{{count}} erreur de lecture, contenu non lu",
       "errors_many": "{{count}} erreurs de lecture, contenu non lu",
       "errors_other": "{{count}} erreurs de lecture, contenu non lu",
+      "keysSelected_one": "{{count}} clé à traduire",
+      "keysSelected_many": "{{count}} clés à traduire",
+      "keysSelected_other": "{{count}} clés à traduire",
       "missing": "{{files}} fichiers, {{keys}} clés manquantes",
       "noLocalisation": "Pas de localisation",
       "nothingMissing": "Rien ne manque",
@@ -217,7 +220,8 @@
         "error": "Erreur",
         "warning": "Avertissement"
       },
-      "startingScanning": "Analyse des fichiers en cours"
+      "startingScanning": "Analyse des fichiers en cours",
+      "translatingMod": "Traduction de {{name}} en {{language}}, {{keys}} clés"
     },
     "modProgress": "Mod {{processed}} sur {{total}} : {{name}}",
     "noFilesNeeded": "Toutes les langues cibles ont déjà tous les fichiers. Rien à faire.",
@@ -229,7 +233,6 @@
       "readingGenerated": "Lecture du résultat précédent"
     },
     "scanSummary": {
-      "estimate": "{{lines}} lignes à traduire, environ {{duration}}",
       "generated": "Les runs précédents fournissent {{translated}} traductions, {{english}} encore en langue source, {{orphans}} dossiers orphelins",
       "missing": "{{files}} fichiers à créer, {{keys}} clés déjà couvertes",
       "mods_one": "{{count}} mod scanné",
@@ -272,6 +275,10 @@
       "warnings_one": "{{count}} avertissement",
       "warnings_many": "{{count}} avertissements",
       "warnings_other": "{{count}} avertissements"
+    },
+    "translating": {
+      "activity": "Traduction de {{name}} en {{language}}",
+      "keys": "{{done}}/{{total}} clés"
     },
     "translationCounters": "{{translated}} traduites, {{cached}} gratuites, {{failed}} laissées telles quelles"
   },
@@ -624,6 +631,9 @@
     "retranslateOwnKeysHint": "Renvoie au modèle les clés que vous avez traduites vous-même et qui sont encore identiques au texte source anglais. Elles seront remplacées si le modèle répond.",
     "test": "Tester le provider",
     "testFailed": "Échec du backend : {{message}}",
+    "testMarkupLost": "Le backend répond, mais il perd le markup",
+    "testMarkupLostDetail": "Les tokens de \"{{source}}\" étaient attendus, réponse : {{text}}. Beaucoup de chaînes seront refusées puis redemandées.",
+    "testMarkupOk": "Markup conservé : {{text}}",
     "testNeedsBuiltIn": "Choisissez une langue cible intégrée pour tester la connexion.",
     "testOk": "Le backend a répondu : {{text}}",
     "title": "TRADUCTION AUTOMATIQUE (expérimentale)"

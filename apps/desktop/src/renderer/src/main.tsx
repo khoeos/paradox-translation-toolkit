@@ -12,8 +12,10 @@ import { ThemeProvider } from './components/ThemeProvider'
 import { createQueryClient } from './lib/query-client'
 import { trpc, trpcClient } from './lib/trpc'
 import { router } from './router'
+import { TOAST_DURATION_MS } from './lib/toast'
 
 function App() {
+
   const [queryClient] = useState(() => createQueryClient())
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
@@ -22,7 +24,8 @@ function App() {
           <ErrorBoundary>
             <RouterProvider router={router} />
           </ErrorBoundary>
-          <Toaster />
+          <Toaster duration={TOAST_DURATION_MS} closeButton />
+
         </ThemeProvider>
       </QueryClientProvider>
     </trpc.Provider>

@@ -4,21 +4,27 @@ import type { LanguageCode } from '@ptt/shared'
 import type { FetchLike, TranslateConfig, TranslateProvider } from '@ptt/translate'
 import {
   LANGUAGE_DISPLAY_NAMES,
+  PROBE_MARKUP,
+  PROBE_TEXTS,
   TranslationMemory,
   clearMemoryFiles,
   createProvider,
-  getProviderModels
+  getProviderModels,
+  keptProbeMarkup
 } from '@ptt/translate'
 
-import { log } from '../log.js'
 
-const PROBE_TEXT = 'Colony Ship'
+import { log } from '../log.js'
 
 export interface TestProviderResult {
   ok: boolean
   translated?: string
+  markupSource?: string
+  markupAnswer?: string
+  markupKept?: boolean
   error?: string
 }
+
 
 export interface TestProviderInput extends TranslateConfig {
   targetLanguage: LanguageCode
@@ -47,7 +53,7 @@ export class TranslateService {
     try {
       const provider = createProvider(input, input.targetLanguage, this.fetchFn)
       const answer = await provider.translate(
-        [PROBE_TEXT],
+        PROBE_TEXTS,
         LANGUAGE_DISPLAY_NAMES[input.targetLanguage],
         LANGUAGE_DISPLAY_NAMES.en
       )
@@ -55,7 +61,19 @@ export class TranslateService {
       if (translated === undefined || translated.trim().length === 0) {
         return { ok: false, error: 'The backend answered nothing for the probe string' }
       }
-      return { ok: true, translated }
+
+      const markupAnswer = answer[1]
+      if (markupAnswer === undefined || markupAnswer.trim().length === 0) {
+        return { ok: true, translated, markupSource: PROBE_MARKUP, markupKept: false }
+      }
+      return {
+        ok: true,
+        translated,
+        markupSource: PROBE_MARKUP,
+        markupAnswer,
+        markupKept: keptProbeMarkup(markupAnswer)
+      }
+
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }

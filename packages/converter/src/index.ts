@@ -114,6 +114,8 @@ export { applyModJobs } from './apply-generated.js'
 export {
   runConvert,
   collectUntranslated,
+  settledCount,
+
   type Cancellation,
   type ConvertRunOptions,
   type ConvertRunResult,

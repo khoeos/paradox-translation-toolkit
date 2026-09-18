@@ -24,7 +24,8 @@ import { planMod } from './key-plan.js'
 import { posixJoin } from './path.js'
 import { IDENTICAL_REASON, NOT_ATTEMPTED_REASON } from './reasons.js'
 
-import type { JobEvent, ProgressPort } from './progress.js'
+import type { JobEvent, ProgressPort, TranslationProgress } from './progress.js'
+
 
 import { retranslateOwnKeysHasNoEffect } from './retranslate.js'
 import { describeInPlaceShadowing, resolveTargets } from './target.js'
@@ -334,7 +335,11 @@ function emitPlanErrors(emit: (event: JobEvent) => void, jobId: string, plan: Mo
   )
 }
 
+export const settledCount = (counters: TranslationProgress): number =>
+  counters.translated + counters.cached + counters.failed
+
 export function collectUntranslated(
+
   plan: ModPlan,
   mod: ModFolder,
   language: string,
@@ -397,6 +402,16 @@ async function translateMod(
         if (!job.known.has(key) && isTranslatable(value)) values.push(value)
       }
     }
+
+    emit({
+      type: 'translate-mod',
+      jobId,
+      modName: plan.name,
+      language,
+      total: new Set(values).size,
+      done: settledCount(engine.getCounters())
+    })
+
 
     let results = new Map<string, string>()
     try {

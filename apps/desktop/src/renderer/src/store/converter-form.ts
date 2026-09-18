@@ -4,8 +4,9 @@ import type { ScannedMod } from '@ptt/converter'
 import type { ConvertMode, LanguageCode, TargetContent } from '@ptt/shared'
 import type { TranslationTarget } from '@ptt/shared/languages'
 import { normalizeTargetLanguage } from '@ptt/shared/languages'
-import type { TranslateConfig } from '@ptt/translate'
-import { TRANSLATE_DEFAULTS, isDefaultBaseUrl, PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
+import type { TranslateConfig, TranslateProvider } from '@ptt/translate'
+import { TRANSLATE_DEFAULTS, PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
+
 
 interface GameFormSnapshot {
   modFolder: string
@@ -16,6 +17,29 @@ interface GameFormSnapshot {
 }
 
 export type PersistedTranslate = Omit<TranslateConfig, 'apiKey'>
+
+export interface BackendEndpoint {
+  baseUrl: string
+  model: string
+}
+
+export type BackendsByProvider = Partial<Record<TranslateProvider, BackendEndpoint>>
+
+export const backendsWith = (
+  backends: BackendsByProvider,
+  provider: TranslateProvider,
+  endpoint: BackendEndpoint
+): BackendsByProvider => ({ ...backends, [provider]: endpoint })
+
+export const endpointFor = (
+  backends: BackendsByProvider,
+  provider: TranslateProvider
+): BackendEndpoint =>
+  backends[provider] ?? {
+    baseUrl: PROVIDER_DEFAULTS[provider].baseUrl,
+    model: PROVIDER_DEFAULTS[provider].model
+  }
+
 
 interface ConverterFormState {
   selectedGameId: string | null
@@ -32,7 +56,9 @@ interface ConverterFormState {
   selectedMods: Set<string>
 
   translate: PersistedTranslate
+  backends: BackendsByProvider
   apiKey: string
+
 
   setGame: (gameId: string) => void
   loadGame: (gameId: string, snapshot: GameFormSnapshot) => void
@@ -51,6 +77,8 @@ interface ConverterFormState {
   setSelectedMods: (ids: string[]) => void
   setTranslate: (patch: Partial<PersistedTranslate>) => void
   setTranslateProvider: (provider: PersistedTranslate['provider']) => void
+  loadBackends: (translate: Partial<PersistedTranslate>, backends: BackendsByProvider) => void
+
   setApiKey: (key: string) => void
   reset: () => void
 }
@@ -80,9 +108,11 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   scannedMods: [],
   selectedMods: new Set<string>(),
   translate: { ...TRANSLATE_DEFAULTS },
+  backends: {},
   apiKey: '',
 
-  setGame: gameId => set({ selectedGameId: gameId, ...invalidateScan() }),
+  setGame:
+ gameId => set({ selectedGameId: gameId, ...invalidateScan() }),
   loadGame: (gameId, snapshot) =>
     set(state => ({
       selectedGameId: gameId,
@@ -140,16 +170,24 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   setTranslate: patch => set(state => ({ translate: { ...state.translate, ...patch } })),
   setTranslateProvider: provider =>
     set(state => {
-      const defaults = PROVIDER_DEFAULTS[provider]
-      const baseUrl = isDefaultBaseUrl(state.translate.baseUrl)
-        ? defaults.baseUrl
-        : state.translate.baseUrl
-      const model =
-        state.translate.model === '' || isDefaultModel(state.translate.model)
-          ? defaults.model
-          : state.translate.model
-      return { translate: { ...state.translate, provider, baseUrl, model } }
+      if (provider === state.translate.provider) return state
+      const backends = backendsWith(state.backends, state.translate.provider, {
+        baseUrl: state.translate.baseUrl,
+        model: state.translate.model
+      })
+      const { baseUrl, model } = endpointFor(backends, provider)
+      return { backends, translate: { ...state.translate, provider, baseUrl, model } }
     }),
+  loadBackends: (translate, backends) =>
+    set(state => {
+      const provider = translate.provider ?? state.translate.provider
+      const { baseUrl, model } = endpointFor(backends, provider)
+      return {
+        backends,
+        translate: { ...state.translate, ...translate, provider, baseUrl, model }
+      }
+    }),
+
   setApiKey: apiKey => set({ apiKey }),
   reset: () =>
     set({
@@ -162,14 +200,12 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       retranslateOwnKeys: false,
       modName: '',
       translate: { ...TRANSLATE_DEFAULTS },
+      backends: {},
       apiKey: '',
       ...invalidateScan()
     })
 }))
 
-function isDefaultModel(model: string): boolean {
-  return Object.values(PROVIDER_DEFAULTS).some(defaults => defaults.model === model)
-}
 
 export function canRun(state: ConverterFormState): boolean {
   if (!state.selectedGameId) return false

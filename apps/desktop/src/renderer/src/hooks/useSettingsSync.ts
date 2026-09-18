@@ -10,7 +10,9 @@ import {
 } from '@ptt/shared/languages'
 
 import { trpc } from '@renderer/lib/trpc'
-import { useConverterFormStore } from '@renderer/store/converter-form'
+import type { BackendsByProvider, PersistedTranslate } from '@renderer/store/converter-form'
+import { backendsWith, useConverterFormStore } from '@renderer/store/converter-form'
+
 
 type SettingsPatch = Parameters<ReturnType<typeof trpc.settings.update.useMutation>['mutate']>[0]
 
@@ -31,6 +33,66 @@ export function resolveStoredTargets(
 export function deriveLegacyTargetLanguages(targets: readonly TranslationTarget[]): LanguageCode[] {
   return uniqueTargetLanguages(targets).filter(isLanguageCode)
 }
+
+type StoredTranslate = {
+  enabled: boolean
+  provider: PersistedTranslate['provider']
+  backends: BackendsByProvider
+  batchSize: number
+  concurrency: number
+  retries: number
+  timeout: number
+}
+
+export function toStoredTranslate(
+  translate: PersistedTranslate,
+  backends: BackendsByProvider
+): StoredTranslate {
+  return {
+    enabled: translate.enabled,
+    provider: translate.provider,
+    backends: backendsWith(backends, translate.provider, {
+      baseUrl: translate.baseUrl,
+      model: translate.model
+    }),
+    batchSize: translate.batchSize,
+    concurrency: translate.concurrency,
+    retries: translate.retries,
+    timeout: translate.timeout
+  }
+}
+
+export function fromStoredTranslate(stored: StoredTranslate): {
+  translate: Partial<PersistedTranslate>
+  backends: BackendsByProvider
+} {
+  return {
+    translate: {
+      enabled: stored.enabled,
+      provider: stored.provider,
+      batchSize: stored.batchSize,
+      concurrency: stored.concurrency,
+      retries: stored.retries,
+      timeout: stored.timeout
+    },
+    backends: stored.backends
+  }
+}
+
+const TRANSLATE_KEYS = [
+  'enabled',
+  'provider',
+  'baseUrl',
+  'model',
+  'batchSize',
+  'concurrency',
+  'retries',
+  'timeout'
+] as const
+
+export const translateChanged = (a: PersistedTranslate, b: PersistedTranslate): boolean =>
+  TRANSLATE_KEYS.some(key => a[key] !== b[key])
+
 
 /**
  * Two-way sync between the form store and persisted settings:
@@ -77,7 +139,13 @@ export function useSettingsSync(): void {
     }
     store.setMode(s.mode)
     store.setTargetContent(s.targetContent)
+
+    const restored = fromStoredTranslate(s.translate)
+    isHydrating.current = true
+    store.loadBackends(restored.translate, restored.backends)
+    isHydrating.current = false
   }, [settingsQuery.data, gamesQuery.data])
+
 
   // Subscribe once.
   useEffect(() => {
@@ -155,6 +223,10 @@ export function useSettingsSync(): void {
       if (state.targetContent !== prev.targetContent) {
         patch.targetContent = state.targetContent
       }
+      if (translateChanged(state.translate, prev.translate)) {
+        patch.translate = toStoredTranslate(state.translate, state.backends)
+      }
+
 
       if (Object.keys(patch).length > 0) {
         queuePatch(patch)

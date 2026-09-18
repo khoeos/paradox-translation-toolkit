@@ -17,7 +17,9 @@ import { Switch } from '@ptt/ui/components/switch'
 import { KnownPathsPicker } from '@renderer/components/converter/KnownPathsPicker'
 import { ModelPicker } from '@renderer/components/converter/ModelPicker'
 import { trpc } from '@renderer/lib/trpc'
+import { RESULT_TOAST_DURATION_MS } from '@renderer/lib/toast'
 import { runTranslateConfig, useConverterFormStore } from '@renderer/store/converter-form'
+
 
 export function TranslateSettings() {
   const { t } = useTranslation()
@@ -37,9 +39,31 @@ export function TranslateSettings() {
 
   const testProvider = trpc.translate.testProvider.useMutation({
     onSuccess: result => {
-      if (result.ok) toast.success(t('translate.testOk', { text: result.translated ?? '' }))
-      else toast.error(t('translate.testFailed', { message: result.error ?? '' }))
+      if (!result.ok) {
+        toast.error(t('translate.testFailed', { message: result.error ?? '' }), {
+          duration: RESULT_TOAST_DURATION_MS
+        })
+        return
+
+      }
+      if (result.markupKept === false) {
+        toast.warning(t('translate.testMarkupLost'), {
+          duration: RESULT_TOAST_DURATION_MS,
+          description: t('translate.testMarkupLostDetail', {
+            source: result.markupSource ?? '',
+            text: result.markupAnswer ?? ''
+          })
+        })
+        return
+      }
+      toast.success(t('translate.testOk', { text: result.translated ?? '' }), {
+        duration: RESULT_TOAST_DURATION_MS,
+        description: t('translate.testMarkupOk', { text: result.markupAnswer ?? '' })
+      })
+
+
     },
+
     onError: error => toast.error(t('translate.testFailed', { message: error.message }))
   })
 

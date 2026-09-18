@@ -5,8 +5,10 @@ import {
   PARTIAL_SUFFIX,
   SCAN_DIAGNOSTICS_PER_MOD,
   retranslateOwnKeysHasNoEffect,
-  runConvert
+  runConvert,
+  settledCount
 } from '../src/index.js'
+
 import type {
   ConvertRunOptions,
   JobEvent,
@@ -739,5 +741,87 @@ describe('runConvert - the sequence around the run', () => {
       port
     )
     expect(trace[0]).toBe('open en -> ru,tr')
+  })
+})
+
+const dedupingMods = (): MemoryFs =>
+  new MemoryFs({
+    'workshop/a/descriptor.mod': 'name="Mod A"',
+    'workshop/a/localisation/english/a_l_english.yml': localeFile('english', [
+      ['K1', 'Colony Ship'],
+      ['K2', 'Science Ship'],
+      ['K3', 'Colony Ship']
+    ]),
+    'workshop/b/descriptor.mod': 'name="Mod B"',
+    'workshop/b/localisation/english/b_l_english.yml': localeFile('english', [
+      ['K4', 'Star Fortress']
+    ])
+  })
+
+const translateModEvents = (
+  events: readonly JobEvent[]
+): Array<Extract<JobEvent, { type: 'translate-mod' }>> =>
+  events.filter(event => event.type === 'translate-mod')
+
+describe('runConvert - per-mod translation progress', () => {
+  it('announces each mod with the number of distinct strings it will send', async () => {
+    const { port, events } = collectingPort()
+    const { engine } = countingEngine()
+    await runConvert(runOptions({ engine, mode: 'create-translation-mod' }), dedupingMods(), port)
+
+    expect(
+      translateModEvents(events)
+        .map(event => [event.modName, event.total])
+        .toSorted()
+    ).toEqual([
+      ['Mod A', 2],
+      ['Mod B', 1]
+    ])
+  })
+
+  it('names the target language, since a mod is announced once per language', async () => {
+    const { port, events } = collectingPort()
+    const { engine } = countingEngine()
+    await runConvert(
+      runOptions({ engine, targets: builtIn('ru', 'fr'), mode: 'create-translation-mod' }),
+      dedupingMods(),
+      port
+    )
+
+    const languages = new Set(translateModEvents(events).map(event => event.language))
+    expect([...languages].toSorted()).toEqual(['fr', 'ru'])
+  })
+
+  it('carries the counter baseline, so the renderer can restart from zero per mod', async () => {
+    const { port, events } = collectingPort()
+    const { engine } = countingEngine()
+    await runConvert(runOptions({ engine, mode: 'create-translation-mod' }), dedupingMods(), port)
+
+    const baselines = translateModEvents(events).map(event => event.done)
+    expect(baselines[0]).toBe(0)
+    expect(baselines.every(done => done >= 0)).toBe(true)
+  })
+
+  it('announces the mod before the first progress report for it', async () => {
+    const { port, events } = collectingPort()
+    const { engine } = countingEngine()
+    await runConvert(runOptions({ engine, mode: 'create-translation-mod' }), dedupingMods(), port)
+
+    const firstAnnounce = events.findIndex(event => event.type === 'translate-mod')
+    const firstProgress = events.findIndex(event => event.type === 'translate-progress')
+    expect(firstAnnounce).toBeGreaterThanOrEqual(0)
+    expect(firstAnnounce).toBeLessThan(firstProgress)
+  })
+
+  it('says nothing when there is no engine to translate with', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(runOptions({ mode: 'create-translation-mod' }), dedupingMods(), port)
+    expect(translateModEvents(events)).toEqual([])
+  })
+})
+
+describe('settledCount', () => {
+  it('adds the three outcomes the engine reports', () => {
+    expect(settledCount({ translated: 1, cached: 2, failed: 3 })).toBe(6)
   })
 })

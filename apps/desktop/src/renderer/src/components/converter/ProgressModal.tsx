@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import type { ConversionOutput, ScanOutput } from '@ptt/converter'
 import type { DiagnosticSeverity, ScanPhase, ScanRunningTotals } from '@ptt/converter/progress'
 import type { GameTokens, TranslationTarget } from '@ptt/shared/languages'
-import { PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
+
 import {
   Accordion,
   AccordionContent,
@@ -20,12 +20,15 @@ import { ScrollArea } from '@ptt/ui/components/scroll-area'
 import { cn } from '@ptt/ui/lib/utils'
 
 import { TranslationCountersNote } from '@renderer/components/TranslationCountersNote'
-import { estimateDuration } from '@renderer/lib/estimate'
+
 import { getLogSeverityStyle } from '@renderer/lib/log-severity'
 import { formatElapsed, scanPhasePercent } from '@renderer/lib/scan-progress'
 import { languageLabel, targetLabel } from '@renderer/lib/targets'
 import { trpc } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
+import { keyProgressPercent, settledCount } from '@renderer/store/jobs'
+
+
 import type { JobState, JobStatus, LogEntry } from '@renderer/store/jobs'
 import { useJobsStore } from '@renderer/store/jobs'
 
@@ -56,14 +59,19 @@ function createdByLanguage(output: ConversionOutput): Partial<Record<string, str
   return merged
 }
 
+const EMPTY_COUNTERS = { translated: 0, cached: 0, failed: 0 }
+
 function progressFor(job: JobState): number {
+
   if (job.status === 'done' || job.status === 'scan-finished') return 100
   if (job.phase !== null && job.status !== 'translating') {
     return scanPhasePercent(job.phase, job.phaseDone, job.phaseTotal)
   }
+  if (job.status === 'translating' && job.translationTotal > 0) return keyProgressPercent(job)
   if (job.modsTotal > 0) return (job.modsProcessed / job.modsTotal) * 100
   return STATUS_FLOOR[job.status] ?? 0
 }
+
 
 function phaseLabel(t: Translate, phase: ScanPhase): string {
   switch (phase) {
@@ -87,7 +95,6 @@ function severityLabel(t: Translate, severity: DiagnosticSeverity): string {
   }
 }
 
-const DURATION_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
 const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
@@ -190,12 +197,14 @@ export function ProgressModal() {
         {job.totals && !job.scanOutput ? <ScanTally totals={job.totals} /> : null}
 
         {job.translation ? (
+
           <TranslationCountersNote
             translated={job.translation.translated}
             cached={job.translation.cached}
             failed={job.translation.failed}
           />
         ) : null}
+
 
         {job.scanOutput ? <ScanSummary output={job.scanOutput} /> : null}
 
@@ -247,8 +256,15 @@ function RunningProgress({ job }: RunningProgressProps) {
 
   const counted = job.phaseTotal !== null && job.phaseTotal > 0
   const phase = job.phase
+  const translating = job.status === 'translating' ? job.translatingMod : null
+
   let activity: string | null = null
-  if (phase !== null) {
+  if (translating) {
+    activity = t('modal.translating.activity', {
+      name: translating.modName,
+      language: translating.language
+    })
+  } else if (phase !== null) {
     const counters = counted ? ` ${job.phaseDone ?? 0}/${job.phaseTotal}` : ''
     const lastMod = job.currentMod ? ` - ${job.currentMod}` : ''
     activity = `${phaseLabel(t, phase)}${counters}${lastMod}`
@@ -260,22 +276,33 @@ function RunningProgress({ job }: RunningProgressProps) {
     })
   }
 
+  const keys =
+    translating && job.translationTotal > 0
+      ? t('modal.translating.keys', {
+          done: Math.min(settledCount(job.translation ?? EMPTY_COUNTERS), job.translationTotal),
+          total: job.translationTotal
+        })
+      : null
+
   return (
     <div className="space-y-2">
       <Progress value={progressFor(job)} />
       <div className="flex items-baseline justify-between gap-3 text-sm text-muted-foreground">
         <span className="truncate">{activity}</span>
-        <span className="shrink-0 tabular-nums" title={t('modal.elapsed')}>
-          {formatElapsed(now - job.startedAt)}
+        <span className="flex shrink-0 items-baseline gap-3 tabular-nums">
+          {keys ? <span className="text-foreground">{keys}</span> : null}
+          <span title={t('modal.elapsed')}>{formatElapsed(now - job.startedAt)}</span>
         </span>
       </div>
     </div>
   )
+
 }
 
 interface ScanTallyProps {
   totals: ScanRunningTotals
 }
+
 
 function ScanTally({ totals }: ScanTallyProps) {
   const { t } = useTranslation()
@@ -359,16 +386,10 @@ interface ScanSummaryProps {
 
 function ScanSummary({ output }: ScanSummaryProps) {
   const { t } = useTranslation()
-  const provider = useConverterFormStore(s => s.translate.provider)
-  const translateEnabled = useConverterFormStore(s => s.translate.enabled)
   const { totals } = output
 
-  const estimate =
-    translateEnabled && totals.missingLines > 0
-      ? estimateDuration(totals.missingLines, PROVIDER_DEFAULTS[provider].linesPerSecond)
-      : null
-
   return (
+
     <div className="space-y-1 rounded-md border p-3 text-sm">
       <p>{t('modal.scanSummary.mods', { count: totals.mods })}</p>
       <p>
@@ -399,15 +420,8 @@ function ScanSummary({ output }: ScanSummaryProps) {
           })}
         </p>
       ) : null}
-      {estimate ? (
-        <p className="font-medium">
-          {t('modal.scanSummary.estimate', {
-            lines: totals.missingLines,
-            duration: DURATION_FORMATTER.format(estimate.value, estimate.unit)
-          })}
-        </p>
-      ) : null}
     </div>
+
   )
 }
 

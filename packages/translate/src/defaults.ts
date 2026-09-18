@@ -9,7 +9,7 @@ export interface ProviderDefaults {
   model: string
   needsApiKey: boolean
   fixedModel: boolean
-  linesPerSecond: number
+
   modelsPath?: string
 }
 
@@ -19,7 +19,6 @@ export const PROVIDER_DEFAULTS: Record<TranslateProvider, ProviderDefaults> = {
     model: 'qwen2.5:7b',
     needsApiKey: false,
     fixedModel: false,
-    linesPerSecond: 3,
     modelsPath: '/api/tags'
   },
   openai: {
@@ -27,15 +26,13 @@ export const PROVIDER_DEFAULTS: Record<TranslateProvider, ProviderDefaults> = {
     model: 'gpt-4o-mini',
     needsApiKey: true,
     fixedModel: false,
-    linesPerSecond: 3,
     modelsPath: '/models'
   },
   rapidapi: {
     baseUrl: 'https://ai-translate.p.rapidapi.com/translates_json',
     model: '',
     needsApiKey: true,
-    fixedModel: true,
-    linesPerSecond: 60
+    fixedModel: true
   }
 }
 

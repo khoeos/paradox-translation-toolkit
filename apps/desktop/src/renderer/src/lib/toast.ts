@@ -1,0 +1,3 @@
+export const TOAST_DURATION_MS = 8_000
+
+export const RESULT_TOAST_DURATION_MS = 30_000

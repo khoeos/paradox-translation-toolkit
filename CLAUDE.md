@@ -100,7 +100,8 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
 
 - `apps/desktop`'s vitest runs in `environment: 'node'`, so nothing that renders JSX is
   tested. Keep renderer logic in stores and `lib/` modules where it can be
-  (`lib/estimate.ts` exists for that reason) ; see `docs/testing.md` for what a jsdom
+  (`lib/mod-selection.ts` exists for that reason) ; see `docs/testing.md` for what a jsdom
+
   project would need.
 
 ## Type assertions

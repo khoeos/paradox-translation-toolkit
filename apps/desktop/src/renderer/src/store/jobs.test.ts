@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { JobEvent } from '@ptt/converter/progress'
 
-import { useJobsStore } from './jobs.js'
+import { keyProgressPercent, settledCount, useJobsStore } from './jobs.js'
 
 const reset = (): void => {
   useJobsStore.setState({ jobs: new Map(), activeJobId: null })
@@ -27,7 +27,6 @@ const scanned: JobEvent = {
       keptKeys: 0,
       shadowedKeys: 0
     }
-
   }
 }
 
@@ -150,5 +149,103 @@ describe('clearJob', () => {
     store().startJob('j2')
     store().clearJob('j1')
     expect(store().activeJobId).toBe('j2')
+  })
+})
+
+describe('translation progress', () => {
+  type TranslateMod = Extract<JobEvent, { type: 'translate-mod' }>
+
+  const startTranslating = (over: Partial<TranslateMod> = {}): void => {
+    store().applyEvent({
+      type: 'translate-mod',
+      jobId: 'j1',
+      modName: 'Mod A',
+      language: 'ru',
+      total: 250,
+      done: 0,
+      ...over
+    })
+  }
+
+  const progress = (translated: number, cached = 0, failed = 0): void => {
+    store().applyEvent({
+      type: 'translate-progress',
+      jobId: 'j1',
+      counters: { translated, cached, failed }
+    })
+  }
+
+  it('names the mod as soon as it starts, before any mod has finished', () => {
+    store().startJob('j1')
+    startTranslating()
+    const job = store().jobs.get('j1')
+    expect(job?.status).toBe('translating')
+    expect(job?.translatingMod).toEqual({ modName: 'Mod A', language: 'ru' })
+  })
+
+  it('adds up the announced totals, since mods translate two at a time', () => {
+    store().startJob('j1')
+    startTranslating({ total: 250 })
+    startTranslating({ modName: 'Mod B', total: 40 })
+    expect(store().jobs.get('j1')?.translationTotal).toBe(290)
+  })
+
+  it('counts every settled key against that running total', () => {
+    store().startJob('j1')
+    startTranslating({ total: 100 })
+    progress(10, 5, 2)
+    const job = store().jobs.get('j1')
+    expect(settledCount(job?.translation ?? EMPTY)).toBe(17)
+    expect(
+      keyProgressPercent({
+        translation: job?.translation ?? null,
+        translationTotal: job?.translationTotal ?? 0
+      })
+    ).toBe(17)
+  })
+
+  it('is zero before anything was announced, rather than dividing by zero', () => {
+    expect(
+      keyProgressPercent({
+        translation: { translated: 5, cached: 0, failed: 0 },
+        translationTotal: 0
+      })
+    ).toBe(0)
+    expect(keyProgressPercent({ translation: null, translationTotal: 10 })).toBe(0)
+  })
+
+  it('never reports more than a hundred percent', () => {
+    expect(
+      keyProgressPercent({
+        translation: { translated: 999, cached: 0, failed: 0 },
+        translationTotal: 10
+      })
+    ).toBe(100)
+  })
+
+  it('logs the mod it moves on to, which is the notable event in a long run', () => {
+    store().startJob('j1')
+    const before = store().jobs.get('j1')?.log.length ?? 0
+    startTranslating()
+    startTranslating({ modName: 'Mod B' })
+    expect(store().jobs.get('j1')?.log.length).toBe(before + 2)
+  })
+
+  it('does not log every batch, only the mod changes', () => {
+    store().startJob('j1')
+    startTranslating()
+    const after = store().jobs.get('j1')?.log.length ?? 0
+    progress(10)
+    progress(20)
+    progress(30)
+    expect(store().jobs.get('j1')?.log.length).toBe(after)
+  })
+})
+
+const EMPTY = { translated: 0, cached: 0, failed: 0 }
+
+describe('settledCount', () => {
+  it('adds the three outcomes', () => {
+    expect(settledCount({ translated: 3, cached: 4, failed: 5 })).toBe(12)
   })
 })

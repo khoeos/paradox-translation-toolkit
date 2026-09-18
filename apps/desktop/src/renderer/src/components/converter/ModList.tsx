@@ -9,6 +9,7 @@ import { Checkbox } from '@ptt/ui/components/checkbox'
 import { ScrollArea } from '@ptt/ui/components/scroll-area'
 import { cn } from '@ptt/ui/lib/utils'
 
+import { selectedKeyCount } from '@renderer/lib/mod-selection'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 
 export function ModList() {
@@ -21,13 +22,20 @@ export function ModList() {
   if (mods.length === 0) return null
 
   const withWork = mods.filter(mod => mod.missingFiles > 0)
+  const selectedKeys = selectedKeyCount(mods, selected)
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold tracking-wider">
-          {t('converter.modList.title', { count: mods.length })}
-        </span>
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm font-semibold tracking-wider">
+            {t('converter.modList.title', { count: mods.length })}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {t('converter.modList.keysSelected', { count: selectedKeys })}
+          </span>
+        </div>
+
         <div className="flex gap-2">
           <Button
             type="button"
@@ -69,59 +77,67 @@ const ModRow = memo(function ModRow({ mod, checked, onToggle }: ModRowProps) {
   const nothingToDo = mod.missingFiles === 0
 
   return (
-    <li className={cn('flex items-start gap-3 p-3', nothingToDo && 'opacity-60')}>
-      <Checkbox
-        checked={checked}
-        onCheckedChange={() => onToggle(mod.id)}
-        aria-label={t('converter.modList.toggle', { name: mod.name })}
-        className="mt-1"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium">{mod.name}</span>
-          {mod.otherSpelling ? (
-            <Badge variant="destructive">{t('converter.modList.otherSpelling')}</Badge>
+    <li className={cn(nothingToDo && 'opacity-60')}>
+      <div
+        className="flex cursor-pointer items-start gap-3 p-3 transition-colors hover:bg-accent/50"
+        onClick={() => onToggle(mod.id)}
+      >
+        <Checkbox
+          checked={checked}
+          onCheckedChange={() => onToggle(mod.id)}
+          onClick={event => event.stopPropagation()}
+          aria-label={t('converter.modList.toggle', { name: mod.name })}
+          className="mt-1"
+        />
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-medium">{mod.name}</span>
+            {mod.otherSpelling ? (
+              <Badge variant="destructive">{t('converter.modList.otherSpelling')}</Badge>
+            ) : null}
+            {mod.localisationFiles === 0 ? (
+              <Badge variant="outline">{t('converter.modList.noLocalisation')}</Badge>
+            ) : null}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            {nothingToDo
+              ? t('converter.modList.nothingMissing')
+              : t('converter.modList.missing', { files: mod.missingFiles, keys: missingKeys })}
+          </p>
+
+          {(mod.coveredBy ?? []).length > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {t('converter.modList.coveredBy', { names: mod.coveredBy.join(', ') })}
+            </p>
           ) : null}
-          {mod.localisationFiles === 0 ? (
-            <Badge variant="outline">{t('converter.modList.noLocalisation')}</Badge>
+
+          {englishKeys > 0 ? (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {t('converter.modList.englishKeys', { count: englishKeys })}
+            </p>
+          ) : null}
+
+          {warnings > 0 ? (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {t('converter.modList.warnings', { count: warnings })}
+            </p>
+          ) : null}
+
+          {mod.errors.length > 0 ? (
+            <p className="text-xs text-destructive">
+              {t('converter.modList.errors', { count: mod.errors.length })}
+            </p>
           ) : null}
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          {nothingToDo
-            ? t('converter.modList.nothingMissing')
-            : t('converter.modList.missing', { files: mod.missingFiles, keys: missingKeys })}
-        </p>
-
-        {(mod.coveredBy ?? []).length > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t('converter.modList.coveredBy', { names: mod.coveredBy.join(', ') })}
-          </p>
-        ) : null}
-
-        {englishKeys > 0 ? (
-          <p className="text-xs text-amber-600 dark:text-amber-500">
-            {t('converter.modList.englishKeys', { count: englishKeys })}
-          </p>
-        ) : null}
-
-        {warnings > 0 ? (
-          <p className="text-xs text-amber-600 dark:text-amber-500">
-            {t('converter.modList.warnings', { count: warnings })}
-          </p>
-        ) : null}
-
-        {mod.errors.length > 0 ? (
-          <p className="text-xs text-destructive">
-            {t('converter.modList.errors', { count: mod.errors.length })}
-          </p>
-        ) : null}
-      </div>
-
-      <div className="shrink-0 text-right text-xs text-muted-foreground">
-        <div>{t('converter.modList.sourceKeys', { count: mod.sourceKeys })}</div>
-        <div>{t('converter.modList.coveredKeys', { count: coveredKeys })}</div>
+        <div className="shrink-0 text-right text-xs text-muted-foreground">
+          <div>{t('converter.modList.sourceKeys', { count: mod.sourceKeys })}</div>
+          <div>{t('converter.modList.coveredKeys', { count: coveredKeys })}</div>
+        </div>
       </div>
     </li>
+
   )
 })

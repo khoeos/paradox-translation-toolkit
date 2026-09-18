@@ -261,22 +261,67 @@ describe('provider switching', () => {
     expect(state().translate.baseUrl).toBe(PROVIDER_DEFAULTS.openai.baseUrl)
   })
 
-  it('never overwrites an endpoint the user typed', () => {
-    state().setTranslate({ baseUrl: 'https://my-gateway.internal/v1' })
+  it('gives each provider its own endpoint and model, and restores them on the way back', () => {
+    state().setTranslate({ baseUrl: 'http://localhost:1234/v1', model: 'qwen3-8b' })
+    state().setTranslateProvider('openai')
+    expect(state().translate.baseUrl).toBe(PROVIDER_DEFAULTS.openai.baseUrl)
+
+    state().setTranslate({ baseUrl: 'https://my-gateway.internal/v1', model: 'gpt-x' })
+    state().setTranslateProvider('ollama')
+    expect(state().translate.baseUrl).toBe('http://localhost:1234/v1')
+    expect(state().translate.model).toBe('qwen3-8b')
+
     state().setTranslateProvider('openai')
     expect(state().translate.baseUrl).toBe('https://my-gateway.internal/v1')
+    expect(state().translate.model).toBe('gpt-x')
   })
 
-  it('never overwrites a model the user typed', () => {
-    state().setTranslate({ model: 'my-finetune:v3' })
-    state().setTranslateProvider('openai')
-    expect(state().translate.model).toBe('my-finetune:v3')
+  it('starts a provider the user never configured on its own defaults', () => {
+    state().setTranslate({ baseUrl: 'http://localhost:1234/v1', model: 'qwen3-8b' })
+    state().setTranslateProvider('rapidapi')
+    expect(state().translate.baseUrl).toBe(PROVIDER_DEFAULTS.rapidapi.baseUrl)
+    expect(state().translate.model).toBe(PROVIDER_DEFAULTS.rapidapi.model)
+  })
+
+  it('does nothing when the provider is already the current one', () => {
+    state().setTranslate({ baseUrl: 'http://localhost:1234/v1' })
+    state().setTranslateProvider(state().translate.provider)
+    expect(state().translate.baseUrl).toBe('http://localhost:1234/v1')
   })
 
   it('starts from the shared defaults', () => {
     expect(state().translate).toEqual(TRANSLATE_DEFAULTS)
+    expect(state().backends).toEqual({})
   })
 })
+
+describe('loadBackends', () => {
+  it('restores the provider together with its own endpoint', () => {
+    state().loadBackends(
+      { provider: 'openai', batchSize: 50, concurrency: 4, enabled: true },
+      { openai: { baseUrl: 'http://localhost:1234/v1', model: 'qwen3-8b' } }
+    )
+    expect(state().translate.provider).toBe('openai')
+    expect(state().translate.baseUrl).toBe('http://localhost:1234/v1')
+    expect(state().translate.model).toBe('qwen3-8b')
+    expect(state().translate.batchSize).toBe(50)
+    expect(state().translate.concurrency).toBe(4)
+    expect(state().translate.enabled).toBe(true)
+  })
+
+  it('falls back to the provider defaults when nothing was stored for it', () => {
+    state().loadBackends({ provider: 'openai' }, {})
+    expect(state().translate.baseUrl).toBe(PROVIDER_DEFAULTS.openai.baseUrl)
+    expect(state().translate.model).toBe(PROVIDER_DEFAULTS.openai.model)
+  })
+
+  it('keeps the current provider when the stored settings name none', () => {
+    state().loadBackends({ batchSize: 7 }, {})
+    expect(state().translate.provider).toBe(TRANSLATE_DEFAULTS.provider)
+    expect(state().translate.batchSize).toBe(7)
+  })
+})
+
 
 describe('the API key', () => {
   it('lives outside the persisted settings', () => {

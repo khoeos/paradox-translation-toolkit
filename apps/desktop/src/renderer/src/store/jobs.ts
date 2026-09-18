@@ -37,8 +37,31 @@ export interface JobState {
   scanOutput: ScanOutput | null
   conversion: ConversionOutput | null
   translation: TranslationProgress | null
+  translatingMod: TranslatingMod | null
+  translationTotal: number
   errorMessage: string | null
 }
+
+
+export interface TranslatingMod {
+  modName: string
+  language: string
+}
+
+export const settledCount = (counters: TranslationProgress): number =>
+  counters.translated + counters.cached + counters.failed
+
+export const keyProgressPercent = (state: {
+  translation: TranslationProgress | null
+  translationTotal: number
+}): number => {
+  if (state.translationTotal <= 0 || !state.translation) return 0
+  const done = Math.min(settledCount(state.translation), state.translationTotal)
+  return (done / state.translationTotal) * 100
+}
+
+
+
 
 interface JobsState {
   jobs: Map<string, JobState>
@@ -58,6 +81,8 @@ const FINISHED_JOB_TTL_MS = 10 * 60 * 1000
 
 const TERMINAL_STATUSES = new Set<JobStatus>(['done', 'error', 'cancelled'])
 
+
+
 const blankJob = (jobId: string): JobState => ({
   jobId,
   status: 'scanning',
@@ -73,8 +98,12 @@ const blankJob = (jobId: string): JobState => ({
   scanOutput: null,
   conversion: null,
   translation: null,
+  translatingMod: null,
+  translationTotal: 0,
   errorMessage: null
 })
+
+
 
 function evictOldest(jobs: Map<string, JobState>, activeJobId: string | null): void {
   while (jobs.size >= MAX_STORED_JOBS) {
@@ -156,6 +185,19 @@ export const useJobsStore = create<JobsState>((set, get) => ({
           updated.phase = event.phase
           updated.phaseDone = event.done ?? null
           updated.phaseTotal = event.total ?? null
+          break
+        case 'translate-mod':
+          updated.status = 'translating'
+          updated.translatingMod = { modName: event.modName, language: event.language }
+          updated.translationTotal = existing.translationTotal + event.total
+          updated.log.push({
+            ts: Date.now(),
+            message: i18next.t('modal.log.translatingMod', {
+              name: event.modName,
+              language: event.language,
+              keys: event.total
+            })
+          })
           break
         case 'translate-progress':
           updated.status = 'translating'

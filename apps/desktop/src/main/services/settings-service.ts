@@ -15,7 +15,16 @@ import {
   type TranslationTarget
 } from '@ptt/shared'
 
+import {
+  TRANSLATE_DEFAULTS,
+  TRANSLATE_LIMITS,
+  TRANSLATE_PROVIDERS
+} from '@ptt/translate/defaults'
+
+import type { TranslateProvider } from '@ptt/translate'
+
 import { log } from '../log.js'
+
 import { canonicalizeCasePreserving } from './path-policy.js'
 
 const GameIdSchema = z.enum(getAllGameIds())
@@ -53,7 +62,24 @@ export interface SettingsSchema {
   updateChannel: UpdateChannel
   userAllowedFolders: string[]
   knownPaths: KnownPathEntry[]
+  translate: TranslateSettings
 }
+
+export interface TranslateEndpoint {
+  baseUrl: string
+  model: string
+}
+
+export interface TranslateSettings {
+  enabled: boolean
+  provider: TranslateProvider
+  backends: Partial<Record<TranslateProvider, TranslateEndpoint>>
+  batchSize: number
+  concurrency: number
+  retries: number
+  timeout: number
+}
+
 
 export type SettingsPatch = {
   [K in keyof SettingsSchema]?: SettingsSchema[K] | undefined
@@ -67,6 +93,16 @@ export const DEFAULTS: SettingsSchema = {
   sourceLanguage: {},
   targetLanguages: {},
   targets: {},
+  translate: {
+    enabled: TRANSLATE_DEFAULTS.enabled,
+    provider: TRANSLATE_DEFAULTS.provider,
+    backends: {},
+    batchSize: TRANSLATE_DEFAULTS.batchSize,
+    concurrency: TRANSLATE_DEFAULTS.concurrency,
+    retries: TRANSLATE_DEFAULTS.retries,
+    timeout: TRANSLATE_DEFAULTS.timeout
+  },
+
   mode: 'add-to-current',
   targetContent: 'missing-keys',
   themeOverride: 'system',
@@ -88,7 +124,13 @@ export const KnownPathEntrySchemaZod = z.object({
   pinned: z.boolean()
 })
 
+const ProviderSchemaZod = z.enum(TRANSLATE_PROVIDERS)
+
+const boundedZod = (limits: { min: number; max: number }): z.ZodNumber =>
+  z.number().int().min(limits.min).max(limits.max)
+
 export const SettingsSchemaZod = z.object({
+
   lastModFolder: z.partialRecord(GameIdSchema, z.string()),
   lastOutputFolder: z.partialRecord(GameIdSchema, z.string()),
   gamePath: z.partialRecord(GameIdSchema, z.string()),
@@ -104,8 +146,21 @@ export const SettingsSchemaZod = z.object({
   autoCheckUpdates: z.boolean(),
   updateChannel: z.enum(['stable', 'beta']),
   userAllowedFolders: z.array(z.string()),
-  knownPaths: z.array(KnownPathEntrySchemaZod)
+  knownPaths: z.array(KnownPathEntrySchemaZod),
+  translate: z.object({
+    enabled: z.boolean(),
+    provider: ProviderSchemaZod,
+    backends: z.partialRecord(
+      ProviderSchemaZod,
+      z.object({ baseUrl: z.string(), model: z.string() })
+    ),
+    batchSize: boundedZod(TRANSLATE_LIMITS.batchSize),
+    concurrency: boundedZod(TRANSLATE_LIMITS.concurrency),
+    retries: boundedZod(TRANSLATE_LIMITS.retries),
+    timeout: boundedZod(TRANSLATE_LIMITS.timeout)
+  })
 })
+
 
 interface LegacyKeyStore {
   delete(key: string): void

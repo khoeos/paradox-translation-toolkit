@@ -60,6 +60,8 @@
       "englishKeys_other": "{{count}} keys left in the source language by an earlier run",
       "errors_one": "{{count}} read error, content missed",
       "errors_other": "{{count}} read errors, content missed",
+      "keysSelected_one": "{{count}} key to translate",
+      "keysSelected_other": "{{count}} keys to translate",
       "missing": "{{files}} files, {{keys}} keys missing",
       "noLocalisation": "No localisation",
       "nothingMissing": "Nothing missing",
@@ -203,7 +205,8 @@
         "error": "Error",
         "warning": "Warning"
       },
-      "startingScanning": "Starting scanning files"
+      "startingScanning": "Starting scanning files",
+      "translatingMod": "Translating {{name}} into {{language}}, {{keys}} keys"
     },
     "modProgress": "Mod {{processed}} of {{total}}: {{name}}",
     "noFilesNeeded": "All target languages already have all files. Nothing to do.",
@@ -215,7 +218,6 @@
       "readingGenerated": "Reading earlier output"
     },
     "scanSummary": {
-      "estimate": "{{lines}} lines to translate, roughly {{duration}}",
       "generated": "Earlier runs supply {{translated}} translations, {{english}} still in the source language, {{orphans}} orphan folders",
       "missing": "{{files}} files to create, {{keys}} keys already covered",
       "mods_one": "{{count}} mod scanned",
@@ -249,6 +251,10 @@
       "toCreate_other": "{{count}} files to create",
       "warnings_one": "{{count}} warning",
       "warnings_other": "{{count}} warnings"
+    },
+    "translating": {
+      "activity": "Translating {{name}} into {{language}}",
+      "keys": "{{done}}/{{total}} keys"
     },
     "translationCounters": "{{translated}} translated, {{cached}} free, {{failed}} left alone"
   },
@@ -581,6 +587,9 @@
     "retranslateOwnKeysHint": "Sends entries you already wrote by hand, and that still read exactly like the English source, back to the model. They will be replaced if the model answers.",
     "test": "Test the provider",
     "testFailed": "Backend failed: {{message}}",
+    "testMarkupLost": "The backend answers, but it drops markup",
+    "testMarkupLostDetail": "Expected the tokens of \"{{source}}\", got: {{text}}. Many strings will be refused and retried.",
+    "testMarkupOk": "Markup kept: {{text}}",
     "testNeedsBuiltIn": "Pick a built-in target language to test the connection.",
     "testOk": "Backend answered: {{text}}",
     "title": "MACHINE TRANSLATION (experimental)"

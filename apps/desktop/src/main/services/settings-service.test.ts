@@ -13,8 +13,11 @@ vi.mock('electron-store', () => ({
   }
 }))
 
+import { TRANSLATE_DEFAULTS } from '@ptt/translate/defaults'
+
 import {
   addKnownPathEntry,
+
   addKnownPathEntryOn,
   clearKnownPathEntries,
   DEFAULTS,
@@ -949,5 +952,61 @@ describe('reconcileSettingsState', () => {
     expect(result.repaired.knownPaths).toHaveLength(3)
     expect(result.repaired.knownPaths.every(entry => entry.kind === 'modFolder')).toBe(true)
     expect(result.logs.some(l => l.includes('migrated 3 entries'))).toBe(true)
+  })
+})
+
+describe('persisted translate settings', () => {
+  it('ships a default block, so a fresh profile has a provider to start from', () => {
+    expect(DEFAULTS.translate.provider).toBe(TRANSLATE_DEFAULTS.provider)
+    expect(DEFAULTS.translate.batchSize).toBe(TRANSLATE_DEFAULTS.batchSize)
+    expect(DEFAULTS.translate.backends).toEqual({})
+  })
+
+  it('keeps an endpoint per provider, which is what survives a backend switch', () => {
+    const raw = makeValidRawState({
+      translate: {
+        ...DEFAULTS.translate,
+        provider: 'openai',
+        backends: {
+          openai: { baseUrl: 'http://localhost:1234/v1', model: 'qwen3-8b' },
+          ollama: { baseUrl: 'http://localhost:11434', model: 'qwen2.5:7b' }
+        }
+      }
+    })
+
+    const result = reconcileSettingsState(raw)
+
+    expect(result.changed).toBe(false)
+    expect(result.repaired.translate.backends.openai?.model).toBe('qwen3-8b')
+    expect(result.repaired.translate.backends.ollama?.model).toBe('qwen2.5:7b')
+  })
+
+  it('resets a batch size a hand-edited file pushed past the limit', () => {
+    const raw = asStoredState({
+      ...makeValidRawState(),
+      translate: { ...DEFAULTS.translate, batchSize: 10_000 }
+    })
+
+    const result = reconcileSettingsState(raw)
+
+    expect(result.changed).toBe(true)
+    expect(result.repaired.translate).toEqual(DEFAULTS.translate)
+    expect(result.logs.some(l => l.includes('translate'))).toBe(true)
+  })
+
+  it('resets an unknown provider rather than starting on a backend that does not exist', () => {
+    const raw = asStoredState({
+      ...makeValidRawState(),
+      translate: { ...DEFAULTS.translate, provider: 'deepl' }
+    })
+
+    const result = reconcileSettingsState(raw)
+
+    expect(result.changed).toBe(true)
+    expect(result.repaired.translate.provider).toBe(DEFAULTS.translate.provider)
+  })
+
+  it('never stores an API key, whatever the UI holds', () => {
+    expect(JSON.stringify(DEFAULTS)).not.toContain('apiKey')
   })
 })
