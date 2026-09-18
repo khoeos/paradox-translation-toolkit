@@ -234,7 +234,6 @@ export const findTargetListIssue = (
 }
 
 export const describeTargetListProblem = (
-
   problem: TargetListProblem,
   targets: readonly TranslationTarget[],
   game: { displayName: string; languageFileToken: GameTokens }
@@ -269,4 +268,3 @@ export const describeTargetListProblem = (
       )
   }
 }
-

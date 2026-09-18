@@ -42,7 +42,6 @@ export interface JobState {
   errorMessage: string | null
 }
 
-
 export interface TranslatingMod {
   modName: string
   language: string
@@ -59,9 +58,6 @@ export const keyProgressPercent = (state: {
   const done = Math.min(settledCount(state.translation), state.translationTotal)
   return (done / state.translationTotal) * 100
 }
-
-
-
 
 interface JobsState {
   jobs: Map<string, JobState>
@@ -80,8 +76,6 @@ const MAX_STORED_JOBS = 5
 const FINISHED_JOB_TTL_MS = 10 * 60 * 1000
 
 const TERMINAL_STATUSES = new Set<JobStatus>(['done', 'error', 'cancelled'])
-
-
 
 const blankJob = (jobId: string): JobState => ({
   jobId,
@@ -102,8 +96,6 @@ const blankJob = (jobId: string): JobState => ({
   translationTotal: 0,
   errorMessage: null
 })
-
-
 
 function evictOldest(jobs: Map<string, JobState>, activeJobId: string | null): void {
   while (jobs.size >= MAX_STORED_JOBS) {

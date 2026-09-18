@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import type { ConversionOutput, ScanOutput } from '@ptt/converter'
 import type { DiagnosticSeverity, ScanPhase, ScanRunningTotals } from '@ptt/converter/progress'
 import type { GameTokens, TranslationTarget } from '@ptt/shared/languages'
-
 import {
   Accordion,
   AccordionContent,
@@ -20,15 +19,12 @@ import { ScrollArea } from '@ptt/ui/components/scroll-area'
 import { cn } from '@ptt/ui/lib/utils'
 
 import { TranslationCountersNote } from '@renderer/components/TranslationCountersNote'
-
 import { getLogSeverityStyle } from '@renderer/lib/log-severity'
 import { formatElapsed, scanPhasePercent } from '@renderer/lib/scan-progress'
 import { languageLabel, targetLabel } from '@renderer/lib/targets'
 import { trpc } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 import { keyProgressPercent, settledCount } from '@renderer/store/jobs'
-
-
 import type { JobState, JobStatus, LogEntry } from '@renderer/store/jobs'
 import { useJobsStore } from '@renderer/store/jobs'
 
@@ -62,7 +58,6 @@ function createdByLanguage(output: ConversionOutput): Partial<Record<string, str
 const EMPTY_COUNTERS = { translated: 0, cached: 0, failed: 0 }
 
 function progressFor(job: JobState): number {
-
   if (job.status === 'done' || job.status === 'scan-finished') return 100
   if (job.phase !== null && job.status !== 'translating') {
     return scanPhasePercent(job.phase, job.phaseDone, job.phaseTotal)
@@ -71,7 +66,6 @@ function progressFor(job: JobState): number {
   if (job.modsTotal > 0) return (job.modsProcessed / job.modsTotal) * 100
   return STATUS_FLOOR[job.status] ?? 0
 }
-
 
 function phaseLabel(t: Translate, phase: ScanPhase): string {
   switch (phase) {
@@ -94,7 +88,6 @@ function severityLabel(t: Translate, severity: DiagnosticSeverity): string {
       return t('modal.log.severity.error')
   }
 }
-
 
 const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
@@ -197,14 +190,12 @@ export function ProgressModal() {
         {job.totals && !job.scanOutput ? <ScanTally totals={job.totals} /> : null}
 
         {job.translation ? (
-
           <TranslationCountersNote
             translated={job.translation.translated}
             cached={job.translation.cached}
             failed={job.translation.failed}
           />
         ) : null}
-
 
         {job.scanOutput ? <ScanSummary output={job.scanOutput} /> : null}
 
@@ -296,13 +287,11 @@ function RunningProgress({ job }: RunningProgressProps) {
       </div>
     </div>
   )
-
 }
 
 interface ScanTallyProps {
   totals: ScanRunningTotals
 }
-
 
 function ScanTally({ totals }: ScanTallyProps) {
   const { t } = useTranslation()
@@ -389,7 +378,6 @@ function ScanSummary({ output }: ScanSummaryProps) {
   const { totals } = output
 
   return (
-
     <div className="space-y-1 rounded-md border p-3 text-sm">
       <p>{t('modal.scanSummary.mods', { count: totals.mods })}</p>
       <p>
@@ -421,7 +409,6 @@ function ScanSummary({ output }: ScanSummaryProps) {
         </p>
       ) : null}
     </div>
-
   )
 }
 

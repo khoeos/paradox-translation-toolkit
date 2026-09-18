@@ -138,6 +138,5 @@ const ModRow = memo(function ModRow({ mod, checked, onToggle }: ModRowProps) {
         </div>
       </div>
     </li>
-
   )
 })

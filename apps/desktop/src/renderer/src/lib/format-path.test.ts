@@ -15,8 +15,7 @@ describe('formatPath', () => {
   })
 
   it('normalizes backslashes and truncates a native Windows path around the localisation dir', () => {
-    const path =
-      'C:\\Steam\\steamapps\\common\\Stellaris\\localisation\\english\\foo_l_english.yml'
+    const path = 'C:\\Steam\\steamapps\\common\\Stellaris\\localisation\\english\\foo_l_english.yml'
     expect(formatPath(path)).toBe(
       'C:/Steam/…/common/Stellaris/localisation/english/foo_l_english.yml'
     )

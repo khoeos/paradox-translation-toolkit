@@ -77,7 +77,7 @@ For the tab background, drop a `.webp` image at `apps/desktop/src/renderer/src/a
 ## 5. Update the E2E tab list
 
 `apps/desktop/e2e/app.test.ts` pins `GAME_TABS_IN_REGISTRY_ORDER` against the rendered
-tabs, because `builtInGames` order *is* the UI tab order and nothing else guards it.
+tabs, because `builtInGames` order _is_ the UI tab order and nothing else guards it.
 Add the new `displayName` at the same position you gave it in `builtInGames`.
 
 ## 6. Verify

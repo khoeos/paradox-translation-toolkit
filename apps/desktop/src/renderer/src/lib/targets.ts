@@ -8,12 +8,10 @@ import type {
 import {
   findTargetListIssue,
   isLanguageCode,
-
   normalizeTargets,
   shadowedLanguageOf,
   usesOwnToken
 } from '@ptt/shared/languages'
-
 
 import type { PersistedTranslate } from '@renderer/store/converter-form'
 
@@ -125,7 +123,6 @@ export function targetListError(t: Translate, ctx: TargetListContext): string | 
   })
   return problem === undefined ? undefined : describeTargetProblem(t, problem, ctx.gameName)
 }
-
 
 export function targetListWarning(t: Translate, ctx: TargetListContext): string | undefined {
   if (ctx.mode !== 'add-to-current' || ctx.targetContent !== 'missing-keys') return undefined

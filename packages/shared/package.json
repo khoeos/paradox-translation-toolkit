@@ -10,7 +10,6 @@
     "./ipc-channels": "./src/ipc-channels.ts",
     "./languages": "./src/languages.ts",
     "./updater": "./src/updater.ts"
-
   },
   "scripts": {
     "lint": "oxlint src test",

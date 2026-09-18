@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
 import type { GameTokens } from '@ptt/shared/languages'
-
 import { TRANSLATE_DEFAULTS } from '@ptt/translate/defaults'
 
 import type { PersistedTranslate } from '@renderer/store/converter-form'
@@ -13,7 +12,6 @@ import {
   toStoredTranslate,
   translateChanged
 } from './useSettingsSync.js'
-
 
 const tokens: GameTokens = { en: 'english', fr: 'french', tr: 'turkish' }
 

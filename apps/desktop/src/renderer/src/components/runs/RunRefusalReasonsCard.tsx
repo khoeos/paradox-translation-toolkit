@@ -4,9 +4,7 @@ import { IDENTICAL_REASON } from '@ptt/converter/reasons'
 import { Card, CardContent, CardHeader } from '@ptt/ui/components/card'
 import { Progress } from '@ptt/ui/components/progress'
 
-
 import { getRefusalReasonLabel } from '@renderer/lib/refusal-reasons'
-
 
 interface RunRefusalReasonsCardProps {
   refusalsByReason: Readonly<Record<string, number>>

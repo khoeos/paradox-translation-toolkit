@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-
 import {
   PARTIAL_SUFFIX,
   SCAN_DIAGNOSTICS_PER_MOD,
@@ -8,24 +7,18 @@ import {
   runConvert,
   settledCount
 } from '../src/index.js'
-
 import type {
   ConvertRunOptions,
   JobEvent,
   ProgressPort,
   RunReportPort,
   TranslationEnginePort,
-
   TranslationMemoryPort,
   TranslationMod,
   TranslationSetup,
   TranslationSetupPort
 } from '../src/index.js'
-
-
-
 import { builtIn, localeFile, staticSetup, stellarisGame } from './fixtures.js'
-
 import { MemoryFs } from './memory-fs.js'
 
 const collectingPort = (): { port: ProgressPort; events: JobEvent[] } => {
@@ -113,8 +106,7 @@ const collection = (): MemoryFs =>
 
 const natural = 'workshop/mymod/localisation/a_l_russian.yml'
 
-type RunOverrides
- = Partial<ConvertRunOptions> & TranslationSetup
+type RunOverrides = Partial<ConvertRunOptions> & TranslationSetup
 
 const runOptions = (over: RunOverrides = {}): ConvertRunOptions => {
   const { engine, memory, glossaryProblems, flush, ...rest } = over
@@ -136,7 +128,6 @@ const runOptions = (over: RunOverrides = {}): ConvertRunOptions => {
     ...rest
   }
 }
-
 
 const generatedMod: TranslationMod = {
   name: 'Missing Translations',
@@ -651,7 +642,9 @@ describe('runConvert - the sequence around the run', () => {
 
   const tracingReport = (): RunReportPort => ({
     write: facts => {
-      trace.push(`write ${facts.output.totals.mods} mods, ${facts.untranslated.length} untranslated`)
+      trace.push(
+        `write ${facts.output.totals.mods} mods, ${facts.untranslated.length} untranslated`
+      )
       return Promise.resolve({ jsonPath: '/data/reports/run.json', file: 'run.json' })
     }
   })
@@ -691,11 +684,7 @@ describe('runConvert - the sequence around the run', () => {
   it('leaves them alone when the port declines to write', async () => {
     const { port } = collectingPort()
     const declining: RunReportPort = { write: () => Promise.resolve(undefined) }
-    const { output } = await runConvert(
-      runOptions({ runReport: declining }),
-      collection(),
-      port
-    )
+    const { output } = await runConvert(runOptions({ runReport: declining }), collection(), port)
     expect(output.reportPath).toBeUndefined()
   })
 

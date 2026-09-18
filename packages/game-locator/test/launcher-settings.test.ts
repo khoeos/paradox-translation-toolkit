@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import type { FsLike } from '@ptt/shared'
-import { MemoryFs } from '@ptt/converter/test/memory-fs'
 
-import { expandGameDataPath, parseLauncherSettings, readLauncherSettings, resolveExecutablePath } from '../src/launcher-settings.js'
+import { MemoryFs } from '@ptt/converter/test/memory-fs'
+import type { FsLike } from '@ptt/shared'
+
+import {
+  expandGameDataPath,
+  parseLauncherSettings,
+  readLauncherSettings,
+  resolveExecutablePath
+} from '../src/launcher-settings.js'
 
 const eu4LauncherSettings = JSON.stringify({
   gameId: 'eu4',
@@ -74,7 +80,9 @@ describe('parseLauncherSettings', () => {
   })
 
   it('omits gameDataPath when absent from the file', () => {
-    const settings = parseLauncherSettings(JSON.stringify({ gameId: 'stellaris', exePath: './stellaris' }))
+    const settings = parseLauncherSettings(
+      JSON.stringify({ gameId: 'stellaris', exePath: './stellaris' })
+    )
 
     expect(settings).toEqual({ gameId: 'stellaris', exePath: './stellaris' })
   })
@@ -171,7 +179,12 @@ describe('expandGameDataPath', () => {
   })
 
   it('returns undefined when an unknown token remains unresolved', () => {
-    const result = expandGameDataPath('%SOME_UNKNOWN_TOKEN%/Paradox Interactive/Stellaris', home, documentsPath, localDataHome)
+    const result = expandGameDataPath(
+      '%SOME_UNKNOWN_TOKEN%/Paradox Interactive/Stellaris',
+      home,
+      documentsPath,
+      localDataHome
+    )
 
     expect(result).toBeUndefined()
   })
@@ -182,8 +195,8 @@ describe('resolveExecutablePath', () => {
     expect(resolveExecutablePath('/install/eu4', './eu4.app/Contents/MacOS/eu4')).toBe(
       '/install/eu4/eu4.app/Contents/MacOS/eu4'
     )
-    expect(resolveExecutablePath('/install/stellaris', './stellaris.app/Contents/MacOS/stellaris')).toBe(
-      '/install/stellaris/stellaris.app/Contents/MacOS/stellaris'
-    )
+    expect(
+      resolveExecutablePath('/install/stellaris', './stellaris.app/Contents/MacOS/stellaris')
+    ).toBe('/install/stellaris/stellaris.app/Contents/MacOS/stellaris')
   })
 })

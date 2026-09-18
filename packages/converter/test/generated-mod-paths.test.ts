@@ -8,7 +8,6 @@ import {
   resolveGeneratedMod
 } from '../src/index.js'
 
-
 const DOCUMENTS = '/Users/x/Documents'
 
 describe('resolveGeneratedMod', () => {

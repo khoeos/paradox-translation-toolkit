@@ -322,7 +322,6 @@ describe('loadBackends', () => {
   })
 })
 
-
 describe('the API key', () => {
   it('lives outside the persisted settings', () => {
     state().setApiKey('sk-secret')

@@ -90,4 +90,3 @@ describe('ConverterService', () => {
     expect(command).not.toHaveProperty('targetContent')
   })
 })
-

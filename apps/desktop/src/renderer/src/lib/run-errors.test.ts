@@ -5,7 +5,6 @@ import { MemoryFs } from '@ptt/converter/test/memory-fs'
 import { stellaris } from '@ptt/games'
 
 import type { ReportMod, RunErrorCategory } from './run-errors.js'
-
 import {
   filterReportMods,
   getErrorCategorySummaries,
@@ -329,15 +328,13 @@ const scanWith = async (files: Record<string, string>): Promise<string[]> => {
 }
 
 describe('parseModError against the strings the converter actually emits', () => {
-  const categoriesOf
- = async (files: Record<string, string>): Promise<RunErrorCategory[]> =>
+  const categoriesOf = async (files: Record<string, string>): Promise<RunErrorCategory[]> =>
     (await scanWith(files)).map(raw => parseModError(raw).category)
 
   it('recognises an unterminated value string', async () => {
     const categories = await categoriesOf({
       'workshop/a/descriptor.mod': 'name="Mod A"',
-      'workshop/a/localisation/english/a_l_english.yml':
-        `${BOM}l_english:\n K1:0 "never closed\n K2:0 "fine"\n`
+      'workshop/a/localisation/english/a_l_english.yml': `${BOM}l_english:\n K1:0 "never closed\n K2:0 "fine"\n`
     })
     expect(categories).toContain('unterminated')
     expect(categories).not.toContain('other')
@@ -349,14 +346,12 @@ describe('parseModError against the strings the converter actually emits', () =>
       'workshop/a/localisation/english/a_l_english.yml': `${BOM} K1:0 "no header above me"\n`
     })
     expect(categories).toContain('header')
-
   })
 
   it('reads the language folder back out of the path the converter built', async () => {
     const [raw] = await scanWith({
       'workshop/a/descriptor.mod': 'name="Mod A"',
-      'workshop/a/localisation/english/a_l_english.yml':
-        `${BOM}l_english:\n K1:0 "never closed\n K2:0 "fine"\n`
+      'workshop/a/localisation/english/a_l_english.yml': `${BOM}l_english:\n K1:0 "never closed\n K2:0 "fine"\n`
     })
     expect(raw).toBeDefined()
     expect(parseModError(raw ?? '').languageFolder).toBe('english')

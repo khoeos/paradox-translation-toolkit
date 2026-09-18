@@ -10,7 +10,6 @@ import { dropOurOwnMod, readGeneratedMod, summariseGeneratedMod } from './genera
 import type { ScanPhase, ScanRunningTotals } from './progress.js'
 import { retranslateOwnKeysHasNoEffect } from './retranslate.js'
 import { scanMod } from './scan-mod.js'
-
 import { sumByLanguage } from './totals.js'
 import type {
   Coverage,
@@ -107,12 +106,13 @@ export async function scanMods(options: ScanModsOptions, fs: FsLike): Promise<Sc
   } = options
 
   const retranslateOwnKeys =
-    requestedRetranslateOwnKeys === true && mode !== undefined && retranslateOwnKeysHasNoEffect(mode)
+    requestedRetranslateOwnKeys === true &&
+    mode !== undefined &&
+    retranslateOwnKeysHasNoEffect(mode)
       ? false
       : requestedRetranslateOwnKeys
 
   const requestedTargets = normalizeTargets(targets)
-
 
   onPhase?.('reading-generated')
   const generated: GeneratedMod | undefined = generatedModPath

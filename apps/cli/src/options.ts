@@ -1,5 +1,4 @@
 import { DEFAULT_MOD_NAME, resolveTargets } from '@ptt/converter'
-
 import { getAllGameIds, getGame } from '@ptt/games'
 import { runReportsDir } from '@ptt/report'
 import type { GameDefinition } from '@ptt/shared'
@@ -7,7 +6,6 @@ import {
   CONVERT_MODES,
   LANGUAGE_CODES,
   LanguageCodeSchema,
-
   TARGET_CONTENTS,
   describeTargetListProblem,
   findTargetListIssue,
@@ -26,7 +24,6 @@ import type {
   TargetListProblem,
   TranslationTarget
 } from '@ptt/shared'
-
 import type { TranslateConfig } from '@ptt/translate'
 import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt/translate'
 

@@ -61,10 +61,15 @@ const isSafeInstallDir = (installDir: string): boolean => {
   }
 }
 
-const findWindowsSteamRoot = async (fs: FsLike, registry: RegistryLike): Promise<string | undefined> => {
+const findWindowsSteamRoot = async (
+  fs: FsLike,
+  registry: RegistryLike
+): Promise<string | undefined> => {
   const fromHkcu = await registry.readValue('HKCU', STEAM_REGISTRY_KEY, STEAM_REGISTRY_VALUE_NAME)
-  const fromRegistry = fromHkcu ?? (await registry.readValue('HKLM', STEAM_REGISTRY_KEY, STEAM_REGISTRY_VALUE_NAME))
-  const candidate = fromRegistry !== undefined ? posixNormalize(fromRegistry) : WIN32_DEFAULT_STEAM_PATH
+  const fromRegistry =
+    fromHkcu ?? (await registry.readValue('HKLM', STEAM_REGISTRY_KEY, STEAM_REGISTRY_VALUE_NAME))
+  const candidate =
+    fromRegistry !== undefined ? posixNormalize(fromRegistry) : WIN32_DEFAULT_STEAM_PATH
   return (await fs.exists(candidate)) ? candidate : undefined
 }
 
@@ -155,7 +160,12 @@ export const findLibraryFolders = async (steamRoot: string, fs: FsLike): Promise
   const newFormatLibraries = await readNewLibraryFoldersVdf(normalizedSteamRoot, fs)
   const legacyLibraries =
     newFormatLibraries.length > 0 ? [] : await readOldLibraryFoldersVdf(normalizedSteamRoot, fs)
-  return dedupe([normalizedSteamRoot, ...configLibraries, ...newFormatLibraries, ...legacyLibraries])
+  return dedupe([
+    normalizedSteamRoot,
+    ...configLibraries,
+    ...newFormatLibraries,
+    ...legacyLibraries
+  ])
 }
 
 export const findGameInstallDir = async (

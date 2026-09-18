@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { FsLike, RegistryHive, RegistryLike } from '@ptt/shared'
+
 import { MemoryFs } from '@ptt/converter/test/memory-fs'
+import type { FsLike, RegistryHive, RegistryLike } from '@ptt/shared'
 
 import {
   findGameInstallDir,
@@ -12,7 +13,8 @@ import {
 const STELLARIS_APP_ID = 281_990
 
 const createFakeRegistry = (values: Partial<Record<string, string | undefined>>): RegistryLike => ({
-  readValue: async (hive: RegistryHive, key: string, name: string) => values[`${hive}:${key}:${name}`]
+  readValue: async (hive: RegistryHive, key: string, name: string) =>
+    values[`${hive}:${key}:${name}`]
 })
 
 const acfContent = (installDir: string): string =>

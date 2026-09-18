@@ -1,15 +1,12 @@
 import { TRPCError } from '@trpc/server'
 import { utilityProcess, type UtilityProcess } from 'electron'
-
 import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { resolveGeneratedMod } from '@ptt/converter'
 import type { ConversionOutput, JobEvent, TranslationMod } from '@ptt/converter'
-
 import { isJobEvent } from '@ptt/converter/progress'
-
 import { getGame } from '@ptt/games'
 import {
   IPC_CHANNELS,
@@ -23,8 +20,6 @@ import type { TranslateConfig } from '@ptt/translate'
 
 import { broadcastToWindows } from '../ipc/bridge.js'
 import { log } from '../log.js'
-
-
 import type { OpenableRegistry } from './openable-registry.js'
 
 export type { JobEvent }
@@ -97,7 +92,6 @@ export class ConverterService {
       }
     })
   }
-
 
   convert(input: ConvertInput): { jobId: string } {
     return this.startJob(input.gameId, (jobId, game) => {
@@ -229,7 +223,6 @@ export class ConverterService {
   private broadcast(event: JobEvent): void {
     broadcastToWindows(IPC_CHANNELS.jobEvent, event)
   }
-
 
   private registerConversionPaths(output: ConversionOutput): void {
     for (const mod of output.mods) {

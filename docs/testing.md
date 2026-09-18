@@ -20,7 +20,7 @@ pnpm --filter @ptt/converter exec vitest run --coverage
 - **`@ptt/games`**: registry invariants (`getAllGames`, `getGame`, `getAllGameIds`, `toGameSummary`, `getGameSummaries`) plus a table-driven test in `packages/games/test/games.test.ts` with one row per `GameDefinition`, asserting id, displayName, steamAppId, localisationDirName, layout, userFolder and the game-specific language tokens.
 - **`@ptt/desktop`**: `workers/ports.test.ts` and `@ptt/cli`'s `commands/ports.test.ts` cover the two port adapters each front end supplies to `runConvert` (the sequence itself is tested once, in `converter`). `ipc/procedures/converter.test.ts` asserts the scan and convert schemas accept exactly the same target lists. `store/jobs.test.ts` covers the job reducer: eviction that spares the active job, auto-creation on an unknown job id, the `scan-phase` dedup that returns the same state object so nothing re-renders, and the deferred clear on fake timers. `lib/run-errors.test.ts` ends with a contract test that drives the real `scanMods` over a `MemoryFs`, because its regexes are written against sentences owned by `@ptt/parser`: frozen string constants would stay green through a rewording. `path-policy.test.ts` covers the Paradox-pattern allowlist
 
- and the critical-folder blocklist for Win / macOS / Linux. OS-specific cases run only on the matching host (POSIX path semantics can't be faked on Win32 without mocking `node:path`). `generated-mod-paths.test.ts` covers where the generated mod lands per game. `store/converter-form.test.ts` covers scan invalidation, provider switching and the API key never reaching the persisted settings. `store/job-status-i18n.test.ts` asserts every `JobStatus` has a label, because the modal builds that key dynamically and the extractor cannot see it. `lib/mod-selection.test.ts` covers the key total shown above the mod list.
+and the critical-folder blocklist for Win / macOS / Linux. OS-specific cases run only on the matching host (POSIX path semantics can't be faked on Win32 without mocking `node:path`). `generated-mod-paths.test.ts` covers where the generated mod lands per game. `store/converter-form.test.ts` covers scan invalidation, provider switching and the API key never reaching the persisted settings. `store/job-status-i18n.test.ts` asserts every `JobStatus` has a label, because the modal builds that key dynamically and the extractor cannot see it. `lib/mod-selection.test.ts` covers the key total shown above the mod list.
 
 - **`i18n`**: parity check: every non-plural English key must exist in every other locale.
 
@@ -107,7 +107,6 @@ pnpm add -D -w jsdom @testing-library/react @testing-library/jest-dom
 ```
 
 Then give `apps/desktop` a second Vitest project entry with `environment: 'jsdom'` and an `include` of `src/renderer/**/*.test.tsx`, leaving the Node project for `src/main/**`. Until then, keep renderer logic in stores and `lib/` modules where it can be tested, which is why the selected-key total lives in `lib/mod-selection.ts` rather than inside `ModList`.
-
 
 ## Writing new tests
 

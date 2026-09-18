@@ -16,7 +16,6 @@ export {
   isGameToken,
   findTargetListProblem,
   findTargetListIssue,
-
   LANGUAGE_LABEL_MAX,
   isLanguageLabel,
   LANGUAGE_DISPLAY_NAMES,
@@ -38,7 +37,6 @@ export type {
   TargetListProblem,
   TargetCheckContext
 } from './languages.js'
-
 
 export const LanguageCodeSchema = z.enum(LANGUAGE_CODES)
 

@@ -1,10 +1,4 @@
-import {
-  posixDirname,
-  resolveGeneratedMod,
-  scanMods,
-  sumByLanguage
-} from '@ptt/converter'
-
+import { posixDirname, resolveGeneratedMod, scanMods, sumByLanguage } from '@ptt/converter'
 import type { GeneratedModPaths, KeyReport, ScanOutput, ScannedMod } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
 import { writeKeyCsv } from '@ptt/report'

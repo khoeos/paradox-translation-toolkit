@@ -14,17 +14,10 @@ import {
   type TargetContent,
   type TranslationTarget
 } from '@ptt/shared'
-
-import {
-  TRANSLATE_DEFAULTS,
-  TRANSLATE_LIMITS,
-  TRANSLATE_PROVIDERS
-} from '@ptt/translate/defaults'
-
 import type { TranslateProvider } from '@ptt/translate'
+import { TRANSLATE_DEFAULTS, TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate/defaults'
 
 import { log } from '../log.js'
-
 import { canonicalizeCasePreserving } from './path-policy.js'
 
 const GameIdSchema = z.enum(getAllGameIds())
@@ -80,7 +73,6 @@ export interface TranslateSettings {
   timeout: number
 }
 
-
 export type SettingsPatch = {
   [K in keyof SettingsSchema]?: SettingsSchema[K] | undefined
 }
@@ -130,7 +122,6 @@ const boundedZod = (limits: { min: number; max: number }): z.ZodNumber =>
   z.number().int().min(limits.min).max(limits.max)
 
 export const SettingsSchemaZod = z.object({
-
   lastModFolder: z.partialRecord(GameIdSchema, z.string()),
   lastOutputFolder: z.partialRecord(GameIdSchema, z.string()),
   gamePath: z.partialRecord(GameIdSchema, z.string()),
@@ -160,7 +151,6 @@ export const SettingsSchemaZod = z.object({
     timeout: boundedZod(TRANSLATE_LIMITS.timeout)
   })
 })
-
 
 interface LegacyKeyStore {
   delete(key: string): void
@@ -391,9 +381,11 @@ export const reconcileSettingsState = (raw: SettingsSchema): SettingsReconciliat
   }
 
   const knownPathsWasArray = Array.isArray(raw.knownPaths)
-  const { entries: filteredKnownPaths, droppedCount, migratedCount } = filterKnownPaths(
-    raw.knownPaths
-  )
+  const {
+    entries: filteredKnownPaths,
+    droppedCount,
+    migratedCount
+  } = filterKnownPaths(raw.knownPaths)
   const mergedCount = knownPathsWasArray
     ? raw.knownPaths.length - droppedCount - filteredKnownPaths.length
     : 0

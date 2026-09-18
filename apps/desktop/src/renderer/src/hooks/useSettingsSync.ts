@@ -13,7 +13,6 @@ import { trpc } from '@renderer/lib/trpc'
 import type { BackendsByProvider, PersistedTranslate } from '@renderer/store/converter-form'
 import { backendsWith, useConverterFormStore } from '@renderer/store/converter-form'
 
-
 type SettingsPatch = Parameters<ReturnType<typeof trpc.settings.update.useMutation>['mutate']>[0]
 
 const PERSIST_DEBOUNCE_MS = 400
@@ -93,7 +92,6 @@ const TRANSLATE_KEYS = [
 export const translateChanged = (a: PersistedTranslate, b: PersistedTranslate): boolean =>
   TRANSLATE_KEYS.some(key => a[key] !== b[key])
 
-
 /**
  * Two-way sync between the form store and persisted settings:
  * - hydrate the form from settings on boot and on game switch,
@@ -145,7 +143,6 @@ export function useSettingsSync(): void {
     store.loadBackends(restored.translate, restored.backends)
     isHydrating.current = false
   }, [settingsQuery.data, gamesQuery.data])
-
 
   // Subscribe once.
   useEffect(() => {
@@ -226,7 +223,6 @@ export function useSettingsSync(): void {
       if (translateChanged(state.translate, prev.translate)) {
         patch.translate = toStoredTranslate(state.translate, state.backends)
       }
-
 
       if (Object.keys(patch).length > 0) {
         queuePatch(patch)

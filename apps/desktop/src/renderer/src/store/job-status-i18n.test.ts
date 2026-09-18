@@ -19,5 +19,4 @@ describe('modal.status labels', () => {
   it.each(STATUSES)('has a label for "%s"', status => {
     expect(labels[status], status).toBeTruthy()
   })
-
 })

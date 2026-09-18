@@ -45,7 +45,6 @@ export async function seedRunReport(
           created: { ru: ['a_l_russian.yml'] },
           errors: []
         }
-
       ]
     },
     ...over

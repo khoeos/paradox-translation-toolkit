@@ -15,7 +15,6 @@ import {
   type TranslationTarget
 } from '@ptt/shared'
 
-
 import { publicProcedure, router } from '../trpc.js'
 import { TranslateConfigSchema, toTranslateConfig } from './translate.js'
 
@@ -53,7 +52,6 @@ const withTargetProblems = (input: TargetListInput, ctx: z.RefinementCtx): void 
   )
 }
 
-
 export const ScanModsInputSchema = z
   .object({
     gameId: GameIdSchema,
@@ -67,7 +65,6 @@ export const ScanModsInputSchema = z
     retranslateOwnKeys: z.boolean().optional()
   })
   .superRefine(withTargetProblems)
-
 
 export const ConvertInputSchema = z
   .object({
@@ -84,7 +81,6 @@ export const ConvertInputSchema = z
     retranslateOwnKeys: z.boolean().optional()
   })
   .superRefine(withTargetProblems)
-
 
 export const converterRouter = router({
   scanMods: publicProcedure.input(ScanModsInputSchema).mutation(({ ctx, input }) => {
