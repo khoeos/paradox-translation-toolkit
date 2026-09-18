@@ -2,7 +2,6 @@ import { runConvert, scanMods } from '@ptt/converter'
 import type { Cancellation, JobEvent, ProgressPort, TranslationMod } from '@ptt/converter'
 import { nodeFs } from '@ptt/fs-node'
 import { uniqueTargetLanguages } from '@ptt/shared'
-
 import type {
   ConvertMode,
   GameDefinition,
@@ -16,7 +15,6 @@ import { openTranslationMemory } from '@ptt/translate'
 import { createRunReportPort, createTranslationSetup } from './ports.js'
 
 interface ScanModsCommand {
-
   type: 'scan-mods'
   jobId: string
   rootDir: string
@@ -31,7 +29,6 @@ interface ScanModsCommand {
   detail?: boolean
   retranslateOwnKeys?: boolean
 }
-
 
 interface ConvertCommand {
   type: 'convert'

@@ -54,7 +54,10 @@ const readLauncherSettingsFile = async (path: string, fs: FsLike): Promise<strin
   }
 }
 
-export const readLauncherSettings = async (installDir: string, fs: FsLike): Promise<LauncherSettings | undefined> => {
+export const readLauncherSettings = async (
+  installDir: string,
+  fs: FsLike
+): Promise<LauncherSettings | undefined> => {
   for (const segments of LAUNCHER_SETTINGS_LOCATIONS) {
     const path = posixJoin(installDir, ...segments)
     const content = await readLauncherSettingsFile(path, fs)
@@ -82,7 +85,9 @@ export const expandGameDataPath = (
   if (expanded === '~' || expanded.startsWith('~/')) {
     expanded = home + expanded.slice(1)
   }
-  expanded = expanded.replaceAll('%USER_DOCUMENTS%', documentsPath).replaceAll('$LINUX_DATA_HOME', localDataHome)
+  expanded = expanded
+    .replaceAll('%USER_DOCUMENTS%', documentsPath)
+    .replaceAll('$LINUX_DATA_HOME', localDataHome)
   if (UNRESOLVED_TOKEN_PATTERN.test(expanded)) {
     return undefined
   }

@@ -7,7 +7,6 @@ import { normalizeTargetLanguage } from '@ptt/shared/languages'
 import type { TranslateConfig, TranslateProvider } from '@ptt/translate'
 import { TRANSLATE_DEFAULTS, PROVIDER_DEFAULTS } from '@ptt/translate/defaults'
 
-
 interface GameFormSnapshot {
   modFolder: string
   outputFolder: string
@@ -40,7 +39,6 @@ export const endpointFor = (
     model: PROVIDER_DEFAULTS[provider].model
   }
 
-
 interface ConverterFormState {
   selectedGameId: string | null
   modFolder: string
@@ -58,7 +56,6 @@ interface ConverterFormState {
   translate: PersistedTranslate
   backends: BackendsByProvider
   apiKey: string
-
 
   setGame: (gameId: string) => void
   loadGame: (gameId: string, snapshot: GameFormSnapshot) => void
@@ -111,8 +108,7 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
   backends: {},
   apiKey: '',
 
-  setGame:
- gameId => set({ selectedGameId: gameId, ...invalidateScan() }),
+  setGame: gameId => set({ selectedGameId: gameId, ...invalidateScan() }),
   loadGame: (gameId, snapshot) =>
     set(state => ({
       selectedGameId: gameId,
@@ -205,7 +201,6 @@ export const useConverterFormStore = create<ConverterFormState>(set => ({
       ...invalidateScan()
     })
 }))
-
 
 export function canRun(state: ConverterFormState): boolean {
   if (!state.selectedGameId) return false

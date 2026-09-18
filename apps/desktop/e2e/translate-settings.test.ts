@@ -1,5 +1,6 @@
-import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
+
+import { expect, test } from './fixtures'
 
 const PERSIST_FLUSH_MS = 900
 const LM_STUDIO = 'http://localhost:1234/v1'
@@ -15,8 +16,6 @@ const enableTranslation = async (page: Page): Promise<void> => {
   await label.click()
   await expect(page.locator('#translate-base-url')).toBeVisible()
 }
-
-
 
 test('keeps the backend configuration across a restart', async ({ launchApp }) => {
   const first = await launchApp()

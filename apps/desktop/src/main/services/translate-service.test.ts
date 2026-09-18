@@ -5,17 +5,19 @@ import { PROBE_MARKUP, PROBE_PLAIN, type TranslateConfig } from '@ptt/translate'
 
 import { TranslateService } from './translate-service.js'
 
-const answering = (translations: Record<string, string>): FetchLike => () =>
-  Promise.resolve({
-    ok: true,
-    status: 200,
-    statusText: 'OK',
-    text: () => Promise.resolve(''),
-    json: () =>
-      Promise.resolve({
-        choices: [{ message: { content: JSON.stringify({ translations }) } }]
-      })
-  })
+const answering =
+  (translations: Record<string, string>): FetchLike =>
+  () =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      text: () => Promise.resolve(''),
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify({ translations }) } }]
+        })
+    })
 
 const config: TranslateConfig & { targetLanguage: 'fr' } = {
   enabled: true,
@@ -66,7 +68,6 @@ describe('testProvider', () => {
     })
     expect(result.markupKept).toBe(false)
   })
-
 
   it('fails when nothing usable comes back for the plain probe', async () => {
     const result = await test({ 1: 'Gagnez £gold£ et $VALUE$ prestige' })

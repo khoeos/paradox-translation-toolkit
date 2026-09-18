@@ -65,7 +65,6 @@ export type JobEvent =
       done: number
     }
   | { type: 'translate-progress'; jobId: string; counters: TranslationProgress }
-
   | { type: 'convert-done'; jobId: string; output: ConversionOutput }
   | { type: 'cancelled'; jobId: string }
 

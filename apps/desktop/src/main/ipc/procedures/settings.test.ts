@@ -1,6 +1,5 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({ app: { getPath: vi.fn(() => '/tmp/ptt-test') } }))
@@ -86,7 +85,12 @@ describe('SettingsPatchSchema knownPaths', () => {
   it('rejects an entry with the kind field omitted', () => {
     const result = SettingsPatchSchema.safeParse({
       knownPaths: [
-        { path: '/mods/stellaris', gameId: 'stellaris', lastUsedAt: '2024-06-01T00:00:00.000Z', pinned: false }
+        {
+          path: '/mods/stellaris',
+          gameId: 'stellaris',
+          lastUsedAt: '2024-06-01T00:00:00.000Z',
+          pinned: false
+        }
       ]
     })
 
@@ -138,7 +142,9 @@ describe('assertAddableKnownPath', () => {
   })
 
   it('does not throw for an absolute path that does not currently exist', () => {
-    expect(() => assertAddableKnownPath(join(homedir(), 'mods', 'unplugged-drive-xyz'))).not.toThrow()
+    expect(() =>
+      assertAddableKnownPath(join(homedir(), 'mods', 'unplugged-drive-xyz'))
+    ).not.toThrow()
   })
 
   it('throws on a relative path', () => {

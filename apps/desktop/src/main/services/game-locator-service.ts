@@ -33,7 +33,14 @@ export class GameLocatorService {
     if (this.documentsPath === undefined) throw new Error('Documents folder is not available')
 
     const platform = toPlatform(process.platform)
-    const paths = await this.locate(game, platform, this.home, this.documentsPath, this.fs, this.registry)
+    const paths = await this.locate(
+      game,
+      platform,
+      this.home,
+      this.documentsPath,
+      this.fs,
+      this.registry
+    )
     return filterCriticalPaths(paths)
   }
 }

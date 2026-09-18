@@ -12,7 +12,10 @@ const REG_VALUE_LINE_PATTERN = /^\s+(.+?)\s{2,}REG_[A-Z_]+\s{2,}(.*)$/
 
 const regBinaryPath = (): string => `${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\reg.exe`
 
-export const parseRegQueryOutput = (singleKeyBlockStdout: string, valueName: string): string | undefined => {
+export const parseRegQueryOutput = (
+  singleKeyBlockStdout: string,
+  valueName: string
+): string | undefined => {
   let sawKeyHeader = false
   for (const line of singleKeyBlockStdout.split(/\r?\n/)) {
     if (REG_KEY_HEADER_PATTERN.test(line)) {

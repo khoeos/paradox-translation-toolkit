@@ -12,7 +12,6 @@ import {
 } from '@ptt/shared'
 import { TRANSLATE_LIMITS, TRANSLATE_PROVIDERS } from '@ptt/translate/defaults'
 
-
 import { isCriticalFolder } from '../../services/path-policy.js'
 import { KNOWN_PATH_KINDS } from '../../services/settings-service.js'
 import { publicProcedure, router } from '../trpc.js'
@@ -27,16 +26,12 @@ const bounded = (limits: { min: number; max: number }): z.ZodNumber =>
 const TranslateSettingsSchema = z.object({
   enabled: z.boolean(),
   provider: ProviderSchema,
-  backends: z.partialRecord(
-    ProviderSchema,
-    z.object({ baseUrl: z.string(), model: z.string() })
-  ),
+  backends: z.partialRecord(ProviderSchema, z.object({ baseUrl: z.string(), model: z.string() })),
   batchSize: bounded(TRANSLATE_LIMITS.batchSize),
   concurrency: bounded(TRANSLATE_LIMITS.concurrency),
   retries: bounded(TRANSLATE_LIMITS.retries),
   timeout: bounded(TRANSLATE_LIMITS.timeout)
 })
-
 
 export const SettingsPatchSchema = z
   .object({
@@ -57,7 +52,6 @@ export const SettingsPatchSchema = z
     userAllowedFolders: z.array(z.string()),
     translate: TranslateSettingsSchema,
     knownPaths: z.array(
-
       z.object({
         path: z.string(),
         gameId: GameIdSchema,

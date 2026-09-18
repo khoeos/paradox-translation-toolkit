@@ -50,10 +50,8 @@ export const test = base.extend<AppFixtures>({
       try {
         await app.context().tracing.stop(failed ? { path } : {})
         await app.close()
-      } catch {
-      }
+      } catch {}
     }
-
   },
 
   electronApp: async ({ launchApp }, use) => {

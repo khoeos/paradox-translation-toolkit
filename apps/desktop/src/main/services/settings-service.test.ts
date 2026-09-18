@@ -17,7 +17,6 @@ import { TRANSLATE_DEFAULTS } from '@ptt/translate/defaults'
 
 import {
   addKnownPathEntry,
-
   addKnownPathEntryOn,
   clearKnownPathEntries,
   DEFAULTS,
@@ -599,7 +598,12 @@ describe('togglePinKnownPathEntry', () => {
     const target = makeEntry({ path: '/mods/target', pinned: false })
     const other = makeEntry({ path: '/mods/other', pinned: false })
 
-    const result = togglePinKnownPathEntry([target, other], '/mods/target', 'stellaris', 'modFolder')
+    const result = togglePinKnownPathEntry(
+      [target, other],
+      '/mods/target',
+      'stellaris',
+      'modFolder'
+    )
 
     expect(result).toEqual([{ ...target, pinned: true }, other])
   })

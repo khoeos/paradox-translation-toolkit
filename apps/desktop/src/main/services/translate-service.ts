@@ -13,7 +13,6 @@ import {
   keptProbeMarkup
 } from '@ptt/translate'
 
-
 import { log } from '../log.js'
 
 export interface TestProviderResult {
@@ -24,7 +23,6 @@ export interface TestProviderResult {
   markupKept?: boolean
   error?: string
 }
-
 
 export interface TestProviderInput extends TranslateConfig {
   targetLanguage: LanguageCode
@@ -73,7 +71,6 @@ export class TranslateService {
         markupAnswer,
         markupKept: keptProbeMarkup(markupAnswer)
       }
-
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) }
     }

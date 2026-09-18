@@ -4,14 +4,27 @@ import { posixJoin, resolveGeneratedMod } from '@ptt/converter'
 import type { FsLike, GameDefinition, RegistryLike } from '@ptt/shared'
 
 import { findGogInstall } from './gog.js'
-import { expandGameDataPath, readLauncherSettings, resolveExecutablePath } from './launcher-settings.js'
+import {
+  expandGameDataPath,
+  readLauncherSettings,
+  resolveExecutablePath
+} from './launcher-settings.js'
 import type { LauncherSettings } from './launcher-settings.js'
 import type { Platform } from './platform.js'
-import { findGameInstallDir, findLibraryFolders, findSteamRoot, findWorkshopContentDir } from './steam.js'
+import {
+  findGameInstallDir,
+  findLibraryFolders,
+  findSteamRoot,
+  findWorkshopContentDir
+} from './steam.js'
 
 export const LOCATE_SOURCE_TIMEOUT_MS = 6_000
 
-const withTimeout = async <T>(operation: Promise<T>, fallback: T, timeoutMs: number): Promise<T> => {
+const withTimeout = async <T>(
+  operation: Promise<T>,
+  fallback: T,
+  timeoutMs: number
+): Promise<T> => {
   let timer: ReturnType<typeof setTimeout> | undefined
   const timeout = new Promise<T>(resolve => {
     timer = setTimeout(() => resolve(fallback), timeoutMs)
@@ -52,13 +65,20 @@ export const locateGamePaths = async (
   let workshopContentPaths: string[] = []
   if (game.steamAppId !== undefined) {
     installDir = await tryFindGameInstallDir(steamLibraries, game.steamAppId, fs, sourceTimeoutMs)
-    workshopContentPaths = await tryFindWorkshopContentDir(steamLibraries, game.steamAppId, fs, sourceTimeoutMs)
+    workshopContentPaths = await tryFindWorkshopContentDir(
+      steamLibraries,
+      game.steamAppId,
+      fs,
+      sourceTimeoutMs
+    )
   }
 
   const gogInstall = await tryFindGogInstall(game.id, platform, registry, sourceTimeoutMs)
 
   const launcherSettings =
-    installDir !== undefined ? await tryReadLauncherSettings(installDir, fs, sourceTimeoutMs) : undefined
+    installDir !== undefined
+      ? await tryReadLauncherSettings(installDir, fs, sourceTimeoutMs)
+      : undefined
 
   const localDataHome = posixJoin(home, '.local', 'share')
   const expandedGameDataPath =
@@ -66,7 +86,9 @@ export const locateGamePaths = async (
       ? expandGameDataPath(launcherSettings.gameDataPath, home, documentsPath, localDataHome)
       : undefined
   const userModsFolderCandidate =
-    expandedGameDataPath !== undefined ? posixJoin(expandedGameDataPath, 'mod') : fallbackUserModsFolder
+    expandedGameDataPath !== undefined
+      ? posixJoin(expandedGameDataPath, 'mod')
+      : fallbackUserModsFolder
   const userModsFolder = (await directoryExists(userModsFolderCandidate, fs, sourceTimeoutMs))
     ? userModsFolderCandidate
     : undefined

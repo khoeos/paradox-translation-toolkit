@@ -277,12 +277,9 @@ describe('resolveTargets agrees with the gate the front ends run', () => {
     }
   )
 
-  it.each(rejected.map(list => [list]))(
-    'never lets a rejected list through silently: %j',
-    list => {
-      expect(findTargetListIssue(list, tokens, context)).toBeDefined()
-    }
-  )
+  it.each(rejected.map(list => [list]))('never lets a rejected list through silently: %j', list => {
+    expect(findTargetListIssue(list, tokens, context)).toBeDefined()
+  })
 
   it('drops the source language itself, which the gate allows through', () => {
     const list: TranslationTarget[] = [{ language: 'en', fileToken: 'english' }]

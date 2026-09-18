@@ -470,7 +470,10 @@ describe('scanMods - options that reach the key plan', () => {
     ])
   }
 
-  const missingFor = async (over: Partial<ScanModsOptions>, files = collection): Promise<number> => {
+  const missingFor = async (
+    over: Partial<ScanModsOptions>,
+    files = collection
+  ): Promise<number> => {
     const output = await scanMods(base(over), new MemoryFs(files))
     return output.mods.find(m => m.id === 'b')?.missingKeys.ru ?? -1
   }

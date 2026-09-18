@@ -1,6 +1,6 @@
-import type { AppRouter } from '@main/ipc/trpc-router'
 import type { inferRouterOutputs } from '@trpc/server'
 
+import type { AppRouter } from '@main/ipc/trpc-router'
 import { formatPathParts, TRUNCATION_ELLIPSIS } from '@renderer/lib/format-path'
 import type { KnownPathKind } from '@renderer/lib/known-paths'
 

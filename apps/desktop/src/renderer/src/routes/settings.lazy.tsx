@@ -15,7 +15,6 @@ import { DISCORD_INVITE_URL } from '@renderer/lib/links'
 import { trpc } from '@renderer/lib/trpc'
 import { updaterStatusKey } from '@renderer/lib/updater-status'
 
-
 const THEMES = [
   { value: 'system' as const, key: 'settings.themes.system' },
   { value: 'light' as const, key: 'settings.themes.light' },
@@ -265,7 +264,6 @@ function UpdaterCard() {
   if (!state || !settings) return null
 
   const statusLine = t(`updater.statuses.${updaterStatusKey(state.status)}`, {
-
     version: state.latestVersion ?? '',
     percent: state.downloadProgress,
     message: state.errorMessage ?? ''

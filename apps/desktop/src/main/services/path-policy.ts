@@ -5,7 +5,6 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { posixSplit } from '@ptt/converter/path'
 import { getAllGames } from '@ptt/games'
 
-
 function resolveExistingAncestor(resolved: string): string {
   let current = resolved
   const trailingSegments: string[] = []
@@ -33,7 +32,6 @@ export function canonicalizeCasePreserving(p: string): string {
   const real = resolveExistingAncestor(resolved)
   return real.replaceAll('\\', '/')
 }
-
 
 let allowedTokensCache: ReadonlySet<string> | null = null
 

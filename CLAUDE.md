@@ -48,7 +48,7 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   from the preload import graph ships in the preload bundle.
 - The mod-level pipeline (`scanMods`, `runConvert`) lives in `converter` and takes a
   `ProgressPort` : `apps/desktop`'s worker and `apps/cli` call the same functions, which is
-  what stops the two drifting. Everything *around* the pipeline is shared the same way, through
+  what stops the two drifting. Everything _around_ the pipeline is shared the same way, through
   two more injected ports declared in `converter/src/types.ts` : `TranslationSetupPort` (opens the
   memory and the engine, reports glossary problems, flushes) and `RunReportPort` (writes the run
   report). `runConvert` owns the order those steps run in ; each front end only supplies the
@@ -64,17 +64,18 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   `UpdaterEvent` / `isUpdaterEvent`, `@ptt/translate/defaults` for the settings bounds and
   `REFUSAL_REASONS`.
 
- A value import of a package root pulls zod and the whole pipeline into the
-  renderer bundle (check with
-  `grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
-  `@ptt/converter/retranslate` used to exist for the same reason and **has been removed** : the
-  `retranslateOwnKeysHasNoEffect` guard was pushed down into `scanMods` (next to the one
-  `runConvert` already applied), so neither front end computes it and nothing imported the
-  subexport any more. `src/retranslate.ts` stays, imported relatively by `run.ts` and
-  `scan-mods.ts`. Re-declare the subexport if a zod-free consumer ever needs the predicate again.
+A value import of a package root pulls zod and the whole pipeline into the
+renderer bundle (check with
+`grep -c ZodError apps/desktop/out/renderer/assets/index-*.js` after a build).
+`@ptt/converter/retranslate` used to exist for the same reason and **has been removed** : the
+`retranslateOwnKeysHasNoEffect` guard was pushed down into `scanMods` (next to the one
+`runConvert` already applied), so neither front end computes it and nothing imported the
+subexport any more. `src/retranslate.ts` stays, imported relatively by `run.ts` and
+`scan-mods.ts`. Re-declare the subexport if a zod-free consumer ever needs the predicate again.
 
- `@ptt/report` has a single `.` export and is therefore
-  type-imported only from the renderer ; a value import of it would pull zod in.
+`@ptt/report` has a single `.` export and is therefore
+type-imported only from the renderer ; a value import of it would pull zod in.
+
 - `packages/games/src/index.ts` `builtInGames` order = UI tab order (`builtInGames` ->
   `getGameSummaries()` -> `games.list` -> `GameTabs`, no sort on the path). A new
   game also needs its tab image wired in `GameTabs.tsx`.
@@ -132,7 +133,7 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   `grep -rnE "\bas [A-Za-z_{(<]" packages apps --include=*.ts --include=*.tsx | grep -v dist-deploy | grep -v packages/ui/ | grep -v "as const" | grep -vE "/(test|e2e)/|\.test\.ts"`
   (it also matches prose containing " as "; the code lines are the ones listed above).
   `packages/i18n/src/index.ts` used to hold an eighth, `(VALID_UI_LANGUAGES as readonly
-  string[]).includes(value)`, which is precisely what the `TUPLE.some(...)` rule above exists to
+string[]).includes(value)`, which is precisely what the `TUPLE.some(...)` rule above exists to
   replace ; it now uses `some`. Add a one-line reason at any site that is not self-evident.
 
   How the count got down here : the custom-target work widened `TranslationTarget.language` from
@@ -158,7 +159,7 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
 
 - `packages/ui` ships 21 shadcn primitives (`ls packages/ui/src/components/`), 2
   with no consumer yet (`dropdown-menu`, `toggle`).
- Import `@ptt/ui/components/<kebab-name>` (no root `.`
+  Import `@ptt/ui/components/<kebab-name>` (no root `.`
   export) and `cn` from `@ptt/ui/lib/utils`. A missing primitive is installed
   (shadcn MCP in `.mcp.json`, or `pnpm dlx shadcn add`), never pasted.
 - Never hand-roll path strings : `@ptt/converter` exports `posixJoin`,
@@ -254,6 +255,7 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
   norm, keep them. There is no `@/*` alias, yet `apps/desktop/components.json`
   advertises `@/components` : every app-level import the shadcn CLI writes has to be
   re-pointed to `@renderer/*`. Cross-package, import a declared `exports` subpath.
+
 - Tests are always `*.test.ts` (no `.spec.`, no `__tests__/`) ; location is
   per-workspace : `packages/*` use a `test/` sibling of `src/`,
   `apps/desktop` and `apps/cli` colocate as `src/**/*.test.ts`. Every workspace with a

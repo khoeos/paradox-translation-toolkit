@@ -6,7 +6,8 @@ export const countPathGroupRows = (groups: PathGroups): number =>
 const isActiveRowIndex = (activeIndex: number | null): activeIndex is number =>
   activeIndex !== null && Number.isInteger(activeIndex)
 
-const wrapRowIndex = (index: number, rowCount: number): number => ((index % rowCount) + rowCount) % rowCount
+const wrapRowIndex = (index: number, rowCount: number): number =>
+  ((index % rowCount) + rowCount) % rowCount
 
 export const getNextRowIndex = (groups: PathGroups, activeIndex: number | null): number | null => {
   const rowCount = countPathGroupRows(groups)

@@ -86,7 +86,6 @@ Get the latest installer from the [release page](https://github.com/khoeos/parad
 | Linux    | `.AppImage` or `.deb`                     | Unsigned, which costs nothing here. Updates in place, the `.deb` asks for your password to install.    |
 | macOS    | `.dmg`                                    | Unsigned. Gatekeeper blocks the first launch, and updates have to be downloaded and installed by hand. |
 
-
 > **Auto-update status**: Working on Windows and Linux, unsupported on macOs, you need to update manually
 
 ## How to use

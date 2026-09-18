@@ -2,7 +2,6 @@ import { create } from 'zustand'
 
 import type { UpdaterEvent, UpdaterSnapshot } from '@ptt/shared/updater'
 
-
 export { isUpdaterEvent } from '@ptt/shared/updater'
 export type { UpdaterEvent, UpdaterStatus } from '@ptt/shared/updater'
 
@@ -12,7 +11,6 @@ interface UpdaterUiState extends UpdaterSnapshot {
   hydrateFromState: (state: UpdaterSnapshot) => void
   dismiss: () => void
 }
-
 
 export const isUpdateBannerVisible = (
   state: Pick<UpdaterUiState, 'status' | 'dismissed'>
@@ -63,4 +61,3 @@ export const useUpdaterStore = create<UpdaterUiState>(set => ({
 
   dismiss: () => set({ dismissed: true })
 }))
-

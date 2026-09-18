@@ -10,12 +10,11 @@ import { Toaster } from '@ptt/ui/components/sonner'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ThemeProvider } from './components/ThemeProvider'
 import { createQueryClient } from './lib/query-client'
+import { TOAST_DURATION_MS } from './lib/toast'
 import { trpc, trpcClient } from './lib/trpc'
 import { router } from './router'
-import { TOAST_DURATION_MS } from './lib/toast'
 
 function App() {
-
   const [queryClient] = useState(() => createQueryClient())
   return (
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
@@ -25,7 +24,6 @@ function App() {
             <RouterProvider router={router} />
           </ErrorBoundary>
           <Toaster duration={TOAST_DURATION_MS} closeButton />
-
         </ThemeProvider>
       </QueryClientProvider>
     </trpc.Provider>

@@ -10,15 +10,12 @@ export type {
   RefusalReason,
   Refusal,
   Glossary,
-
   GlossaryStats,
   GlossaryReport,
   GlossarySkipReason
 } from './types.js'
 export { TRANSLATE_PROVIDERS, REFUSAL_REASONS } from './types.js'
 export { PROBE_PLAIN, PROBE_MARKUP, PROBE_TEXTS, keptProbeMarkup } from './probe.js'
-
-
 
 export {
   PROVIDER_DEFAULTS,

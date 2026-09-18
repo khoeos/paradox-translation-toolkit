@@ -1,10 +1,11 @@
 import { posixNormalize } from '@ptt/converter'
 import type { RegistryLike } from '@ptt/shared'
+
 import type { Platform } from './platform.js'
 
 const GOG_APP_IDS: Partial<Record<string, string>> = {
   stellaris: '1508702879',
-  imperator: '2131232214',
+  imperator: '2131232214'
 }
 
 const readGogPath = async (registry: RegistryLike, appId: string, hive: 'HKCU' | 'HKLM') => {

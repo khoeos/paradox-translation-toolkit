@@ -85,12 +85,7 @@ describe('getPreviousRowIndex', () => {
 
 describe('index bounds property', () => {
   const rowCount = countPathGroupRows(MANY_ROWS_GROUPS)
-  const sweptIndices = [
-    ...Array.from({ length: rowCount + 21 }, (_, i) => i - 10),
-    1.5,
-    -1.5,
-    NaN
-  ]
+  const sweptIndices = [...Array.from({ length: rowCount + 21 }, (_, i) => i - 10), 1.5, -1.5, NaN]
 
   const isNullOrInBounds = (index: number | null): boolean =>
     index === null || (Number.isInteger(index) && index >= 0 && index < rowCount)

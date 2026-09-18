@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import en from '@ptt/i18n/locales/en'
 
-import {
-  getRefusalReasonLabel,
-  KNOWN_REFUSAL_REASONS,
-  type Translate
-} from './refusal-reasons.js'
-
+import { getRefusalReasonLabel, KNOWN_REFUSAL_REASONS, type Translate } from './refusal-reasons.js'
 
 const t: Translate = (key, options) => {
   const entries = Object.entries(options)
@@ -29,12 +24,10 @@ describe('getRefusalReasonLabel', () => {
   })
 
   it.each(KNOWN_REFUSAL_REASONS)('has a non-empty extracted i18n value for %s', reason => {
-
     expect(reasonLabels[reason], reason).toBeTruthy()
   })
 
   it.each(KNOWN_REFUSAL_REASONS)('maps %s to its own i18n key', reason => {
-
     expect(getRefusalReasonLabel(t, reason)).toBe(`runs.report.refusals.reasons.${reason}`)
   })
 

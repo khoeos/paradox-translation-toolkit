@@ -5,7 +5,6 @@ import { posixDirname } from '@ptt/converter/path'
 
 import { formatPath } from '@renderer/lib/format-path'
 
-
 interface VirtualizedFileListProps {
   files: string[]
   onPick: (dir: string) => void

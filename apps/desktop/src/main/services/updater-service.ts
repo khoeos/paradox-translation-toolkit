@@ -1,6 +1,5 @@
 import { is } from '@electron-toolkit/utils'
 import { app, shell } from 'electron'
-
 import electronUpdater from 'electron-updater'
 import { join } from 'node:path'
 
@@ -8,9 +7,6 @@ import { IPC_CHANNELS } from '@ptt/shared'
 import type { UpdaterEvent, UpdaterSnapshot } from '@ptt/shared/updater'
 
 import { broadcastToWindows } from '../ipc/bridge.js'
-
-
-
 import {
   getLinuxPackageKind,
   isAutoUpdateSupported,
@@ -27,7 +23,6 @@ export interface UpdaterState extends UpdaterSnapshot {
   currentVersion: string
   requiresElevatedInstall: boolean
 }
-
 
 export class UpdaterService {
   private state: UpdaterState
@@ -157,7 +152,6 @@ export class UpdaterService {
   private broadcast(event: UpdaterEvent): void {
     broadcastToWindows(IPC_CHANNELS.updaterEvent, event)
   }
-
 }
 
 function normalizeReleaseNotes(

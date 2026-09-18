@@ -93,7 +93,11 @@ export function createRunReportPort(inputs: RunReportPortInputs): RunReportPort 
 
   return {
     write: facts =>
-      writeRunReport(runReportsDir(userDataPath), buildRunReport(toReportInputs(inputs, facts)), nodeFs)
+      writeRunReport(
+        runReportsDir(userDataPath),
+        buildRunReport(toReportInputs(inputs, facts)),
+        nodeFs
+      )
   }
 }
 

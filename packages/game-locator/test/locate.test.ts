@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import type { FsLike, RegistryHive, RegistryLike } from '@ptt/shared'
+
 import { MemoryFs } from '@ptt/converter/test/memory-fs'
 import { getGame } from '@ptt/games'
+import type { FsLike, RegistryHive, RegistryLike } from '@ptt/shared'
 
 import { locateGamePaths } from '../src/locate.js'
 
@@ -16,7 +17,8 @@ const acfContent = (installDir: string): string =>
   ['"AppState"', '{', `\t"installdir"\t\t"${installDir}"`, '}'].join('\n')
 
 const createFakeRegistry = (values: Partial<Record<string, string | undefined>>): RegistryLike => ({
-  readValue: async (hive: RegistryHive, key: string, name: string) => values[`${hive}:${key}:${name}`]
+  readValue: async (hive: RegistryHive, key: string, name: string) =>
+    values[`${hive}:${key}:${name}`]
 })
 
 const throwingRegistry: RegistryLike = {
@@ -69,11 +71,20 @@ describe('locateGamePaths', () => {
       'HKCU:Software\\GOG.com\\Games\\1508702879:path': 'C:\\Games\\Stellaris GOG'
     })
 
-    const result = await locateGamePaths(stellaris, 'win32', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'win32',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.steamLibraries).toEqual(['C:/Games/Steam'])
     expect(result.installDir).toBe('C:/Games/Steam/steamapps/common/Stellaris')
-    expect(result.workshopContentPaths).toEqual(['C:/Games/Steam/steamapps/workshop/content/281990'])
+    expect(result.workshopContentPaths).toEqual([
+      'C:/Games/Steam/steamapps/workshop/content/281990'
+    ])
     expect(result.gogInstall).toBe('C:/Games/Stellaris GOG')
     expect(result.userModsFolder).toBe('/home/user/Documents/Paradox Interactive/Stellaris/mod')
   })
@@ -81,7 +92,8 @@ describe('locateGamePaths', () => {
   it('resolves steam sources but no GOG on macOS, without querying the registry', async () => {
     const fs = new MemoryFs({
       '/home/user/Library/Application Support/Steam/steamapps/libraryfolders.vdf': '',
-      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf': acfContent('Stellaris'),
+      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf':
+        acfContent('Stellaris'),
       '/home/user/Library/Application Support/Steam/steamapps/common/Stellaris': '',
       '/home/user/Library/Application Support/Steam/steamapps/workshop/content/281990': '',
       '/home/user/Documents/Paradox Interactive/Stellaris/mod/some_existing_mod.mod': ''
@@ -94,11 +106,20 @@ describe('locateGamePaths', () => {
       }
     }
 
-    const result = await locateGamePaths(stellaris, 'darwin', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'darwin',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.gogInstall).toBeUndefined()
     expect(registryCalls).toBe(0)
-    expect(result.installDir).toBe('/home/user/Library/Application Support/Steam/steamapps/common/Stellaris')
+    expect(result.installDir).toBe(
+      '/home/user/Library/Application Support/Steam/steamapps/common/Stellaris'
+    )
     expect(result.workshopContentPaths).toEqual([
       '/home/user/Library/Application Support/Steam/steamapps/workshop/content/281990'
     ])
@@ -110,7 +131,14 @@ describe('locateGamePaths', () => {
     const fs = new MemoryFs({})
     const registry = createFakeRegistry({})
 
-    const result = await locateGamePaths(stellaris, 'linux', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'linux',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.steamLibraries).toEqual([])
     expect(result.installDir).toBeUndefined()
@@ -154,11 +182,20 @@ describe('locateGamePaths', () => {
       'HKCU:Software\\Valve\\Steam:SteamPath': 'C:\\Games\\Steam'
     })
 
-    const result = await locateGamePaths(stellaris, 'win32', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'win32',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.steamLibraries).toEqual(['C:/Games/Steam'])
     expect(result.installDir).toBe('C:/Games/Steam/steamapps/common/Stellaris')
-    expect(result.workshopContentPaths).toEqual(['C:/Games/Steam/steamapps/workshop/content/281990'])
+    expect(result.workshopContentPaths).toEqual([
+      'C:/Games/Steam/steamapps/workshop/content/281990'
+    ])
     expect(result.userModsFolder).toBeUndefined()
   })
 
@@ -181,7 +218,9 @@ describe('locateGamePaths', () => {
   })
 
   it('resolves within a bounded time instead of hanging forever when registry.readValue never settles', async () => {
-    const hangingRegistry: RegistryLike = { readValue: () => new Promise<string | undefined>(() => {}) }
+    const hangingRegistry: RegistryLike = {
+      readValue: () => new Promise<string | undefined>(() => {})
+    }
 
     const result = await locateGamePaths(
       stellaris,
@@ -242,17 +281,27 @@ describe('locateGamePaths', () => {
     })
     const fs = new MemoryFs({
       '/home/user/Library/Application Support/Steam/steamapps/libraryfolders.vdf': '',
-      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf': acfContent('Stellaris'),
+      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf':
+        acfContent('Stellaris'),
       [`${installDir}/launcher-settings.json`]: launcherSettings,
       [`${installDir}/stellaris.app/Contents/MacOS/stellaris`]: '',
       '/home/user/Documents/Paradox Interactive/Stellaris Renamed/mod/some_existing_mod.mod': ''
     })
     const registry = createFakeRegistry({})
 
-    const result = await locateGamePaths(stellaris, 'darwin', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'darwin',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.installDir).toBe(installDir)
-    expect(result.userModsFolder).toBe('/home/user/Documents/Paradox Interactive/Stellaris Renamed/mod')
+    expect(result.userModsFolder).toBe(
+      '/home/user/Documents/Paradox Interactive/Stellaris Renamed/mod'
+    )
     expect(result.declaredGameId).toBe('stellaris')
     expect(result.executablePath).toBe(`${installDir}/stellaris.app/Contents/MacOS/stellaris`)
   })
@@ -266,13 +315,21 @@ describe('locateGamePaths', () => {
     })
     const fs = new MemoryFs({
       '/home/user/Library/Application Support/Steam/steamapps/libraryfolders.vdf': '',
-      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf': acfContent('Stellaris'),
+      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf':
+        acfContent('Stellaris'),
       [`${installDir}/launcher-settings.json`]: launcherSettings,
       '/home/user/Documents/Paradox Interactive/Stellaris/mod/some_existing_mod.mod': ''
     })
     const registry = createFakeRegistry({})
 
-    const result = await locateGamePaths(stellaris, 'darwin', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'darwin',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.installDir).toBe(installDir)
     expect(result.executablePath).toBeUndefined()
@@ -283,13 +340,21 @@ describe('locateGamePaths', () => {
     const installDir = '/home/user/Library/Application Support/Steam/steamapps/common/Stellaris'
     const fs = new MemoryFs({
       '/home/user/Library/Application Support/Steam/steamapps/libraryfolders.vdf': '',
-      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf': acfContent('Stellaris'),
+      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf':
+        acfContent('Stellaris'),
       [installDir]: '',
       '/home/user/Documents/Paradox Interactive/Stellaris/mod/some_existing_mod.mod': ''
     })
     const registry = createFakeRegistry({})
 
-    const result = await locateGamePaths(stellaris, 'darwin', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'darwin',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.installDir).toBe(installDir)
     expect(result.declaredGameId).toBeUndefined()
@@ -306,13 +371,21 @@ describe('locateGamePaths', () => {
     })
     const fs = new MemoryFs({
       '/home/user/Library/Application Support/Steam/steamapps/libraryfolders.vdf': '',
-      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf': acfContent('Stellaris'),
+      '/home/user/Library/Application Support/Steam/steamapps/appmanifest_281990.acf':
+        acfContent('Stellaris'),
       [`${installDir}/launcher-settings.json`]: launcherSettings,
       '/home/user/Documents/Paradox Interactive/Stellaris/mod/some_existing_mod.mod': ''
     })
     const registry = createFakeRegistry({})
 
-    const result = await locateGamePaths(stellaris, 'darwin', '/home/user', '/home/user/Documents', fs, registry)
+    const result = await locateGamePaths(
+      stellaris,
+      'darwin',
+      '/home/user',
+      '/home/user/Documents',
+      fs,
+      registry
+    )
 
     expect(result.userModsFolder).toBe('/home/user/Documents/Paradox Interactive/Stellaris/mod')
     expect(result.declaredGameId).toBe('stellaris')

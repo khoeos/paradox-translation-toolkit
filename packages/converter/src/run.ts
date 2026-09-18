@@ -22,11 +22,8 @@ import { discoverMods } from './discover-mods.js'
 import { dropOurOwnMod, readGeneratedMod } from './generated-mod.js'
 import { planMod } from './key-plan.js'
 import { posixJoin } from './path.js'
-import { IDENTICAL_REASON, NOT_ATTEMPTED_REASON } from './reasons.js'
-
 import type { JobEvent, ProgressPort, TranslationProgress } from './progress.js'
-
-
+import { IDENTICAL_REASON, NOT_ATTEMPTED_REASON } from './reasons.js'
 import { retranslateOwnKeysHasNoEffect } from './retranslate.js'
 import { describeInPlaceShadowing, resolveTargets } from './target.js'
 import type { ResolvedTarget } from './target.js'
@@ -97,10 +94,11 @@ export async function runConvert(
   port: ProgressPort
 ): Promise<ConvertRunResult> {
   const startedAt = Date.now()
-  const setup = (await options.translationSetup?.open({
-    sourceLanguage: options.sourceLanguage,
-    targetLanguages: uniqueTargetLanguages(normalizeTargets(options.targets))
-  })) ?? {}
+  const setup =
+    (await options.translationSetup?.open({
+      sourceLanguage: options.sourceLanguage,
+      targetLanguages: uniqueTargetLanguages(normalizeTargets(options.targets))
+    })) ?? {}
 
   for (const message of setup.glossaryProblems ?? []) {
     port.emit({ type: 'log', jobId: options.jobId, severity: 'warning', message })
@@ -339,7 +337,6 @@ export const settledCount = (counters: TranslationProgress): number =>
   counters.translated + counters.cached + counters.failed
 
 export function collectUntranslated(
-
   plan: ModPlan,
   mod: ModFolder,
   language: string,
@@ -368,7 +365,6 @@ export function collectUntranslated(
       }
       if (response.trim() === value.trim()) {
         out.push({ ...base, reason: IDENTICAL_REASON, identicalToSource: true })
-
       }
     }
   }
@@ -411,7 +407,6 @@ async function translateMod(
       total: new Set(values).size,
       done: settledCount(engine.getCounters())
     })
-
 
     let results = new Map<string, string>()
     try {

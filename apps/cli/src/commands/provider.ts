@@ -2,13 +2,11 @@ import { nodeFetch } from '@ptt/fs-node'
 import { getLanguageDisplayName } from '@ptt/shared'
 import { PROBE_TEXTS, createProvider } from '@ptt/translate'
 
-
 import type { Args } from '../args.js'
 import type { CliOptions } from '../options.js'
 import { dim, facts, green, section, yellow } from '../output.js'
 
 const KEY_PREVIEW_CHARS = 4
-
 
 export async function commandProvider(options: CliOptions, args: Args): Promise<void> {
   const config = options.translate

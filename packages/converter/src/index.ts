@@ -25,7 +25,6 @@ export type {
   RunReportPort,
   RunReportFacts,
   KeyPlanOptions,
-
   ScannedMod,
   ScanTotals,
   ScanOutput,
@@ -115,7 +114,6 @@ export {
   runConvert,
   collectUntranslated,
   settledCount,
-
   type Cancellation,
   type ConvertRunOptions,
   type ConvertRunResult,

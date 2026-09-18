@@ -19,7 +19,10 @@ const nonEmpty = (value: string | undefined): string | undefined => {
 
 const toPosixNormalized = (value: string): string => posix.normalize(value.replaceAll('\\', '/'))
 
-const resolveWindowsDocumentsPath = async (registry: RegistryLike, home: string): Promise<string> => {
+const resolveWindowsDocumentsPath = async (
+  registry: RegistryLike,
+  home: string
+): Promise<string> => {
   const fromShellFolders = nonEmpty(
     await registry.readValue('HKCU', SHELL_FOLDERS_KEY, PERSONAL_VALUE_NAME)
   )

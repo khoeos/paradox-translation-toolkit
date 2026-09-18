@@ -54,7 +54,10 @@ export function KnownPathRow({
         aria-pressed={pinned}
         className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors duration-[120ms] ease-out outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/30"
       >
-        <Star aria-hidden="true" className={cn('size-3.5', pinned ? 'fill-primary text-primary' : '')} />
+        <Star
+          aria-hidden="true"
+          className={cn('size-3.5', pinned ? 'fill-primary text-primary' : '')}
+        />
       </button>
       <div className="grid min-w-0 flex-1 gap-0.5">
         <span

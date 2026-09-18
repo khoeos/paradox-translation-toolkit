@@ -16,7 +16,9 @@ describe('parseRegQueryOutput', () => {
   })
 
   it('reads a different value from the same block', () => {
-    expect(parseRegQueryOutput(STEAM_OUTPUT, 'SteamExe')).toBe('C:/Program Files (x86)/Steam/steam.exe')
+    expect(parseRegQueryOutput(STEAM_OUTPUT, 'SteamExe')).toBe(
+      'C:/Program Files (x86)/Steam/steam.exe'
+    )
   })
 
   it('reads a REG_EXPAND_SZ value', () => {
@@ -76,13 +78,19 @@ HKEY_CURRENT_USER\\Software\\Example
 
 describe.runIf(process.platform !== 'win32')('nodeRegistry.readValue - non-Windows', () => {
   it('returns undefined without spawning a process', async () => {
-    expect(await nodeRegistry.readValue('HKCU', 'Software\\Valve\\Steam', 'SteamPath')).toBeUndefined()
+    expect(
+      await nodeRegistry.readValue('HKCU', 'Software\\Valve\\Steam', 'SteamPath')
+    ).toBeUndefined()
   })
 })
 
 describe.runIf(process.platform === 'win32')('nodeRegistry.readValue - Windows', () => {
   it('reads a value that exists on every Windows machine', async () => {
-    const value = await nodeRegistry.readValue('HKLM', 'SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion', 'ProductName')
+    const value = await nodeRegistry.readValue(
+      'HKLM',
+      'SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion',
+      'ProductName'
+    )
     expect(typeof value).toBe('string')
   })
 })

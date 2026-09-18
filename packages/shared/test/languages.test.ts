@@ -6,7 +6,6 @@ import {
   describeTargetListProblem,
   findTargetListIssue,
   findTargetListProblem,
-
   gameTokenOwner,
   getLanguageDisplayName,
   getTargetLanguageCode,
