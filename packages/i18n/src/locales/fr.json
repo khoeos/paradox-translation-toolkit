@@ -355,7 +355,7 @@
       "filters": {
         "all": "Tous",
         "allGames": "Tous les jeux",
-        "clean": "Propres",
+        "clean": "Valides",
         "issues": "Avec problèmes",
         "searchPlaceholder": "Rechercher un jeu, un mode ou une langue…"
       },
@@ -503,7 +503,7 @@
         "empty": "Aucun mod ne correspond à ce filtre.",
         "filters": {
           "all": "Tous",
-          "clean": "Propres",
+          "clean": "Valides",
           "failed": "Fichiers bloqués",
           "issues": "Avec problèmes"
         },
@@ -536,7 +536,7 @@
         "title": "Pourquoi certaines clés n'ont pas été traduites"
       },
       "settings": {
-        "folder": "Dossier de l'atelier",
+        "folder": "Dossier du workshop",
         "game": "Jeu",
         "gameVersion": "Version du jeu",
         "generatedMod": "Mod généré",

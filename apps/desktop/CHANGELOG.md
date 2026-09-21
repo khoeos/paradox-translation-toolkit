@@ -1,5 +1,93 @@
 # @ptt/desktop
 
+## 3.1.0
+
+### Minor Changes
+
+- ## Report page
+
+  - Past reports are listed on their own page
+  - Each report has it's own overview
+
+- ## Custom target languages
+
+  A target is now a language paired with the file token it's written under, so
+  you can translate into any language, not just one your game already ships
+  (e.g. Catalan), and save it under a token the game does read (e.g.
+  `l_english`).
+
+  - Built-in targets work exactly as before.
+  - A new custom-target dialog lets you type any language and pick one of the
+    game's own file tokens, with inline validation (unrecognized language,
+    duplicate language, an undeclared token).
+  - The RapidAPI provider still only supports its built-in languages and is
+    refused before the run starts for anything else; OpenAI and Ollama accept
+    any target language.
+  - CLI: `--to Catalan:english` writes Catalan under `l_english`; `--to ru,de`
+    keeps working as before.
+
+  ### Fixes
+  - With several target languages in one run with the RapidAPI provider
+   language's base-game strings could be written into another language's files.
+  - Two free-text language names that differ only in characters a file
+    name cannot hold (accents, non-Latin scripts, spaces) shared a single
+    translation-memory file, so each run discarded the other one's memory.
+  - Fixed a bug in the machine-translation prompt: the source language sent to
+    the provider was hardcoded to English regardless of the run's actual source
+    language
+
+  See [`docs/known-issues.md`](../docs/known-issues.md) for the current
+  limitations (one target per normalized language per run, no glossary for an
+  unshipped language, an in-place shadowing target's non-idempotence under a
+  replacing content mode, RapidAPI's built-in-only support, and a free-text
+  custom target being lost on downgrade to 3.0.0).
+
+- ## Machine translation reliability
+
+  A run can no longer degrade in silence. The glossary is found where the game
+  actually keeps it, rate limits are waited out instead of hammered, and the
+  report says why a key stayed in the source language.
+
+  ### Added
+
+  - **Warnings you can see.**
+  - **The report shows the glossary**
+  - **Why keys were not translated**
+  - **Strings the model refuses are asked again once**
+  - **Retranslate your own untranslated keys** (off by default)
+
+  ### Fixes
+
+  - **The glossary was looked for in the wrong place on half the games.** It was
+    built from `<game path>/game/**`, but only CKIII, Victoria 3,
+    Imperator and EU5 have that subfolder. HOIIV, Stellaris and
+    EUIV keep `localisation/` at the root of the install.
+  - **A rate-limited run retried immediately.** A `429` is now waited out, with
+    `Retry-After` honoured.
+  - **The engine could hang for the rest of a run.**
+  - **A run built one glossary and reused it for every target language.** Each
+    target language now gets its own.
+
+
+  See [`docs/known-issues.md`](../docs/known-issues.md) for what this option does
+  not do in "Add to current mod", and for how an answer identical to the source is
+  remembered.
+
+- ## Model auto-detection
+
+  - The model field now offers what the endpoint actually serves: `/models` for OpenAI-compatible backends
+    (LM Studio, vLLM, llama.cpp, the OpenAI API itself), `/api/tags` for Ollama
+  - Typing a model name by hand still works, and RapidAPI is untouched since it picks its own model
+
+- ## Improved releasing
+
+  - Re-added windows standalone on CI
+  - Added Auto-update on linux
+  - Added direct download links on every releases
+  - Removed MacOs Zip and blockmap (as there is no updater)
+  - Renamed artifacts
+  - Header version is now dynamic
+
 ## 3.0.0
 
 ### Major Changes
