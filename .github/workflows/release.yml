@@ -80,6 +80,7 @@ jobs:
           # Windows code-signing. Empty = unsigned. See docs/publishing.md.
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          PTT_REPORT_WEBHOOK_URL: ${{ secrets.PTT_REPORT_WEBHOOK_URL }}
         run: pnpm --filter @ptt/desktop run dist
 
       - name: Upload installers
