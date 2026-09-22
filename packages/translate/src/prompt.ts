@@ -40,7 +40,8 @@ ${JSON.stringify(indexed(texts), null, 1)}`
  * per input index. Sent as `response_format.json_schema` : OpenAI, LM Studio,
  * llama.cpp and Ollama all accept it, whereas LM Studio rejects `json_object`.
  * Strict mode caps an object at 5000 properties on OpenAI ; TRANSLATE_LIMITS.batchSize
- * (200) keeps every batch well under it.
+ * (200) keeps every batch well under it. Backends that only know `json_object`
+ * (DeepSeek) answer 400 ; `OpenAiProvider` downgrades to it for the rest of the run.
  */
 export interface AnswerSchema {
   type: 'object'
@@ -79,4 +80,26 @@ export function indexed(texts: readonly string[]): Record<string, string> {
     out[String(index)] = text
   })
   return out
+}
+
+/**
+ * Output budget for one batch. DeepSeek truncates the answer at its own default
+ * (4096) unless `max_tokens` is sent, and rejects anything above 8192 ; the ceiling
+ * is that common denominator, the estimate is the batch's own size.
+ */
+const OUTPUT_TOKEN_CEILING = 8192
+
+const MIN_OUTPUT_TOKENS = 512
+
+const CHARS_PER_TOKEN = 2
+
+const OUTPUT_EXPANSION = 1.5
+
+const TOKENS_PER_ENTRY = 8
+
+export function estimateMaxTokens(texts: readonly string[]): number {
+  const chars = texts.reduce((total, text) => total + text.length, 0)
+  const estimate =
+    Math.ceil((chars * OUTPUT_EXPANSION) / CHARS_PER_TOKEN) + texts.length * TOKENS_PER_ENTRY
+  return Math.min(OUTPUT_TOKEN_CEILING, Math.max(MIN_OUTPUT_TOKENS, estimate))
 }

@@ -6,7 +6,8 @@ import {
   OpenAiProvider,
   RapidApiProvider,
   TRANSLATE_DEFAULTS,
-  createProvider
+  createProvider,
+  estimateMaxTokens
 } from '../src/index.js'
 import { fakeFetch, ollamaAnswering, openAiAnswering } from './fake-fetch.js'
 
@@ -178,6 +179,110 @@ describe('OpenAiProvider', () => {
     const translation = provider.translate(['one'], 'French', 'English')
     await expect(translation).rejects.toBeInstanceOf(HttpFailure)
     await expect(translation).rejects.toMatchObject({ status: 429 })
+  })
+
+  it('sends a max_tokens sized for the batch, capped at the common ceiling', async () => {
+    const fetch = openAiAnswering({ '0': 'un' })
+    const provider = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, fetch.fn)
+    await provider.translate(['one'], 'French', 'English')
+    expect(fetch.calls[0]?.body).toMatchObject({ max_tokens: estimateMaxTokens(['one']) })
+
+    const long = Array.from({ length: 200 }, () => 'x'.repeat(200))
+    const big = openAiAnswering({ '0': 'un' })
+    const other = new OpenAiProvider('http://localhost:1234/v1', 'm', '', TIMEOUT, big.fn)
+    await other.translate(long, 'French', 'English').catch(() => undefined)
+    expect(big.calls[0]?.body).toMatchObject({ max_tokens: 8192 })
+  })
+
+  it('falls back to json_object when the backend rejects json_schema (DeepSeek)', async () => {
+    const fetch = fakeFetch((_call, index) =>
+      index === 0
+        ? {
+            ok: false,
+            status: 400,
+            statusText: 'Bad Request',
+            text: async () =>
+              '{"error":{"message":"This response_format type is unavailable now",' +
+              '"type":"invalid_request_error","param":null,"code":"invalid_request_error"}}'
+          }
+        : {
+            json: async () => ({
+              choices: [{ message: { content: '{"translations":{"0":"un"}}' } }]
+            })
+          }
+    )
+    const provider = new OpenAiProvider(
+      'https://api.deepseek.com/v1',
+      'deepseek-chat',
+      'sk-secret',
+      TIMEOUT,
+      fetch.fn
+    )
+
+    expect(await provider.translate(['one'], 'French', 'English')).toEqual(['un'])
+    expect(fetch.calls).toHaveLength(2)
+    expect(fetch.calls[0]?.body).toMatchObject({ response_format: { type: 'json_schema' } })
+    expect(fetch.calls[1]?.body).toMatchObject({ response_format: { type: 'json_object' } })
+    expect(JSON.stringify(fetch.calls[1]?.body)).toContain('from English to French')
+  })
+
+  it('keeps json_object for the next batches once downgraded', async () => {
+    const fetch = fakeFetch((_call, index) =>
+      index === 0
+        ? {
+            ok: false,
+            status: 400,
+            statusText: 'Bad Request',
+            text: async () => 'This response_format type is unavailable now'
+          }
+        : {
+            json: async () => ({
+              choices: [{ message: { content: '{"translations":{"0":"un"}}' } }]
+            })
+          }
+    )
+    const provider = new OpenAiProvider('https://api.deepseek.com/v1', 'm', 'sk', TIMEOUT, fetch.fn)
+
+    await provider.translate(['one'], 'French', 'English')
+    await provider.translate(['two'], 'French', 'English')
+
+    expect(fetch.calls).toHaveLength(3)
+    expect(fetch.calls[2]?.body).toMatchObject({ response_format: { type: 'json_object' } })
+  })
+
+  it('rethrows a 400 that is not about the response format', async () => {
+    const fetch = fakeFetch(() => ({
+      ok: false,
+      status: 400,
+      statusText: 'Bad Request',
+      text: async () => '{"error":{"message":"Model Not Exist","type":"invalid_request_error"}}'
+    }))
+    const provider = new OpenAiProvider(
+      'https://api.deepseek.com/v1',
+      'nope',
+      'sk',
+      TIMEOUT,
+      fetch.fn
+    )
+
+    await expect(provider.translate(['one'], 'French', 'English')).rejects.toThrow(
+      /Model Not Exist/
+    )
+    expect(fetch.calls).toHaveLength(1)
+  })
+
+  it('throws when the retry fails too', async () => {
+    const fetch = fakeFetch((_call, index) => ({
+      ok: false,
+      status: index === 0 ? 400 : 401,
+      statusText: index === 0 ? 'Bad Request' : 'Unauthorized',
+      text: async () => (index === 0 ? 'response_format is unavailable' : 'Authentication Fails')
+    }))
+    const provider = new OpenAiProvider('https://api.deepseek.com/v1', 'm', 'sk', TIMEOUT, fetch.fn)
+
+    const translation = provider.translate(['one'], 'French', 'English')
+    await expect(translation).rejects.toMatchObject({ status: 401 })
+    expect(fetch.calls).toHaveLength(2)
   })
 })
 
