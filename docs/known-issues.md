@@ -177,20 +177,24 @@ rendering across the whole game.
 
 ### A hard rate limit makes a run slow rather than short
 
-A `429 Too Many Requests` or a `5xx` is now waited out before the batch is
-retried, with `Retry-After` honoured when the backend sends it, and concurrent
-batches share one wait rather than each backing off on their own. A rate-limited
-batch is no longer split in half either, since splitting multiplies the requests
-a rate limiter is already refusing.
+A `429 Too Many Requests` or a `5xx` is waited out before the batch is retried,
+with `Retry-After` honoured (up to two minutes) when the backend sends it. Every
+batch waits on the same cooldown, including the ones already queued for a slot,
+so the rest of the queue does not keep hitting a rate limiter that is refusing
+requests. A rate-limited batch is not split in half either, since splitting
+multiplies the requests a rate limiter is already refusing.
 
-The consequence is deliberate: a rate limit no longer counts towards the circuit
-breaker, so a backend that answers `429` forever is never declared unavailable.
-The run finishes, slowly, with those strings listed as refusals, instead of
-being abandoned after three throttled batches. Other failures still trip the
-breaker after three consecutive single-string failures.
+A `429` does not spend the batch's retries and does not count towards the circuit
+breaker. A per-minute quota (a free tier allowing 1000 output tokens a minute, say)
+therefore makes the run as slow as the quota allows, and the run finishes: a few
+thousand strings on such a tier take hours. The one exception is a backend that
+has answered nothing but `429` for five minutes in a row, which is what a used-up
+daily quota looks like: it is then declared unavailable, the strings left are
+listed as refusals naming the rate limit, and the rest of the run is abandoned.
+Other failures still trip the breaker after three consecutive single-string
+failures.
 
-Cancelling during a wait is honoured, but the wait itself is not interrupted:
-the run can take up to the current backoff delay (15 s at most) to stop.
+Cancelling interrupts a wait at once.
 
 ### An answer identical to the source is remembered
 

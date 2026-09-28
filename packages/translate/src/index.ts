@@ -69,6 +69,7 @@ export {
   TranslationFailure,
   describeTokenLoss,
   BACKEND_DOWN_AFTER,
+  RATE_LIMIT_PATIENCE_MS,
   MAX_REMEMBERED_REFUSALS,
   MAX_REASKS_PER_RUN,
   type EngineOptions,

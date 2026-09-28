@@ -59,8 +59,12 @@ describe('backoffDelay', () => {
     expect(backoffDelay(0, 'rate-limit', 2_000, () => 0)).toBe(2_000)
   })
 
-  it('still bounds a retryAfterMs value to the cap', () => {
-    expect(backoffDelay(0, 'rate-limit', 60_000, () => 0)).toBe(15_000)
+  it('follows a retryAfterMs value past the cap of its own curve', () => {
+    expect(backoffDelay(0, 'rate-limit', 60_000, () => 0)).toBe(60_000)
+  })
+
+  it('still bounds a retryAfterMs value to two minutes', () => {
+    expect(backoffDelay(0, 'rate-limit', 750_000, () => 0)).toBe(120_000)
   })
 
   it('keeps a short wait when the server asks for an immediate retry', () => {

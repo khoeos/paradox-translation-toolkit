@@ -20,6 +20,10 @@ import type {
 
 export const BACKEND_DOWN_AFTER = 3
 
+const MS_PER_MINUTE = 60_000
+
+export const RATE_LIMIT_PATIENCE_MS = 5 * MS_PER_MINUTE
+
 export const MAX_REMEMBERED_REFUSALS = 50_000
 
 export const MAX_REASKS_PER_RUN = 200
@@ -51,6 +55,7 @@ export interface EngineOptions {
   glossaries?: ReadonlyMap<string, Glossary>
   glossarySkipReason?: GlossarySkipReason
   sleep?: SleepLike
+  now?: () => number
 }
 
 export interface TranslateResult {
@@ -77,14 +82,18 @@ export class TranslationEngine {
   private consecutiveFailures = 0
   private cooldown: Promise<void> | undefined
   private backendDown = false
+  private downDetail = 'backend already declared down'
+  private throttledSince: number | undefined
   private readonly refusals = new Map<string, Refusal>()
   private droppedRefusals = 0
   private readonly reasked = new Set<string>()
   private reasks = 0
   private readonly sleepFor: SleepLike
+  private readonly now: () => number
 
   constructor(private readonly options: EngineOptions) {
     this.sleepFor = options.sleep ?? sleep
+    this.now = options.now ?? Date.now
   }
 
   getCounters(): TranslationCounters {
@@ -146,7 +155,7 @@ export class TranslationEngine {
     stats: TranslationCounters
   ): never {
     for (const value of batch) {
-      this.refuse(language, value, 'backend', 'backend already declared down', stats)
+      this.refuse(language, value, 'backend', this.downDetail, stats)
     }
     this.report()
     throw new TranslationFailure('translation backend is down')
@@ -174,8 +183,7 @@ export class TranslationEngine {
   }
 
   private async waitForCooldown(): Promise<void> {
-    const pending = this.cooldown
-    if (pending) await pending
+    while (this.cooldown) await this.cooldown
   }
 
   private startCooldown(
@@ -210,19 +218,16 @@ export class TranslationEngine {
     let answer: Array<string | undefined> | undefined
     let lastError: Error | undefined
     let lastKind: RetryKind = 'other'
+    let attempts = 0
     let throttled = 0
 
-    for (let attempt = 0; attempt < this.options.retries && !answer; attempt++) {
-      await this.waitForCooldown()
-      if (this.options.signal?.aborted) throw new TranslationFailure('cancelled')
-
+    while (!answer && attempts < this.options.retries) {
       const release = await this.acquire()
-      if (this.backendDown) {
-        release()
-        this.abandonBatch(batch, language, stats)
-      }
       let retryAfterMs: number | undefined
       try {
+        await this.waitForCooldown()
+        if (this.options.signal?.aborted) throw new TranslationFailure('cancelled')
+        if (this.backendDown) this.abandonBatch(batch, language, stats)
         const glossary = this.glossaryFor(language)
         const hints = glossary ? collectHints(glossary, batch) : undefined
         answer = await this.options.provider.translate(
@@ -233,6 +238,7 @@ export class TranslationEngine {
           this.options.signal
         )
       } catch (error) {
+        if (error instanceof TranslationFailure) throw error
         lastError = error instanceof Error ? error : new Error(String(error))
         lastKind = classifyRetry(error)
         if (error instanceof HttpFailure) retryAfterMs = error.retryAfterMs
@@ -240,16 +246,23 @@ export class TranslationEngine {
         release()
       }
 
-      if (answer || lastKind === 'other') continue
+      if (answer) break
+
+      if (lastKind === 'rate-limit') {
+        this.throttledSince ??= this.now()
+        if (this.now() - this.throttledSince >= RATE_LIMIT_PATIENCE_MS) {
+          this.backendDown = true
+          this.downDetail = `no answer for ${RATE_LIMIT_PATIENCE_MS / MS_PER_MINUTE} minutes, every request rate limited: ${lastError?.message ?? ''}`
+          break
+        }
+      } else {
+        attempts++
+        if (lastKind === 'other' || attempts >= this.options.retries) continue
+      }
 
       throttled++
-      const lastAttempt = attempt + 1 >= this.options.retries
-      if (lastAttempt && lastKind !== 'rate-limit') continue
-
       const waiting = this.startCooldown(lastKind, retryAfterMs, throttled)
-      if (lastAttempt || !waiting) continue
-
-      await waiting
+      if (waiting) await waiting
       if (this.options.signal?.aborted) throw new TranslationFailure('cancelled')
     }
 
@@ -279,6 +292,7 @@ export class TranslationEngine {
     }
 
     this.consecutiveFailures = 0
+    this.throttledSince = undefined
 
     for (const [index, source] of batch.entries()) {
       const translated = answer[index]?.trim()

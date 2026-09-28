@@ -6,6 +6,7 @@ import {
   BACKEND_DOWN_AFTER,
   HttpFailure,
   MAX_REASKS_PER_RUN,
+  RATE_LIMIT_PATIENCE_MS,
   TranslationEngine,
   TranslationMemory,
   describeTokenLoss
@@ -74,26 +75,50 @@ function rateLimitedProvider(
   }
 }
 
-function recordingSleep(): { sleep: SleepLike; waits: number[] } {
+function recordingSleep(): { sleep: SleepLike; now: () => number; waits: number[] } {
   const waits: number[] = []
+  let clock = 0
   const sleep: SleepLike = async ms => {
     waits.push(ms)
+    clock += ms
   }
-  return { sleep, waits }
+  return { sleep, now: () => clock, waits }
 }
 
-const deferredSleep = (): { sleep: SleepLike; waits: number[]; release: () => void } => {
+const deferredSleep = (): {
+  sleep: SleepLike
+  now: () => number
+  waits: number[]
+  release: () => void
+} => {
   const waits: number[] = []
   const pending: Array<() => void> = []
+  let clock = 0
   const sleep: SleepLike = ms =>
     new Promise<void>(resolve => {
       waits.push(ms)
+      clock += ms
       pending.push(resolve)
     })
   const release = (): void => {
     while (pending.length > 0) pending.shift()?.()
   }
-  return { sleep, waits, release }
+  return { sleep, now: () => clock, waits, release }
+}
+
+function rateLimitedOnce(answer: string): { provider: Provider; calls: string[] } {
+  const calls: string[] = []
+  const provider: Provider = {
+    translate: async texts => {
+      const text = texts[0] ?? ''
+      calls.push(text)
+      if (calls.filter(call => call === text).length === 1) {
+        throw new HttpFailure('too many requests', 429)
+      }
+      return texts.map(() => answer)
+    }
+  }
+  return { provider, calls }
 }
 
 const settleMacrotask = (): Promise<void> => new Promise<void>(resolve => setTimeout(resolve, 0))
@@ -665,21 +690,27 @@ describe('TranslationEngine - backoff', () => {
   })
 
   it('holds a second batch until the wait a rate-limited batch started has resolved', async () => {
-    const { sleep, waits, release } = deferredSleep()
+    const { sleep, now, waits, release } = deferredSleep()
     let released = false
     const calls: Array<{ text: string; released: boolean }> = []
     const provider: Provider = {
       translate: async texts => {
         const text = texts[0] ?? ''
         calls.push({ text, released })
-        if (text === 'a') throw new HttpFailure('too many requests', 429)
-        if (calls.filter(call => call.text === text).length === 1) {
-          throw new Error('connection refused')
-        }
-        return texts.map(() => 'B')
+        const seen = calls.filter(call => call.text === text).length
+        if (text === 'a' && seen === 1) throw new HttpFailure('too many requests', 429)
+        if (text === 'b' && seen === 1) throw new Error('connection refused')
+        return texts.map(() => text.toUpperCase())
       }
     }
-    const engine = await engineWith({ batchSize: 1, concurrency: 2, retries: 2, sleep, provider })
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 2,
+      retries: 2,
+      sleep,
+      now,
+      provider
+    })
     const run = engine.translate(['a', 'b'], 'fr')
 
     await settleMacrotask()
@@ -700,8 +731,99 @@ describe('TranslationEngine - backoff', () => {
     ])
   })
 
+  it('holds the batches queued for a slot until the rate-limit wait has resolved', async () => {
+    const { sleep, now, release } = deferredSleep()
+    const { provider, calls } = rateLimitedOnce('X')
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 1,
+      retries: 2,
+      sleep,
+      now,
+      provider
+    })
+    const run = engine.translate(['a', 'b', 'c'], 'fr')
+
+    await settleMacrotask()
+    expect(calls).toEqual(['a'])
+
+    release()
+    await settleMacrotask()
+    release()
+    await settleMacrotask()
+    release()
+    const { results } = await run
+
+    expect(results.size).toBe(3)
+  })
+
+  it('retries a rate-limited batch without spending the attempts it is allowed', async () => {
+    const { sleep, now, waits } = recordingSleep()
+    let calls = 0
+    const provider: Provider = {
+      translate: async texts => {
+        if (calls++ < 5) throw new HttpFailure('too many requests', 429)
+        return texts.map(() => 'un')
+      }
+    }
+    const engine = await engineWith({ retries: 1, sleep, now, provider })
+    const { results } = await engine.translate(['one'], 'fr')
+
+    expect(results.get('one')).toBe('un')
+    expect(waits).toHaveLength(5)
+  })
+
   it('does not count a rate limit as evidence that the backend is down', async () => {
-    const { sleep } = recordingSleep()
+    const { sleep, now } = recordingSleep()
+    let calls = 0
+    const provider: Provider = {
+      translate: async texts => {
+        if (calls++ < BACKEND_DOWN_AFTER + 2) throw new HttpFailure('too many requests', 429)
+        return texts.map(() => 'ok')
+      }
+    }
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 1,
+      retries: 1,
+      sleep,
+      now,
+      provider
+    })
+    const values = Array.from({ length: BACKEND_DOWN_AFTER + 2 }, (_, index) => `s${index}`)
+    const { results } = await engine.translate(values, 'fr')
+
+    expect(engine.isBackendDown()).toBe(false)
+    expect(results.size).toBe(values.length)
+  })
+
+  it('keeps waiting through a long rate limit as long as some answers come through', async () => {
+    const { sleep, now } = recordingSleep()
+    let calls = 0
+    const provider: Provider = {
+      translate: async texts => {
+        if (++calls % 4 !== 0) throw new HttpFailure('too many requests', 429, 60_000)
+        return texts.map(() => 'ok')
+      }
+    }
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 1,
+      retries: 1,
+      sleep,
+      now,
+      provider
+    })
+    const values = Array.from({ length: 20 }, (_, index) => `s${index}`)
+    const { results } = await engine.translate(values, 'fr')
+
+    expect(now()).toBeGreaterThan(RATE_LIMIT_PATIENCE_MS)
+    expect(results.size).toBe(values.length)
+    expect(engine.isBackendDown()).toBe(false)
+  })
+
+  it('declares the backend down once nothing but rate limits came back for the patience window', async () => {
+    const { sleep, now } = recordingSleep()
     let calls = 0
     const provider: Provider = {
       translate: async () => {
@@ -709,43 +831,62 @@ describe('TranslationEngine - backoff', () => {
         throw new HttpFailure('too many requests', 429)
       }
     }
-    const engine = await engineWith({ batchSize: 1, concurrency: 1, retries: 1, sleep, provider })
-    const values = Array.from({ length: BACKEND_DOWN_AFTER + 2 }, (_, index) => `s${index}`)
-    await expect(engine.translate(values, 'fr')).rejects.toThrow()
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 1,
+      retries: 1,
+      sleep,
+      now,
+      provider
+    })
+    await expect(engine.translate(['s0'], 'fr')).rejects.toThrow()
 
-    expect(engine.isBackendDown()).toBe(false)
-    expect(calls).toBe(values.length)
-    expect(engine.refusalFor('fr', 's0')?.detail).not.toContain('already declared down')
+    expect(engine.isBackendDown()).toBe(true)
+    expect(now()).toBeGreaterThanOrEqual(RATE_LIMIT_PATIENCE_MS)
+    expect(engine.refusalFor('fr', 's0')?.detail).toBe('too many requests')
 
+    const before = calls
     await expect(engine.translate(['later'], 'fr')).rejects.toThrow()
-    expect(calls).toBe(values.length + 1)
+    expect(calls).toBe(before)
+    expect(engine.refusalFor('fr', 'later')?.detail).toContain('rate limited')
   })
 
   it('keeps a burst of rate-limited batches near the base delay instead of the cap', async () => {
-    const { sleep, waits } = recordingSleep()
-    const provider: Provider = {
-      translate: async () => {
-        throw new HttpFailure('too many requests', 429)
-      }
-    }
-    const engine = await engineWith({ batchSize: 1, concurrency: 8, retries: 2, sleep, provider })
+    const { sleep, now, waits } = recordingSleep()
+    const { provider } = rateLimitedOnce('ok')
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 8,
+      retries: 2,
+      sleep,
+      now,
+      provider
+    })
     const values = Array.from({ length: 8 }, (_, index) => `s${index}`)
-    await expect(engine.translate(values, 'fr')).rejects.toThrow()
+    const { results } = await engine.translate(values, 'fr')
 
-    expect(waits).toHaveLength(16)
-    expect(Math.min(...waits)).toBeLessThanOrEqual(2_500)
-    expect(Math.max(...waits)).toBeLessThanOrEqual(5_000)
+    expect(results.size).toBe(8)
+    expect(waits).toHaveLength(8)
+    expect(Math.max(...waits)).toBeLessThanOrEqual(2_500)
   })
 
   it('grows the wait of a rate-limited sequence even when a sibling batch succeeds', async () => {
-    const { sleep, waits } = recordingSleep()
+    const { sleep, now, waits } = recordingSleep()
+    let throttled = 0
     const provider: Provider = {
       translate: async texts => {
-        if (texts[0] === 'ok') return texts.map(() => 'bien')
-        throw new HttpFailure('too many requests', 429)
+        if (texts[0] === 'bad' && throttled++ < 3) throw new HttpFailure('too many requests', 429)
+        return texts.map(() => 'bien')
       }
     }
-    const engine = await engineWith({ batchSize: 1, concurrency: 2, retries: 3, sleep, provider })
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 2,
+      retries: 3,
+      sleep,
+      now,
+      provider
+    })
     await engine.translate(['bad', 'ok'], 'fr')
 
     expect(waits).toHaveLength(3)
@@ -753,28 +894,33 @@ describe('TranslationEngine - backoff', () => {
     expect(waits[2]!).toBeGreaterThan(waits[1]!)
   })
 
-  it('still posts the shared cooldown when it is allowed a single attempt', async () => {
-    const { sleep, waits, release } = deferredSleep()
-    let calls = 0
-    const provider: Provider = {
-      translate: async () => {
-        calls++
-        throw new HttpFailure('too many requests', 429)
-      }
-    }
-    const engine = await engineWith({ batchSize: 1, concurrency: 1, retries: 1, sleep, provider })
-    await expect(engine.translate(['one'], 'fr')).rejects.toThrow()
+  it('makes a later batch wait on the cooldown even when it is allowed a single attempt', async () => {
+    const { sleep, now, waits, release } = deferredSleep()
+    const { provider, calls } = rateLimitedOnce('X')
+    const engine = await engineWith({
+      batchSize: 1,
+      concurrency: 1,
+      retries: 1,
+      sleep,
+      now,
+      provider
+    })
+    const first = engine.translate(['one'], 'fr')
+    await settleMacrotask()
     expect(waits).toHaveLength(1)
     expect(waits[0]!).toBeGreaterThan(0)
-    expect(calls).toBe(1)
+    expect(calls).toEqual(['one'])
 
     const later = engine.translate(['two'], 'fr')
     await settleMacrotask()
-    expect(calls).toBe(1)
+    expect(calls).toEqual(['one'])
 
     release()
-    await expect(later).rejects.toThrow()
-    expect(calls).toBe(2)
+    await settleMacrotask()
+    release()
+    const [{ results: firstResults }, { results: laterResults }] = await Promise.all([first, later])
+    expect(firstResults.get('one')).toBe('X')
+    expect(laterResults.get('two')).toBe('X')
   })
 
   it('waits on its own curve when the server sent an immediate Retry-After', async () => {
@@ -790,17 +936,18 @@ describe('TranslationEngine - backoff', () => {
   })
 
   it('does not split a rate-limited batch in half', async () => {
-    const { sleep } = recordingSleep()
-    let calls = 0
+    const { sleep, now } = recordingSleep()
+    const sizes: number[] = []
     const provider: Provider = {
-      translate: async () => {
-        calls++
+      translate: async texts => {
+        sizes.push(texts.length)
         throw new HttpFailure('too many requests', 429)
       }
     }
-    const engine = await engineWith({ batchSize: 4, retries: 1, sleep, provider })
+    const engine = await engineWith({ batchSize: 4, retries: 1, sleep, now, provider })
     await expect(engine.translate(['a', 'b', 'c', 'd'], 'fr')).rejects.toThrow()
-    expect(calls).toBe(1)
+    expect(sizes.length).toBeGreaterThan(1)
+    expect(sizes.every(size => size === 4)).toBe(true)
     expect(engine.refusalFor('fr', 'd')?.reason).toBe('backend')
   })
 
