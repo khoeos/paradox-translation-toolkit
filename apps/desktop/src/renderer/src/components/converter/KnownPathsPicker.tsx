@@ -64,6 +64,21 @@ type FlatRow =
 const EXPECTED_ADD_KNOWN_PATH_ERROR_CODES = ['FORBIDDEN', 'BAD_REQUEST']
 const EMPTY_SUBTITLE = '-'
 
+const isExpectedAddKnownPathError = (error: unknown): boolean =>
+  isTRPCClientError(error) &&
+  EXPECTED_ADD_KNOWN_PATH_ERROR_CODES.some(code => code === error.data?.code)
+
+const runIgnoringExpectedAddKnownPathErrors = async (
+  operation: () => Promise<void>
+): Promise<void> => {
+  try {
+    await operation()
+  } catch (error) {
+    if (isExpectedAddKnownPathError(error)) return
+    console.error('[KnownPathsPicker] failed to persist known path:', error)
+  }
+}
+
 export function KnownPathsPicker({
   id,
   gameId,
@@ -159,21 +174,6 @@ export function KnownPathsPicker({
 
   const validate = (path: string): Promise<PathValidationStatus> =>
     utils.fs.validatePath.fetch({ path })
-
-  const isExpectedAddKnownPathError = (error: unknown): boolean =>
-    isTRPCClientError(error) &&
-    EXPECTED_ADD_KNOWN_PATH_ERROR_CODES.some(code => code === error.data?.code)
-
-  const runIgnoringExpectedAddKnownPathErrors = async (
-    operation: () => Promise<void>
-  ): Promise<void> => {
-    try {
-      await operation()
-    } catch (error) {
-      if (isExpectedAddKnownPathError(error)) return
-      console.error('[KnownPathsPicker] failed to persist known path:', error)
-    }
-  }
 
   const persistKnownPathQuietly = (path: string): Promise<void> =>
     runIgnoringExpectedAddKnownPathErrors(async () => {
