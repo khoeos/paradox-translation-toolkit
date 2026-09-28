@@ -2,6 +2,8 @@ import i18next from 'i18next'
 import { create } from 'zustand'
 
 import type { ConversionOutput, JobEvent, ScanOutput, TranslationProgress } from '@ptt/converter'
+import { EMPTY_ESTIMATES, applyEstimateEvent } from '@ptt/converter/eta'
+import type { EstimateState } from '@ptt/converter/eta'
 import type { DiagnosticSeverity, ScanPhase, ScanRunningTotals } from '@ptt/converter/progress'
 
 export type { JobEvent }
@@ -39,6 +41,7 @@ export interface JobState {
   translation: TranslationProgress | null
   translatingMod: TranslatingMod | null
   translationTotal: number
+  estimates: EstimateState
   errorMessage: string | null
 }
 
@@ -94,6 +97,7 @@ const blankJob = (jobId: string): JobState => ({
   translation: null,
   translatingMod: null,
   translationTotal: 0,
+  estimates: EMPTY_ESTIMATES,
   errorMessage: null
 })
 
@@ -147,7 +151,11 @@ export const useJobsStore = create<JobsState>((set, get) => ({
         return state
       }
 
-      const updated: JobState = { ...existing, log: [...existing.log] }
+      const updated: JobState = {
+        ...existing,
+        log: [...existing.log],
+        estimates: applyEstimateEvent(existing.estimates, event, Date.now())
+      }
 
       switch (event.type) {
         case 'error':

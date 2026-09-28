@@ -191,6 +191,16 @@
     "doneToast_other": "Conversion done - {{count}} files created",
     "elapsed": "Elapsed time",
     "errorToast": "Conversion failed: {{message}}",
+    "eta": {
+      "about": "about {{duration}} left",
+      "atLeast": "more than {{duration}} left",
+      "estimating": "estimating the time left…",
+      "hours": "{{hours}} h",
+      "hoursMinutes": "{{hours}} h {{minutes}} min",
+      "minutes": "{{minutes}} min",
+      "range": "{{low}} to {{high}} left",
+      "underAMinute": "less than a minute left"
+    },
     "filesCreated": "Files created:",
     "filesPerLang": "{{lang}} - {{count}} files created",
     "filesPerLang_one": "{{lang}} - {{count}} file created",
@@ -254,7 +264,12 @@
     },
     "translating": {
       "activity": "Translating {{name}} into {{language}}",
-      "keys": "{{done}}/{{total}} keys"
+      "counting": "Counting the texts to translate: {{done}}/{{total}} mods",
+      "keys": "{{done}}/{{total}} keys",
+      "modEta": "{{name}} ({{language}}): {{done}}/{{total}}, {{eta}}",
+      "rateLimited": "Provider rate limit reached, retrying in {{seconds}} s",
+      "run": "{{done}}/{{total}} texts",
+      "runEta": "Whole run: {{eta}}"
     },
     "translationCounters": "{{translated}} translated, {{cached}} free, {{failed}} left alone"
   },

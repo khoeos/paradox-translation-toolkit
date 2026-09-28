@@ -56,11 +56,17 @@ export interface EngineOptions {
   glossarySkipReason?: GlossarySkipReason
   sleep?: SleepLike
   now?: () => number
+  onRateLimitWait?: (resumesAt: number | undefined) => void
 }
 
 export interface TranslateResult {
   results: Map<string, string>
   stats: TranslationCounters
+}
+
+interface CallProgress {
+  stats: TranslationCounters
+  onProgress?: (stats: TranslationCounters) => void
 }
 
 export function describeTokenLoss(source: string, translated: string): string {
@@ -127,6 +133,13 @@ export class TranslationEngine {
     return this.refusals.get(refusalKey(language, value))
   }
 
+  isCached(language: string, value: string): boolean {
+    return (
+      Boolean(this.glossaryFor(language)?.exact.get(value)) ||
+      Boolean(this.options.memory.get(language, value))
+    )
+  }
+
   private refuse(
     language: string,
     value: string,
@@ -149,15 +162,11 @@ export class TranslationEngine {
     })
   }
 
-  private abandonBatch(
-    batch: readonly string[],
-    language: string,
-    stats: TranslationCounters
-  ): never {
+  private abandonBatch(batch: readonly string[], language: string, call: CallProgress): never {
     for (const value of batch) {
-      this.refuse(language, value, 'backend', this.downDetail, stats)
+      this.refuse(language, value, 'backend', this.downDetail, call.stats)
     }
-    this.report()
+    this.report(call)
     throw new TranslationFailure('translation backend is down')
   }
 
@@ -174,8 +183,9 @@ export class TranslationEngine {
     }
   }
 
-  private report(): void {
+  private report(call?: CallProgress): void {
     this.options.onProgress?.(this.getCounters())
+    call?.onProgress?.({ ...call.stats })
   }
 
   private glossaryFor(language: string): Glossary | undefined {
@@ -194,12 +204,16 @@ export class TranslationEngine {
     const delay = backoffDelay(throttled, kind, retryAfterMs)
     if (delay <= 0) return undefined
 
+    const resumesAt = this.now() + delay
     const waiting = this.sleepFor(delay, this.options.signal)
     if (kind !== 'rate-limit') return waiting
 
     this.cooldown = waiting
+    this.options.onRateLimitWait?.(resumesAt)
     const clear = (): void => {
-      if (this.cooldown === waiting) this.cooldown = undefined
+      if (this.cooldown !== waiting) return
+      this.cooldown = undefined
+      this.options.onRateLimitWait?.(undefined)
     }
     void waiting.then(clear, clear)
     return waiting
@@ -209,11 +223,11 @@ export class TranslationEngine {
     batch: string[],
     language: string,
     results: Map<string, string>,
-    stats: TranslationCounters
+    call: CallProgress
   ): Promise<void> {
     if (this.options.signal?.aborted) throw new TranslationFailure('cancelled')
 
-    if (this.backendDown) this.abandonBatch(batch, language, stats)
+    if (this.backendDown) this.abandonBatch(batch, language, call)
 
     let answer: Array<string | undefined> | undefined
     let lastError: Error | undefined
@@ -227,7 +241,7 @@ export class TranslationEngine {
       try {
         await this.waitForCooldown()
         if (this.options.signal?.aborted) throw new TranslationFailure('cancelled')
-        if (this.backendDown) this.abandonBatch(batch, language, stats)
+        if (this.backendDown) this.abandonBatch(batch, language, call)
         const glossary = this.glossaryFor(language)
         const hints = glossary ? collectHints(glossary, batch) : undefined
         answer = await this.options.provider.translate(
@@ -270,8 +284,8 @@ export class TranslationEngine {
       if (batch.length > 1 && lastKind !== 'rate-limit') {
         const middle = Math.ceil(batch.length / 2)
         const halves = await Promise.allSettled([
-          this.runBatch(batch.slice(0, middle), language, results, stats),
-          this.runBatch(batch.slice(middle), language, results, stats)
+          this.runBatch(batch.slice(0, middle), language, results, call),
+          this.runBatch(batch.slice(middle), language, results, call)
         ])
         if (halves.every(half => half.status === 'rejected')) {
           throw new TranslationFailure(lastError?.message ?? 'unknown error')
@@ -280,14 +294,14 @@ export class TranslationEngine {
       }
 
       for (const value of batch) {
-        this.refuse(language, value, 'backend', lastError?.message, stats)
+        this.refuse(language, value, 'backend', lastError?.message, call.stats)
       }
       if (this.options.signal?.aborted) throw new TranslationFailure('cancelled')
       if (lastKind !== 'rate-limit') {
         this.consecutiveFailures++
         if (this.consecutiveFailures >= BACKEND_DOWN_AFTER) this.backendDown = true
       }
-      this.report()
+      this.report(call)
       throw new TranslationFailure(lastError?.message ?? 'unknown error')
     }
 
@@ -297,25 +311,25 @@ export class TranslationEngine {
     for (const [index, source] of batch.entries()) {
       const translated = answer[index]?.trim()
       if (!translated) {
-        this.refuse(language, source, 'empty', undefined, stats)
+        this.refuse(language, source, 'empty', undefined, call.stats)
         continue
       }
       if (hasControlCharacter(translated)) {
-        this.refuse(language, source, 'control', 'answer carried a control character', stats)
+        this.refuse(language, source, 'control', 'answer carried a control character', call.stats)
         continue
       }
       if (!tokensMatch(source, translated)) {
-        this.refuse(language, source, 'markup', describeTokenLoss(source, translated), stats)
+        this.refuse(language, source, 'markup', describeTokenLoss(source, translated), call.stats)
         continue
       }
       results.set(source, translated)
       this.counters.translated++
-      stats.translated++
+      call.stats.translated++
       this.refusals.delete(refusalKey(language, source))
       await this.options.memory.set(language, source, translated)
     }
 
-    this.report()
+    this.report(call)
   }
 
   private pickReaskable(values: readonly string[], language: string): string[] {
@@ -338,7 +352,7 @@ export class TranslationEngine {
     values: readonly string[],
     language: string,
     results: Map<string, string>,
-    stats: TranslationCounters
+    call: CallProgress
   ): Promise<void> {
     if (this.options.signal?.aborted || this.backendDown) return
 
@@ -350,17 +364,21 @@ export class TranslationEngine {
         if (this.options.signal?.aborted || this.backendDown) return
         const key = refusalKey(language, value)
         const before = this.refusals.get(key)
-        await this.runBatch([value], language, results, stats).catch(() => undefined)
+        await this.runBatch([value], language, results, call).catch(() => undefined)
         if (this.refusals.get(key) === before) return
         this.counters.failed = Math.max(0, this.counters.failed - 1)
-        stats.failed = Math.max(0, stats.failed - 1)
+        call.stats.failed = Math.max(0, call.stats.failed - 1)
       })
     )
 
-    this.report()
+    this.report(call)
   }
 
-  async translate(values: readonly string[], language: string): Promise<TranslateResult> {
+  async translate(
+    values: readonly string[],
+    language: string,
+    onProgress?: (stats: TranslationCounters) => void
+  ): Promise<TranslateResult> {
     if (
       normalizeTargetLanguage(language) === normalizeTargetLanguage(this.options.sourceLanguage)
     ) {
@@ -373,6 +391,7 @@ export class TranslationEngine {
     await this.options.memory.load(language)
 
     const stats: TranslationCounters = { translated: 0, cached: 0, failed: 0 }
+    const call: CallProgress = { stats, ...(onProgress !== undefined && { onProgress }) }
 
     const results = new Map<string, string>()
     const todo: string[] = []
@@ -415,7 +434,7 @@ export class TranslationEngine {
         todo.push(value)
       }
 
-      if (stats.cached > 0) this.report()
+      if (stats.cached > 0) this.report(call)
 
       if (todo.length > 0) {
         const batches: string[][] = []
@@ -427,14 +446,14 @@ export class TranslationEngine {
           batches.map(async batch => {
             if (this.options.signal?.aborted) return
             try {
-              await this.runBatch(batch, language, results, stats)
+              await this.runBatch(batch, language, results, call)
             } catch (error) {
               errors.push(error instanceof Error ? error.message : String(error))
             }
           })
         )
 
-        await this.reaskRefused(todo, language, results, stats)
+        await this.reaskRefused(todo, language, results, call)
       }
     } finally {
       for (const value of todo) {
@@ -455,7 +474,7 @@ export class TranslationEngine {
           stats.cached++
         }
       }
-      this.report()
+      this.report(call)
     }
 
     if (errors.length > 0 && results.size === 0) {

@@ -32,7 +32,7 @@ export async function commandConvert(options: CliOptions): Promise<void> {
 
   const port = consolePort()
   const generated = generatedModPaths(options)
-  const { translationSetup, runReport } = createRunPorts(options, abort.signal)
+  const { translationSetup, runReport } = createRunPorts(options, abort.signal, port)
 
   const translationMod: TranslationMod = {
     name: options.modName,

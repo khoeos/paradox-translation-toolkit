@@ -204,6 +204,16 @@
     "doneToast_other": "Conversion terminée - {{count}} fichiers créés",
     "elapsed": "Temps écoulé",
     "errorToast": "Conversion échouée : {{message}}",
+    "eta": {
+      "about": "encore environ {{duration}}",
+      "atLeast": "encore plus de {{duration}}",
+      "estimating": "estimation du temps restant…",
+      "hours": "{{hours}} h",
+      "hoursMinutes": "{{hours}} h {{minutes}} min",
+      "minutes": "{{minutes}} min",
+      "range": "encore {{low}} à {{high}}",
+      "underAMinute": "moins d’une minute restante"
+    },
     "filesCreated": "Fichiers créés :",
     "filesPerLang": "{{lang}} - {{count}} fichiers créés",
     "filesPerLang_one": "{{lang}} - {{count}} fichier créé",
@@ -278,7 +288,12 @@
     },
     "translating": {
       "activity": "Traduction de {{name}} en {{language}}",
-      "keys": "{{done}}/{{total}} clés"
+      "counting": "Comptage des textes à traduire : {{done}}/{{total}} mods",
+      "keys": "{{done}}/{{total}} clés",
+      "modEta": "{{name}} ({{language}}) : {{done}}/{{total}}, {{eta}}",
+      "rateLimited": "Limite de débit du fournisseur atteinte, nouvelle tentative dans {{seconds}} s",
+      "run": "{{done}}/{{total}} textes",
+      "runEta": "Run complet : {{eta}}"
     },
     "translationCounters": "{{translated}} traduites, {{cached}} gratuites, {{failed}} laissées telles quelles"
   },

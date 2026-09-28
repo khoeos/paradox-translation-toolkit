@@ -82,14 +82,49 @@ export function facts(entries: ReadonlyArray<readonly [string, string | number]>
 const TICKER_INTERVAL_MS = 100
 const CLEAR_LINE = `\r${ESC}[2K`
 
-export function ticker(): (text: string) => void {
-  if (!process.stderr.isTTY) return () => {}
+export interface Ticker {
+  show(text: string): void
+  stop(): void
+}
+
+export const ticker = (): Ticker => {
+  if (!process.stderr.isTTY) return { show: () => {}, stop: () => {} }
   let last = 0
-  return (text: string): void => {
-    const now = Date.now()
-    if (now - last < TICKER_INTERVAL_MS) return
-    last = now
+  let pending: string | undefined
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const draw = (text: string): void => {
+    last = Date.now()
     process.stderr.write(`${CLEAR_LINE}${clip(text, (process.stderr.columns ?? 80) - 1)}`)
+  }
+
+  const flush = (): void => {
+    timer = undefined
+    if (pending === undefined) return
+    const text = pending
+    pending = undefined
+    draw(text)
+  }
+
+  return {
+    show(text) {
+      pending = text
+      const wait = TICKER_INTERVAL_MS - (Date.now() - last)
+      if (wait <= 0) {
+        if (timer !== undefined) clearTimeout(timer)
+        flush()
+        return
+      }
+      if (timer === undefined) {
+        timer = setTimeout(flush, wait)
+        timer.unref()
+      }
+    },
+    stop() {
+      if (timer !== undefined) clearTimeout(timer)
+      timer = undefined
+      pending = undefined
+    }
   }
 }
 

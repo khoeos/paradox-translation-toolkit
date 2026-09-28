@@ -42,6 +42,13 @@ import type {
   TranslationMod,
   TranslationSetupPort
 } from './types.js'
+import {
+  backendValues,
+  countTranslationWorkload,
+  createWorkloadTracker,
+  translatableValues
+} from './workload.js'
+import type { WorkloadTracker } from './workload.js'
 
 export type { TranslationEnginePort } from './types.js'
 
@@ -222,11 +229,9 @@ async function runConvertCore(
   const mods = selectedMods ? allMods.filter(mod => selectedMods.includes(mod.id)) : allMods
   const concurrency = engine ? MOD_CONCURRENCY_WITH_BACKEND : MOD_CONCURRENCY
 
-  let done = 0
-  const results = await mapWithConcurrency(mods, concurrency, async mod => {
-    if (isAbandoned()) return undefined
+  const planFor = (mod: ModFolder): Promise<ModPlan> => {
     const coverageForMod = coverage.get(mod.id)
-    const plan = await planMod(
+    return planMod(
       mod,
       {
         gameDef: game,
@@ -242,6 +247,30 @@ async function runConvertCore(
       },
       fs
     )
+  }
+
+  const workload =
+    engine !== undefined && mods.length > 0
+      ? await countTranslationWorkload({
+          mods,
+          sourceLanguage,
+          engine,
+          plan: planFor,
+          isCancelled,
+          onMod: done => emit({ type: 'translate-counting', jobId, done, total: mods.length })
+        })
+      : undefined
+  if (workload !== undefined) {
+    if (isCancelled())
+      return { output: cancelledOutput(requestedTargets, generatedMod), untranslated }
+    emit({ type: 'translate-workload', jobId, total: workload.total })
+  }
+  const tracker = createWorkloadTracker(workload?.unclaimed ?? new Map())
+
+  let done = 0
+  const results = await mapWithConcurrency(mods, concurrency, async mod => {
+    if (isAbandoned()) return undefined
+    const plan = await planFor(mod)
     if (isCancelled()) return undefined
 
     const translations = engine
@@ -252,6 +281,7 @@ async function runConvertCore(
           untranslated,
           mod,
           tokenByLanguage,
+          tracker,
           emit,
           jobId
         )
@@ -383,6 +413,7 @@ async function translateMod(
   untranslated: KeyReport[],
   mod: ModFolder,
   tokenByLanguage: ReadonlyMap<string, string>,
+  tracker: WorkloadTracker,
   emit: (event: JobEvent) => void,
   jobId: string
 ): Promise<ModTranslations> {
@@ -392,25 +423,42 @@ async function translateMod(
   for (const [language, jobs] of Object.entries(plan.jobs)) {
     if (language === sourceLanguage || !jobs) continue
 
-    const values: string[] = []
-    for (const job of jobs) {
-      for (const [key, value] of job.keys) {
-        if (!job.known.has(key) && isTranslatable(value)) values.push(value)
-      }
-    }
+    const values = translatableValues(jobs)
+    const unique = new Set(values)
+    const total = unique.size
+    const sent = backendValues(unique, language, engine)
+    const pending = sent.length
+    const cachedAtStart = total - pending
+    const slot = `${mod.id}::${language}`
+    tracker.claim(slot, language, sent)
 
     emit({
       type: 'translate-mod',
       jobId,
+      modId: mod.id,
       modName: plan.name,
       language,
-      total: new Set(values).size,
+      total,
+      pending,
       done: settledCount(engine.getCounters())
     })
 
+    const modProgress = (done: number, finished: boolean): void =>
+      emit({
+        type: 'translate-mod-progress',
+        jobId,
+        modId: mod.id,
+        language,
+        done,
+        finished,
+        runDone: tracker.settle(slot, done)
+      })
+
     let results = new Map<string, string>()
     try {
-      const outcome = await engine.translate(values, language)
+      const outcome = await engine.translate(values, language, callStats =>
+        modProgress(Math.max(0, settledCount(callStats) - cachedAtStart), false)
+      )
       results = outcome.results
       stats.translated += outcome.stats.translated
       stats.cached += outcome.stats.cached
@@ -419,6 +467,7 @@ async function translateMod(
       plan.errors.push(`${language} : ${err instanceof Error ? err.message : String(err)}`)
     }
     byLanguage.set(language, results)
+    modProgress(pending, true)
     emit({ type: 'translate-progress', jobId, counters: engine.getCounters() })
 
     untranslated.push(

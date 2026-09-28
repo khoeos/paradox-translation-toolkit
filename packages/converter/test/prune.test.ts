@@ -158,6 +158,7 @@ const echoEngine = (): { engine: TranslationEnginePort; batches: number[] } => {
         stats: { translated: values.length, cached: 0, failed: 0 }
       }
     },
+    isCached: () => false,
     refusalFor: () => undefined,
     getCounters: () => ({ ...counters }),
     isBackendDown: () => false

@@ -48,6 +48,7 @@ const countingEngine = (): { engine: TranslationEnginePort; calls: string[] } =>
         stats: { translated: values.length, cached: 0, failed: 0 }
       }
     },
+    isCached: () => false,
     refusalFor: () => undefined,
     getCounters: () => ({ ...counters }),
     isBackendDown: () => false
@@ -67,6 +68,7 @@ const recordingEngine = (): { engine: TranslationEnginePort; values: string[] } 
         stats: { translated: vals.length, cached: 0, failed: 0 }
       }
     },
+    isCached: () => false,
     refusalFor: () => undefined,
     getCounters: () => ({ ...counters }),
     isBackendDown: () => false
@@ -79,6 +81,7 @@ const identicalEngine = (): TranslationEnginePort => ({
     results: new Map(values.map(value => [value, value])),
     stats: { translated: values.length, cached: 0, failed: 0 }
   }),
+  isCached: () => false,
   refusalFor: () => undefined,
   getCounters: () => ({ translated: 0, cached: 0, failed: 0 }),
   isBackendDown: () => false
@@ -89,6 +92,7 @@ const downEngine = (): TranslationEnginePort => ({
     results: new Map(),
     stats: { translated: 0, cached: 0, failed: values.length }
   }),
+  isCached: () => false,
   refusalFor: () => ({ reason: 'backend down' }),
   getCounters: () => ({ translated: 0, cached: 0, failed: 0 }),
   isBackendDown: () => true
@@ -391,7 +395,7 @@ describe('runConvert - a free-text target language', () => {
     )
 
     expect(calls).toEqual(['Catalan'])
-    expect(asked).toEqual(['Catalan'])
+    expect([...new Set(asked)]).toEqual(['Catalan'])
     expect(output.targets).toEqual([{ language: 'Catalan', fileToken: 'english' }])
     expect(Object.keys(output.mods[0]?.created ?? {})).toEqual(['Catalan'])
   })
@@ -404,6 +408,7 @@ describe('runConvert - a free-text target language', () => {
         results: new Map(),
         stats: { translated: 0, cached: 0, failed: 1 }
       }),
+      isCached: () => false,
       refusalFor: () => ({ value: 'one', language: 'Catalan', reason: 'markup' }),
       getCounters: () => ({ translated: 0, cached: 0, failed: 1 }),
       isBackendDown: () => false
@@ -806,6 +811,227 @@ describe('runConvert - per-mod translation progress', () => {
     const { port, events } = collectingPort()
     await runConvert(runOptions({ mode: 'create-translation-mod' }), dedupingMods(), port)
     expect(translateModEvents(events)).toEqual([])
+  })
+})
+
+const sharingMods = (): MemoryFs =>
+  new MemoryFs({
+    'workshop/a/descriptor.mod': 'name="Mod A"',
+    'workshop/a/localisation/english/a_l_english.yml': localeFile('english', [
+      ['K1', 'Colony Ship'],
+      ['K2', 'Science Ship']
+    ]),
+    'workshop/b/descriptor.mod': 'name="Mod B"',
+    'workshop/b/localisation/english/b_l_english.yml': localeFile('english', [
+      ['K3', 'Colony Ship'],
+      ['K4', 'Star Fortress']
+    ])
+  })
+
+const cachingEngine = (cached: readonly string[] = []): TranslationEnginePort => {
+  const counters = { translated: 0, cached: 0, failed: 0 }
+  const isCached = (value: string): boolean => cached.includes(value)
+  return {
+    translate: async (values, language, onProgress) => {
+      const unique = [...new Set(values)]
+      const stats = { translated: 0, cached: unique.filter(isCached).length, failed: 0 }
+      counters.cached += stats.cached
+      if (stats.cached > 0) onProgress?.({ ...stats })
+      for (let sent = unique.filter(value => !isCached(value)).length; sent > 0; sent--) {
+        stats.translated++
+        counters.translated++
+        onProgress?.({ ...stats })
+      }
+      return {
+        results: new Map(unique.map(value => [value, `${language} ${value}`])),
+        stats
+      }
+    },
+    isCached: (_language, value) => isCached(value),
+    refusalFor: () => undefined,
+    getCounters: () => ({ ...counters }),
+    isBackendDown: () => false
+  }
+}
+
+const eventsOf = <T extends JobEvent['type']>(
+  events: readonly JobEvent[],
+  type: T
+): Array<Extract<JobEvent, { type: T }>> =>
+  events.filter((event): event is Extract<JobEvent, { type: T }> => event.type === type)
+
+describe('runConvert - the translation workload, counted before anything is sent', () => {
+  it('counts every distinct string once across the mods and the languages', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({
+        engine: cachingEngine(),
+        targets: builtIn('ru', 'fr'),
+        mode: 'create-translation-mod'
+      }),
+      sharingMods(),
+      port
+    )
+
+    expect(eventsOf(events, 'translate-workload').map(event => event.total)).toEqual([6])
+  })
+
+  it('announces the workload before the first mod is translated', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({ engine: cachingEngine(), mode: 'create-translation-mod' }),
+      sharingMods(),
+      port
+    )
+
+    const workload = events.findIndex(event => event.type === 'translate-workload')
+    const firstMod = events.findIndex(event => event.type === 'translate-mod')
+    expect(workload).toBeGreaterThanOrEqual(0)
+    expect(workload).toBeLessThan(firstMod)
+  })
+
+  it('leaves out what the memory or the glossary already answers', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({ engine: cachingEngine(['Colony Ship']), mode: 'create-translation-mod' }),
+      sharingMods(),
+      port
+    )
+
+    expect(eventsOf(events, 'translate-workload').map(event => event.total)).toEqual([2])
+    expect(
+      eventsOf(events, 'translate-mod')
+        .map(event => [event.modName, event.total, event.pending])
+        .toSorted()
+    ).toEqual([
+      ['Mod A', 2, 1],
+      ['Mod B', 2, 1]
+    ])
+  })
+
+  it('reports the counting pass one mod at a time', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({ engine: cachingEngine(), mode: 'create-translation-mod' }),
+      sharingMods(),
+      port
+    )
+
+    expect(eventsOf(events, 'translate-counting').map(event => [event.done, event.total])).toEqual([
+      [0, 2],
+      [1, 2],
+      [2, 2]
+    ])
+  })
+
+  it('counts nothing when there is no engine to translate with', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(runOptions({ mode: 'create-translation-mod' }), sharingMods(), port)
+
+    expect(eventsOf(events, 'translate-counting')).toEqual([])
+    expect(eventsOf(events, 'translate-workload')).toEqual([])
+  })
+
+  it('stops before translating when cancelled while counting', async () => {
+    const events: JobEvent[] = []
+    const cancellation = { requested: false }
+    const port: ProgressPort = {
+      emit: event => {
+        events.push(event)
+        if (event.type === 'translate-counting' && event.done > 0) cancellation.requested = true
+      }
+    }
+    const { output } = await runConvert(
+      runOptions({ engine: cachingEngine(), mode: 'create-translation-mod', cancellation }),
+      sharingMods(),
+      port
+    )
+
+    expect(output.cancelled).toBe(true)
+    expect(eventsOf(events, 'translate-workload')).toEqual([])
+    expect(eventsOf(events, 'translate-mod')).toEqual([])
+  })
+})
+
+describe('runConvert - progress within a mod', () => {
+  it('reports what the backend settled for that mod, without its cache hits', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({ engine: cachingEngine(['Colony Ship']), mode: 'create-translation-mod' }),
+      sharingMods(),
+      port
+    )
+
+    const running = eventsOf(events, 'translate-mod-progress').filter(event => !event.finished)
+    expect(running.length).toBeGreaterThan(0)
+    expect(running.every(event => event.done <= 1)).toBe(true)
+  })
+
+  it('closes every announced mod with a finished report carrying its full count', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({
+        engine: cachingEngine(),
+        targets: builtIn('ru', 'fr'),
+        mode: 'create-translation-mod'
+      }),
+      sharingMods(),
+      port
+    )
+
+    const announced = eventsOf(events, 'translate-mod').map(
+      event => `${event.modId}/${event.language}/${event.pending}`
+    )
+    const finished = eventsOf(events, 'translate-mod-progress')
+      .filter(event => event.finished)
+      .map(event => `${event.modId}/${event.language}/${event.done}`)
+    expect(finished.toSorted()).toEqual(announced.toSorted())
+  })
+})
+
+const refusingEngine = (refused: string): TranslationEnginePort => {
+  const counters = { translated: 0, cached: 0, failed: 0 }
+  const answered = new Set<string>()
+  return {
+    translate: async (values, language, onProgress) => {
+      const stats = { translated: 0, cached: 0, failed: 0 }
+      const results = new Map<string, string>()
+      for (const value of new Set(values)) {
+        if (answered.has(value)) stats.cached++
+        else if (value === refused) stats.failed++
+        else {
+          stats.translated++
+          answered.add(value)
+        }
+        if (value !== refused) results.set(value, `${language} ${value}`)
+        onProgress?.({ ...stats })
+      }
+      counters.translated += stats.translated
+      counters.cached += stats.cached
+      counters.failed += stats.failed
+      return { results, stats }
+    },
+    isCached: (_language, value) => answered.has(value),
+    refusalFor: (_language, value) => (value === refused ? { reason: 'markup' } : undefined),
+    getCounters: () => ({ ...counters }),
+    isBackendDown: () => false
+  }
+}
+
+describe('runConvert - progress over the whole run', () => {
+  it('ends on the counted total even when a refused string is sent again by the next mod', async () => {
+    const { port, events } = collectingPort()
+    await runConvert(
+      runOptions({ engine: refusingEngine('Colony Ship'), mode: 'create-translation-mod' }),
+      sharingMods(),
+      port
+    )
+
+    const [workload] = eventsOf(events, 'translate-workload')
+    const runDone = eventsOf(events, 'translate-mod-progress').map(event => event.runDone)
+    expect(workload?.total).toBe(3)
+    expect(Math.max(...runDone)).toBe(3)
+    expect(runDone.at(-1)).toBe(3)
   })
 })
 

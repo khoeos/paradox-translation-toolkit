@@ -60,7 +60,9 @@ FS-agnostic cores (`packages/`) + one `packages/games` package holding every gam
 
 - The renderer value-imports only zod-free subexports : `@ptt/converter/progress` for
   `JobEvent` / `isJobEvent`, `@ptt/converter/totals`, `@ptt/converter/path` for the `posix*`
-  helpers, `@ptt/converter/reasons` for `IDENTICAL_REASON`, `@ptt/shared/updater` for
+  helpers, `@ptt/converter/reasons` for `IDENTICAL_REASON`, `@ptt/converter/eta` for the
+  time-left estimate (`applyEstimateEvent` / `buildEstimateView`, the one reducer the CLI
+  status line uses too), `@ptt/shared/updater` for
   `UpdaterEvent` / `isUpdaterEvent`, `@ptt/translate/defaults` for the settings bounds and
   `REFUSAL_REASONS`.
 

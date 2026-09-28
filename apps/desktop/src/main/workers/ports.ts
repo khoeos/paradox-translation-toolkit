@@ -55,6 +55,12 @@ export function createTranslationSetup(inputs: TranslationSetupInputs): WorkerTr
           signal: inputs.signal,
           onProgress: counters =>
             inputs.emit({ type: 'translate-progress', jobId: inputs.jobId, counters }),
+          onRateLimitWait: resumesAt =>
+            inputs.emit({
+              type: 'translate-wait',
+              jobId: inputs.jobId,
+              resumesAt: resumesAt ?? null
+            }),
           userDataPath: inputs.userDataPath
         },
         nodeFs,

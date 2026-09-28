@@ -109,6 +109,15 @@ export {
   type TranslationProgress
 } from './progress.js'
 export { buildTargetContent, type BuildTargetOptions } from './build-target.js'
+export {
+  EMPTY_ESTIMATES,
+  applyEstimateEvent,
+  buildEstimateView,
+  type DurationParts,
+  type EstimateState,
+  type EstimateView,
+  type EtaDisplay
+} from './eta.js'
 export { applyModJobs } from './apply-generated.js'
 export {
   runConvert,

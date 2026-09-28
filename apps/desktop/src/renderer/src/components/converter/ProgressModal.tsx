@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import type { ConversionOutput, ScanOutput } from '@ptt/converter'
+import { buildEstimateView } from '@ptt/converter/eta'
+import type { EstimateView } from '@ptt/converter/eta'
 import type { DiagnosticSeverity, ScanPhase, ScanRunningTotals } from '@ptt/converter/progress'
 import type { GameTokens, TranslationTarget } from '@ptt/shared/languages'
 import {
@@ -22,6 +24,7 @@ import { TranslationCountersNote } from '@renderer/components/TranslationCounter
 import { getLogSeverityStyle } from '@renderer/lib/log-severity'
 import { formatElapsed, scanPhasePercent } from '@renderer/lib/scan-progress'
 import { languageLabel, targetLabel } from '@renderer/lib/targets'
+import { formatEta, settledPercent } from '@renderer/lib/translation-eta'
 import { trpc } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 import { keyProgressPercent, settledCount } from '@renderer/store/jobs'
@@ -59,6 +62,9 @@ const EMPTY_COUNTERS = { translated: 0, cached: 0, failed: 0 }
 
 function progressFor(job: JobState): number {
   if (job.status === 'done' || job.status === 'scan-finished') return 100
+  const { counting, run } = job.estimates
+  if (counting) return STATUS_FLOOR[job.status] ?? 0
+  if (run) return settledPercent(run.done, run.total)
   if (job.phase !== null && job.status !== 'translating') {
     return scanPhasePercent(job.phase, job.phaseDone, job.phaseTotal)
   }
@@ -250,7 +256,13 @@ function RunningProgress({ job }: RunningProgressProps) {
   const translating = job.status === 'translating' ? job.translatingMod : null
 
   let activity: string | null = null
-  if (translating) {
+  const counting = job.estimates.counting
+  if (counting) {
+    activity = t('modal.translating.counting', {
+      done: counting.done,
+      total: counting.total
+    })
+  } else if (translating) {
     activity = t('modal.translating.activity', {
       name: translating.modName,
       language: translating.language
@@ -267,8 +279,10 @@ function RunningProgress({ job }: RunningProgressProps) {
     })
   }
 
-  const keys =
-    translating && job.translationTotal > 0
+  const estimates = buildEstimateView(job.estimates, now)
+  const keys = estimates
+    ? t('modal.translating.run', { done: estimates.run.done, total: estimates.run.total })
+    : translating && job.translationTotal > 0
       ? t('modal.translating.keys', {
           done: Math.min(settledCount(job.translation ?? EMPTY_COUNTERS), job.translationTotal),
           total: job.translationTotal
@@ -285,6 +299,39 @@ function RunningProgress({ job }: RunningProgressProps) {
           <span title={t('modal.elapsed')}>{formatElapsed(now - job.startedAt)}</span>
         </span>
       </div>
+      {estimates ? <TranslationEstimates view={estimates} /> : null}
+    </div>
+  )
+}
+
+interface TranslationEstimatesProps {
+  view: EstimateView
+}
+
+function TranslationEstimates({ view }: TranslationEstimatesProps) {
+  const { t } = useTranslation()
+
+  return (
+    <div className="space-y-1 text-sm text-muted-foreground">
+      <p className="text-foreground">
+        {t('modal.translating.runEta', { eta: formatEta(t, view.run.eta) })}
+      </p>
+      {view.mods.map(mod => (
+        <p key={mod.modId} className="truncate tabular-nums">
+          {t('modal.translating.modEta', {
+            name: mod.modName,
+            language: languageLabel(t, mod.language),
+            done: mod.done,
+            total: mod.total,
+            eta: formatEta(t, mod.eta)
+          })}
+        </p>
+      ))}
+      {view.waitSeconds !== null ? (
+        <p className="text-amber-600 dark:text-amber-500">
+          {t('modal.translating.rateLimited', { seconds: view.waitSeconds })}
+        </p>
+      ) : null}
     </div>
   )
 }

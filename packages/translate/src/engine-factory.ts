@@ -23,6 +23,7 @@ export interface EngineForRunOptions {
   userDataPath?: string
   signal?: AbortSignal
   onProgress?: (counters: TranslationCounters) => void
+  onRateLimitWait?: (resumesAt: number | undefined) => void
 }
 
 export async function createEngineForRun(
@@ -72,6 +73,7 @@ export async function createEngineForRun(
     retries: config.retries,
     ...(options.signal !== undefined && { signal: options.signal }),
     ...(options.onProgress !== undefined && { onProgress: options.onProgress }),
+    ...(options.onRateLimitWait !== undefined && { onRateLimitWait: options.onRateLimitWait }),
     ...(glossaries !== undefined && { glossaries }),
     ...(glossarySkipReason !== undefined && { glossarySkipReason })
   })

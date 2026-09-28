@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./eta": "./src/eta.ts",
     "./path": "./src/path.ts",
     "./progress": "./src/progress.ts",
     "./reasons": "./src/reasons.ts",

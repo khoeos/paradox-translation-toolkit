@@ -142,8 +142,10 @@ export interface TranslationMemoryPort {
 export interface TranslationEnginePort {
   translate(
     values: readonly string[],
-    language: string
+    language: string,
+    onProgress?: (stats: TranslationProgress) => void
   ): Promise<{ results: Map<string, string>; stats: TranslationProgress }>
+  isCached(language: string, value: string): boolean
   refusalFor(language: string, value: string): { reason: string; detail?: string } | undefined
   getCounters(): TranslationProgress
   isBackendDown(): boolean

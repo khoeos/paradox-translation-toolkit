@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clip, num, visibleLength } from './output.js'
+import { clip, num, ticker, visibleLength } from './output.js'
 
 const ESC = '\u001b'
 
@@ -49,5 +49,47 @@ describe('visibleLength', () => {
 
   it('handles several codes in one cell', () => {
     expect(visibleLength(`${ESC}[1m${ESC}[32mok${ESC}[0m`)).toBe(2)
+  })
+})
+
+describe('ticker', () => {
+  const tty = Object.getOwnPropertyDescriptor(process.stderr, 'isTTY')
+
+  const drawn = (write: { mock: { calls: unknown[][] } }): string[] =>
+    write.mock.calls.map(([chunk]) => String(chunk).replace(`\r${ESC}[2K`, ''))
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    Object.defineProperty(process.stderr, 'isTTY', { value: true, configurable: true })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+    if (tty) Object.defineProperty(process.stderr, 'isTTY', tty)
+    else Reflect.deleteProperty(process.stderr, 'isTTY')
+  })
+
+  it('draws the last text of a burst once the interval is over, not only the first', () => {
+    const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const tick = ticker()
+    tick.show('one')
+    tick.show('two')
+    tick.show('three')
+    expect(drawn(write)).toEqual(['one'])
+
+    vi.advanceTimersByTime(100)
+    expect(drawn(write)).toEqual(['one', 'three'])
+  })
+
+  it('draws nothing more once stopped', () => {
+    const write = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
+    const tick = ticker()
+    tick.show('one')
+    tick.show('two')
+    tick.stop()
+
+    vi.advanceTimersByTime(1000)
+    expect(drawn(write)).toEqual(['one'])
   })
 })

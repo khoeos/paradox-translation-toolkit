@@ -196,6 +196,27 @@ failures.
 
 Cancelling interrupts a wait at once.
 
+### A translated run reads every mod twice
+
+To show how long the whole run has left from the start, a run with a translation
+backend first counts what it will send: it plans every selected mod once, keeps
+the distinct strings neither the translation memory nor the glossary already
+answers, and only then starts translating, planning each mod again as it goes.
+Plans are not kept between the two passes, since holding every mod's keys at
+once would not fit a large modlist in memory.
+
+The counting pass costs about as much as the planning step of a scan. It is
+negligible next to a translation measured in minutes or hours, but it is noticeable
+on a run where almost everything is already in the memory. A run without a backend
+does not count anything.
+
+The time left is a range, not a promise. It compares the pace since the start of
+the run with the pace of the last three minutes, so a rate limit that slows the
+backend down widens it, and it narrows again once answers flow. A string refused
+in one mod is asked again in the next one that uses it, but the whole-run count
+credits each counted string to the first mod that sends it only, so those retries
+do not push the run past its total.
+
 ### An answer identical to the source is remembered
 
 When the model answers with the source text unchanged, that answer is accepted

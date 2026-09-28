@@ -25,7 +25,7 @@ const options = (over: Partial<CliOptions> = {}): CliOptions =>
 
 describe('createRunPorts', () => {
   it('always supplies both ports, so runConvert owns the sequence either way', () => {
-    const ports = createRunPorts(options(), new AbortController().signal)
+    const ports = createRunPorts(options(), new AbortController().signal, { emit: () => {} })
     expect(ports.translationSetup.open).toBeTypeOf('function')
     expect(ports.runReport.write).toBeTypeOf('function')
   })

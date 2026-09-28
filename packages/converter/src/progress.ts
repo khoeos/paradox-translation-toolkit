@@ -15,8 +15,12 @@ export const JOB_EVENT_TYPES = [
   'mod-progress',
   'scan-phase',
   'mods-scanned',
+  'translate-counting',
+  'translate-workload',
   'translate-mod',
+  'translate-mod-progress',
   'translate-progress',
+  'translate-wait',
 
   'convert-done',
   'cancelled'
@@ -56,15 +60,29 @@ export type JobEvent =
     }
   | { type: 'scan-phase'; jobId: string; phase: ScanPhase; done?: number; total?: number }
   | { type: 'mods-scanned'; jobId: string; output: ScanOutput }
+  | { type: 'translate-counting'; jobId: string; done: number; total: number }
+  | { type: 'translate-workload'; jobId: string; total: number }
   | {
       type: 'translate-mod'
       jobId: string
+      modId: string
       modName: string
       language: string
       total: number
+      pending: number
       done: number
     }
+  | {
+      type: 'translate-mod-progress'
+      jobId: string
+      modId: string
+      language: string
+      done: number
+      finished: boolean
+      runDone: number
+    }
   | { type: 'translate-progress'; jobId: string; counters: TranslationProgress }
+  | { type: 'translate-wait'; jobId: string; resumesAt: number | null }
   | { type: 'convert-done'; jobId: string; output: ConversionOutput }
   | { type: 'cancelled'; jobId: string }
 

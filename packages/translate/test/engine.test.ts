@@ -1108,3 +1108,91 @@ describe('TranslationEngine - one glossary per target language', () => {
     expect(engine.getGlossaryStats()).toEqual([])
   })
 })
+
+describe('TranslationEngine - progress a caller can estimate from', () => {
+  const glossary: Glossary = {
+    exact: new Map([['Men-at-Arms', 'Профессионалы']]),
+    terms: new Map(),
+    builtFrom: '/game',
+    root: '/game/game',
+    files: 1,
+    truncated: false,
+    forLanguage: 'ru'
+  }
+
+  it('knows a string is cached when the memory or the glossary holds it', async () => {
+    const memory = new TranslationMemory('mem', new MemoryFs({ 'mem/ru.json': '{"one":"один"}' }))
+    await memory.load('ru')
+    const engine = await engineWith({ memory, glossaries: new Map([['ru', glossary]]) })
+
+    expect(engine.isCached('ru', 'one')).toBe(true)
+    expect(engine.isCached('ru', 'Men-at-Arms')).toBe(true)
+    expect(engine.isCached('ru', 'two')).toBe(false)
+  })
+
+  it('reports a call on its own, its cache hits first', async () => {
+    const memory = new TranslationMemory('mem', new MemoryFs({ 'mem/fr.json': '{"one":"un"}' }))
+    const engine = await engineWith({
+      memory,
+      batchSize: 1,
+      provider: tableProvider({ two: 'deux', three: 'trois' })
+    })
+    const seen: TranslationCounters[] = []
+    await engine.translate(['one', 'two', 'three'], 'fr', stats => seen.push(stats))
+
+    expect(seen[0]).toEqual({ translated: 0, cached: 1, failed: 0 })
+    expect(seen.at(-1)).toEqual({ translated: 2, cached: 1, failed: 0 })
+  })
+
+  it('keeps two concurrent calls apart', async () => {
+    const engine = await engineWith({
+      batchSize: 1,
+      provider: tableProvider({ x: 'X', y: 'Y', z: 'Z' })
+    })
+    const first: TranslationCounters[] = []
+    const second: TranslationCounters[] = []
+    await Promise.all([
+      engine.translate(['x'], 'fr', stats => first.push(stats)),
+      engine.translate(['y', 'z'], 'fr', stats => second.push(stats))
+    ])
+
+    expect(first.at(-1)?.translated).toBe(1)
+    expect(second.at(-1)?.translated).toBe(2)
+  })
+
+  it('announces when a rate-limit wait will end, then that it has', async () => {
+    const { sleep, now } = recordingSleep()
+    const announced: Array<number | undefined> = []
+    const engine = await engineWith({
+      retries: 3,
+      sleep,
+      now,
+      provider: rateLimitedProvider(1, { one: 'un' }, 1234),
+      onRateLimitWait: resumesAt => announced.push(resumesAt)
+    })
+    await engine.translate(['one'], 'fr')
+
+    expect(announced).toEqual([1234, undefined])
+  })
+
+  it('announces nothing for a server error, which only its own batch waits out', async () => {
+    const { sleep, now } = recordingSleep()
+    let calls = 0
+    const announced: Array<number | undefined> = []
+    const engine = await engineWith({
+      retries: 3,
+      sleep,
+      now,
+      provider: {
+        translate: async texts => {
+          if (calls++ === 0) throw new HttpFailure('unavailable', 503)
+          return texts.map(() => 'un')
+        }
+      },
+      onRateLimitWait: resumesAt => announced.push(resumesAt)
+    })
+    await engine.translate(['one'], 'fr')
+
+    expect(announced).toEqual([])
+  })
+})

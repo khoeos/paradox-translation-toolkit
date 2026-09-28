@@ -1,6 +1,7 @@
 import type {
   ConversionOutput,
   KeyReport,
+  ProgressPort,
   RunReportPort,
   TranslationSetupPort
 } from '@ptt/converter'
@@ -10,7 +11,6 @@ import type { RunReportInputs } from '@ptt/report'
 import { createEngineForRun, describeGlossaryProblems } from '@ptt/translate'
 import type { TranslationEngine } from '@ptt/translate'
 
-import { consolePort } from '../console-port.js'
 import type { CliOptions } from '../options.js'
 import { openMemory } from './shared.js'
 
@@ -19,8 +19,11 @@ export interface CliRunPorts {
   runReport: RunReportPort
 }
 
-export function createRunPorts(options: CliOptions, signal: AbortSignal): CliRunPorts {
-  const port = consolePort()
+export function createRunPorts(
+  options: CliOptions,
+  signal: AbortSignal,
+  port: ProgressPort
+): CliRunPorts {
   let engine: TranslationEngine | undefined
 
   const translationSetup: TranslationSetupPort = {
@@ -38,7 +41,9 @@ export function createRunPorts(options: CliOptions, signal: AbortSignal): CliRun
           memory,
           userDataPath: options.userDataPath,
           signal,
-          onProgress: counters => port.emit({ type: 'translate-progress', jobId: 'cli', counters })
+          onProgress: counters => port.emit({ type: 'translate-progress', jobId: 'cli', counters }),
+          onRateLimitWait: resumesAt =>
+            port.emit({ type: 'translate-wait', jobId: 'cli', resumesAt: resumesAt ?? null })
         },
         nodeFs,
         nodeFetch

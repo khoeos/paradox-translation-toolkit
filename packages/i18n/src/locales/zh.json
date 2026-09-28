@@ -178,6 +178,16 @@
     "doneToast_other": "转换完成 - 已创建 {{count}} 个文件",
     "elapsed": "已用时间",
     "errorToast": "转换失败:{{message}}",
+    "eta": {
+      "about": "大约还需 {{duration}}",
+      "atLeast": "还需超过 {{duration}}",
+      "estimating": "正在估算剩余时间…",
+      "hours": "{{hours}} 小时",
+      "hoursMinutes": "{{hours}} 小时 {{minutes}} 分钟",
+      "minutes": "{{minutes}} 分钟",
+      "range": "还需 {{low}} 至 {{high}}",
+      "underAMinute": "不到一分钟"
+    },
     "filesCreated": "已创建的文件:",
     "filesPerLang": "{{lang}} - 已创建 {{count}} 个文件",
     "filesPerLang_other": "{{lang}} - 已创建 {{count}} 个文件",
@@ -230,7 +240,12 @@
     },
     "translating": {
       "activity": "正在将 {{name}} 翻译为 {{language}}",
-      "keys": "{{done}}/{{total}} 个键"
+      "counting": "正在统计待翻译文本：{{done}}/{{total}} 个模组",
+      "keys": "{{done}}/{{total}} 个键",
+      "modEta": "{{name}}（{{language}}）：{{done}}/{{total}}，{{eta}}",
+      "rateLimited": "已达到服务商的速率限制，{{seconds}} 秒后重试",
+      "run": "{{done}}/{{total}} 条文本",
+      "runEta": "整个任务：{{eta}}"
     },
     "translationCounters": "已翻译 {{translated}}，免费 {{cached}}，保留原样 {{failed}}"
   },

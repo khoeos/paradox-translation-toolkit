@@ -159,9 +159,11 @@ describe('translation progress', () => {
     store().applyEvent({
       type: 'translate-mod',
       jobId: 'j1',
+      modId: 'a',
       modName: 'Mod A',
       language: 'ru',
       total: 250,
+      pending: 250,
       done: 0,
       ...over
     })
@@ -186,7 +188,7 @@ describe('translation progress', () => {
   it('adds up the announced totals, since mods translate two at a time', () => {
     store().startJob('j1')
     startTranslating({ total: 250 })
-    startTranslating({ modName: 'Mod B', total: 40 })
+    startTranslating({ modId: 'b', modName: 'Mod B', total: 40 })
     expect(store().jobs.get('j1')?.translationTotal).toBe(290)
   })
 
@@ -221,6 +223,27 @@ describe('translation progress', () => {
         translationTotal: 10
       })
     ).toBe(100)
+  })
+
+  it('keeps the time-left estimate up to date from the translation events', () => {
+    store().startJob('j1')
+    store().applyEvent({ type: 'translate-workload', jobId: 'j1', total: 900 })
+    startTranslating({ modId: 'a', pending: 100 })
+    store().applyEvent({
+      type: 'translate-mod-progress',
+      jobId: 'j1',
+      modId: 'a',
+      language: 'ru',
+      done: 30,
+      finished: false,
+      runDone: 30
+    })
+    store().applyEvent({ type: 'translate-wait', jobId: 'j1', resumesAt: 123_456 })
+
+    const estimates = store().jobs.get('j1')?.estimates
+    expect(estimates?.run?.done).toBe(30)
+    expect(estimates?.mods.map(mod => [mod.modId, mod.done])).toEqual([['a', 30]])
+    expect(estimates?.resumesAt).toBe(123_456)
   })
 
   it('logs the mod it moves on to, which is the notable event in a long run', () => {
