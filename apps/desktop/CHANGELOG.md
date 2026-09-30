@@ -1,5 +1,30 @@
 # @ptt/desktop
 
+## 3.2.0
+
+### Minor Changes
+
+- [`80ca6aa`](https://github.com/khoeos/paradox-translation-toolkit/commit/80ca6aaaf6a30afca1b391ec3171a97f2a4a609d) Thanks [@khoeos](https://github.com/khoeos)! - Added: time-left estimates during translation runs.
+  
+  - Shows a remaining-time range for the whole run and for each mod, narrowing as the backend's pace settles.
+  - All texts are counted before translation starts, so the whole-run estimate appears immediately.
+  - When the provider rate-limits, the UI now shows the wait time until the next attempt instead of a stalled progress bar.
+  - The CLI shows the same estimate line.
+
+### Patch Changes
+
+- [`1883beb`](https://github.com/khoeos/paradox-translation-toolkit/commit/1883beb566bc6fb4f18b75fa16b3cdbd50c97927) Thanks [@khoeos](https://github.com/khoeos)! - Fixed: an OpenAI-compatible backend that only supports `{"type":"json_object"}`, the OpenAI provider
+  now retries that batch once in `json_object` mode and stays there for the rest of the run, keeping
+  the strict `json_schema` everywhere it is accepted.
+
+- [`77eac1a`](https://github.com/khoeos/paradox-translation-toolkit/commit/77eac1a80b015909f57bb4dee39e0e063518d073) Thanks [@khoeos](https://github.com/khoeos)! - Fixed: rate limiting (429) no longer kills a run.
+  
+  - When one batch hits a 429, the batches behind it now wait out the same cooldown instead of firing immediately.
+  - A 429 no longer counts against a batch's retry limit.
+  - Retry-After headers up to 2 minutes are respected.
+  
+  Result: the run slows to match the backend's quota and finishes. It only gives up after 5 straight minutes of nothing but 429.
+
 ## 3.1.0
 
 ### Minor Changes
