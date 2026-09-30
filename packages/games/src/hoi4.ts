@@ -16,8 +16,7 @@ export const hoi4: GameDefinition = {
     ru: 'russian',
     'zh-Hans': 'simp_chinese',
     ja: 'japanese',
-    ko: 'korean',
-    tr: 'turkish'
+    ko: 'korean'
   },
   overrideSubdirs: ['replace'],
   userFolder: 'Hearts of Iron IV',
