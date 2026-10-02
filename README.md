@@ -21,15 +21,14 @@ The easiest way to manage your missing translation files for Paradox games (and 
   <p align="center">
       Cross-platform desktop tool that generates missing localisation files for Paradox games (Stellaris, EU4, EU5, HoI4, CK3) so mods stop displaying raw translation tags when your language isn't covered by the modder.
     <br />
-    <a href="https://github.com/khoeos/paradox-translation-toolkit/releases"><strong>Download App »</strong></a>
-    <br/>
-    <br/>
-    <a href="./docs/architecture.md">Explore the docs »</a>
+    <br />
+    <a href="https://github.com/khoeos/paradox-translation-toolkit/releases/latest"><strong>Download App »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/khoeos/paradox-translation-toolkit/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/khoeos/paradox-translation-toolkit/issues">Request Feature</a>
+    <a href="https://discord.gg/X9d96sK4dw">Join the discord</a> or
+    <a href="https://github.com/khoeos/paradox-translation-toolkit/issues">Open a Github Issue</a>
+    <br/>
+    to report a bug or request a Feature
   </p>
 
 <!-- TABLE OF CONTENTS -->
@@ -122,7 +121,6 @@ There have been several versions leading up to the current one, and I expect to 
 For questions, support, or general discussion, the fastest way to reach me is on Discord.
 
 [![logo-discord](https://img.shields.io/badge/Server-grey?style=for-the-badge&logo=discord)](https://discord.gg/X9d96sK4dw)
-![logo-discord](https://img.shields.io/badge/khoeos-grey?style=for-the-badge&logo=discord)
 [![logo-reddit](https://img.shields.io/badge/khoeos-grey?style=for-the-badge&logo=reddit)](https://www.reddit.com/user/khoeos/)
 
 For discord contact, send me a message directly or join the server ([https://discord.gg/X9d96sK4dw](https://discord.gg/X9d96sK4dw)), i rarerly respond to only friend request.
@@ -158,7 +156,6 @@ Important notes about the use of AI in the development of this project in the [A
 ## Useful links
 
 - [App Changelog](./CHANGELOG.md)
-- [Roadmap](./docs/roadmap.md)
 - [Contributing guidelines](./CONTRIBUTING.md)
 - [Known issues & limitations](./docs/known-issues.md)
 - [Project architecture](./docs/architecture.md)
