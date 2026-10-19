@@ -38,7 +38,7 @@ export interface KnownPathEntry {
   pinned: boolean
 }
 
-export interface SettingsSchema {
+export type SettingsSchema = {
   lastModFolder: Partial<Record<string, string>>
   lastOutputFolder: Partial<Record<string, string>>
   gamePath: Partial<Record<string, string>>

@@ -135,7 +135,7 @@ type-imported only from the renderer ; a value import of it would pull zod in.
   `grep -rnE "\bas [A-Za-z_{(<]" packages apps --include=*.ts --include=*.tsx | grep -v dist-deploy | grep -v packages/ui/ | grep -v "as const" | grep -vE "/(test|e2e)/|\.test\.ts"`
   (it also matches prose containing " as "; the code lines are the ones listed above).
   `packages/i18n/src/index.ts` used to hold an eighth, `(VALID_UI_LANGUAGES as readonly
-string[]).includes(value)`, which is precisely what the `TUPLE.some(...)` rule above exists to
+  string[]).includes(value)`, which is precisely what the `TUPLE.some(...)` rule above exists to
   replace ; it now uses `some`. Add a one-line reason at any site that is not self-evident.
 
   How the count got down here : the custom-target work widened `TranslationTarget.language` from

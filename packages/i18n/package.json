@@ -21,7 +21,7 @@
     "i18next": "catalog:"
   },
   "devDependencies": {
-    "i18next-cli": "^1.74.1",
+    "i18next-cli": "^1.80.4",
     "rimraf": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
