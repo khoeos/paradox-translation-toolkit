@@ -1,7 +1,14 @@
 import { buildTargetContent } from './build-target.js'
 import { mapWithConcurrency } from './concurrency.js'
 import { MOD_CONCURRENCY } from './constants.js'
-import { pathKey, posixContains, posixDirname, posixJoin, posixSplit } from './path.js'
+import {
+  pathKey,
+  posixContains,
+  posixDirname,
+  posixJoin,
+  posixNormalize,
+  posixSplit
+} from './path.js'
 import { canPrune, pruneNamespace } from './prune.js'
 import { describeInPlaceShadowing, resolveTargets } from './target.js'
 import type { ResolvedTarget } from './target.js'
@@ -15,6 +22,8 @@ import type {
   ModResult
 } from './types.js'
 import { stringifyError } from './walk.js'
+
+const WRITE_SIBLING_SUFFIXES = ['', '.tmp', '.bak']
 
 type Write =
   | { outcome: 'written'; target: string }
@@ -83,6 +92,9 @@ export async function applyModJobs(options: ApplyModOptions, fs: FsLike): Promis
         if (!posixContains(sandbox, path)) {
           throw new Error(`Refusing to write outside "${sandbox}": ${path}`)
         }
+        if (await crossesSymlink(sandbox, path, fs)) {
+          throw new Error(`Refusing to write through a symlink inside "${sandbox}": ${path}`)
+        }
 
         const dir = posixDirname(path)
         if (dir.length > 0) await fs.mkdir(dir, { recursive: true })
@@ -146,6 +158,23 @@ function sandboxRoot(modPath: string, destination: Destination): string {
   if (destination.kind === 'translation-mod') return destination.mod.path
   if (destination.kind === 'output-dir') return destination.outputDir
   return modPath
+}
+
+async function crossesSymlink(root: string, path: string, fs: FsLike): Promise<boolean> {
+  const segments = posixSplit(posixNormalize(path)).slice(posixSplit(posixNormalize(root)).length)
+  let dir = root
+  for (const [index, segment] of segments.entries()) {
+    const names =
+      index === segments.length - 1
+        ? WRITE_SIBLING_SUFFIXES.map(suffix => `${segment}${suffix}`.toLowerCase())
+        : [segment.toLowerCase()]
+    const entries = await fs.readdir(dir).catch(() => [])
+    if (entries.some(entry => entry.isSymlink && names.includes(entry.name.toLowerCase()))) {
+      return true
+    }
+    dir = posixJoin(dir, segment)
+  }
+  return false
 }
 
 function resolveDestination(

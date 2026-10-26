@@ -984,3 +984,55 @@ describe('applyModJobs - write guards', () => {
     expect(result.errors.some(error => error.includes('exceeds'))).toBe(true)
   })
 })
+
+describe('applyModJobs - symlinks shipped inside the mod', () => {
+  const inPlace = async (fs: MemoryFs, over: Partial<KeyPlanOptions> = {}) =>
+    applyModJobs(
+      {
+        plan: await planFor(fs, { packed: false, ...over }),
+        mod: { id: 'mymod', path: 'workshop/mymod' },
+        gameDef: stellarisDef,
+        sourceLanguage: 'en',
+        targets: builtIn('ru'),
+        destination: { kind: 'in-place' }
+      },
+      fs
+    )
+
+  it('refuses to write through a symlinked temporary file', async () => {
+    const fs = sourceMod([['K', 'text']])
+    const link = 'workshop/mymod/localisation/russian/a_l_russian.yml.tmp'
+    fs.seedFile(link, 'outside file')
+    fs.seedSymlink(link)
+
+    const result = await inPlace(fs)
+    expect(result.createdCount).toBe(0)
+    expect(result.failedCount).toBe(1)
+    expect(result.errors.some(error => error.includes('symlink'))).toBe(true)
+    expect(fs.snapshot().get(link)).toBe('outside file')
+  })
+
+  it('refuses to back up into a symlinked .bak, whatever its case', async () => {
+    const fs = sourceMod([['K', 'text']])
+    const target = 'workshop/mymod/localisation/russian/a_l_russian.yml'
+    const link = 'workshop/mymod/localisation/russian/A_L_RUSSIAN.YML.BAK'
+    fs.seedFile(target, localeFile('russian', [['OLD', 'старый']]))
+    fs.seedFile(link, 'outside file')
+    fs.seedSymlink(link)
+
+    const result = await inPlace(fs, { targetContent: 'regenerate-file' })
+    expect(result.failedCount).toBe(1)
+    expect(fs.snapshot().get(link)).toBe('outside file')
+  })
+
+  it('refuses to write into a symlinked language folder', async () => {
+    const fs = sourceMod([['K', 'text']])
+    fs.seedFile('workshop/mymod/localisation/russian/elsewhere.txt', 'outside')
+    fs.seedSymlink('workshop/mymod/localisation/russian')
+
+    const result = await inPlace(fs)
+    expect(result.createdCount).toBe(0)
+    expect(result.failedCount).toBe(1)
+    expect(fs.snapshot().has('workshop/mymod/localisation/russian/a_l_russian.yml')).toBe(false)
+  })
+})

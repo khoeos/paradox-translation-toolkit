@@ -6,6 +6,7 @@ const SUPPORTED_VERSION_RE = /^\s*supported_version\s*=\s*"([^"]*)"/m
 const REMOTE_FILE_ID_RE = /^\s*remote_file_id\s*=\s*"([^"]*)"/m
 const DEPENDENCIES_BLOCK_RE = /dependencies\s*=\s*\{([^}]*)\}/
 const QUOTED_RE = /"([^"]*)"/g
+const CONTROL_CHARS_RE = /\p{Cc}/gu
 
 export async function readDescriptor(modPath: string, fs: FsLike): Promise<Descriptor> {
   let names: string[]
@@ -26,7 +27,7 @@ export async function readDescriptor(modPath: string, fs: FsLike): Promise<Descr
   for (const descriptor of names) {
     try {
       const content = await fs.readFile(posixJoin(modPath, descriptor), 'utf-8')
-      const name = NAME_RE.exec(content)?.[1]?.trim()
+      const name = NAME_RE.exec(content)?.[1]?.replace(CONTROL_CHARS_RE, '').trim()
       const supportedVersion = SUPPORTED_VERSION_RE.exec(content)?.[1]?.trim()
       const remoteFileId = REMOTE_FILE_ID_RE.exec(content)?.[1]?.trim()
       const block = DEPENDENCIES_BLOCK_RE.exec(content)?.[1] ?? ''

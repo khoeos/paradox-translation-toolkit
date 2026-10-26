@@ -33,6 +33,13 @@ describe('readDescriptor', () => {
     expect((await readDescriptor('mod', fs)).name).toBe('Spaced')
   })
 
+  it('drops control characters, so a name cannot carry terminal escapes or line breaks', async () => {
+    const fs = new MemoryFs({
+      'mod/descriptor.mod': 'name="Nice\u001b]0;title\u0007\u001b[2K Mod\nfake line\u009b"'
+    })
+    expect((await readDescriptor('mod', fs)).name).toBe('Nice]0;title[2K Modfake line')
+  })
+
   it('tolerates a missing dependency block', async () => {
     const fs = new MemoryFs({ 'mod/descriptor.mod': 'name="Solo"' })
     expect((await readDescriptor('mod', fs)).dependencies).toEqual([])

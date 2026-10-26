@@ -29,7 +29,7 @@ import { PROVIDER_DEFAULTS, TRANSLATE_DEFAULTS, TRANSLATE_PROVIDERS } from '@ptt
 
 import type { Args } from './args.js'
 import { asBool, asList, asNumber, asString } from './coerce.js'
-import { readConfig } from './config.js'
+import { DEFAULT_CONFIG_FILE, readConfig } from './config.js'
 import { resolveDocuments, resolveUserData } from './user-data.js'
 
 const MODE_ALIASES: Record<string, ConvertMode> = {
@@ -71,8 +71,13 @@ export interface CliOptions {
 }
 
 export async function buildOptions(args: Args): Promise<CliOptions> {
-  const config = readConfig(asString(args.flags.config))
+  const configFile = asString(args.flags.config)
+  const config = readConfig(configFile)
   const flags = { ...config, ...args.flags }
+  const baseUrlFromImplicitConfig =
+    configFile === undefined &&
+    args.flags['base-url'] === undefined &&
+    config['base-url'] !== undefined
 
   const gameId = asString(flags.game) ?? 'ck3'
   const game = getGame(gameId)
@@ -119,7 +124,7 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
   const jsonOut = asString(flags.json)
   const csvOut = asString(flags.csv)
   const selectedMods = asList(flags.mods)
-  const translate = buildTranslate(flags, game)
+  const translate = buildTranslate(flags, game, baseUrlFromImplicitConfig)
 
   const issue = findTargetListIssue(targets, game.languageFileToken, {
     sourceLanguage,
@@ -155,7 +160,8 @@ export async function buildOptions(args: Args): Promise<CliOptions> {
 
 function buildTranslate(
   flags: Record<string, string | boolean | number | undefined>,
-  game: GameDefinition
+  game: GameDefinition,
+  baseUrlFromImplicitConfig: boolean
 ): TranslateConfig | undefined {
   if (!asBool(flags.translate)) return undefined
 
@@ -167,13 +173,26 @@ function buildTranslate(
   }
   const defaults = PROVIDER_DEFAULTS[providerName]
 
-  const apiKey = asString(flags['api-key']) ?? process.env.PTT_API_KEY
+  const baseUrl = asString(flags['base-url']) ?? defaults.baseUrl
+  const flagKey = asString(flags['api-key'])
+  const envKey = process.env.PTT_API_KEY
+  if (
+    flagKey === undefined &&
+    envKey !== undefined &&
+    baseUrlFromImplicitConfig &&
+    baseUrl !== defaults.baseUrl
+  ) {
+    throw new Error(
+      `${DEFAULT_CONFIG_FILE} in the working directory sets base-url ${baseUrl}: pass --base-url, --api-key or --config ${DEFAULT_CONFIG_FILE} to send PTT_API_KEY there`
+    )
+  }
+  const apiKey = flagKey ?? envKey
   const gamePath = asString(flags['game-path'])
 
   return {
     enabled: true,
     provider: providerName,
-    baseUrl: asString(flags['base-url']) ?? defaults.baseUrl,
+    baseUrl,
     model: asString(flags.model) ?? defaults.model,
     batchSize: asNumber(flags.batch, TRANSLATE_DEFAULTS.batchSize),
     concurrency: asNumber(flags.concurrency, TRANSLATE_DEFAULTS.concurrency),

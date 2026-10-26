@@ -62,7 +62,8 @@ ${bold('convert flags')}
   --base-url <url>      Backend endpoint
   --model <name>        Model name
   --api-key <key>       Prefer the PTT_API_KEY environment variable: a key on the
-                        command line ends up in the shell history
+                        command line ends up in the shell history. PTT_API_KEY is
+                        not sent to a base-url that only ${DEFAULT_CONFIG_FILE} names
   --batch <n>           Strings per request, default ${TRANSLATE_DEFAULTS.batchSize}
   --concurrency <n>     Requests in flight, default ${TRANSLATE_DEFAULTS.concurrency}
   --retries <n>         Attempts before a batch is split, default ${TRANSLATE_DEFAULTS.retries}

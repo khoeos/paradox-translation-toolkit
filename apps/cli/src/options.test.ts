@@ -482,6 +482,31 @@ describe('buildOptions - config file', () => {
     )
   })
 
+  it('will not send PTT_API_KEY to a base-url that only the working-directory config names', async () => {
+    writeFileSync(
+      join(dir, 'ptt.config.json'),
+      JSON.stringify({ translate: true, provider: 'openai', 'base-url': 'https://x.invalid/v1' })
+    )
+    process.env.PTT_API_KEY = 'sk-from-env'
+    try {
+      await expect(build(['memory'])).rejects.toThrow(/sets base-url https:\/\/x\.invalid\/v1/)
+      const fromArgv = await build(['memory', '--base-url', 'https://x.invalid/v1'])
+      expect(fromArgv.translate?.apiKey).toBe('sk-from-env')
+      const explicit = await build(['memory', '--config', 'ptt.config.json'])
+      expect(explicit.translate?.apiKey).toBe('sk-from-env')
+    } finally {
+      delete process.env.PTT_API_KEY
+    }
+  })
+
+  it('still reads a base-url from the working-directory config when no key comes from the environment', async () => {
+    writeFileSync(
+      join(dir, 'ptt.config.json'),
+      JSON.stringify({ translate: true, provider: 'ollama', 'base-url': 'http://localhost:9999' })
+    )
+    expect((await build(['memory'])).translate?.baseUrl).toBe('http://localhost:9999')
+  })
+
   it('stops on a config file that is not JSON', () => {
     writeFileSync(join(dir, 'ptt.config.json'), '{ truncated')
     expect(() => readConfig()).toThrow(/not valid JSON/)
