@@ -1,5 +1,13 @@
 # @ptt/desktop
 
+## 3.2.1
+
+### Patch Changes
+
+- [`c561974`](https://github.com/khoeos/paradox-translation-toolkit/commit/c561974e15426fc84a83c5872ee7c14b38dbb046) Thanks [@khoeos](https://github.com/khoeos)! - Fixed: removed Turkish from hoi4, it was a test, later replaced with the custom translation feature
+
+- Security: hardened path handling when applying generated files and validating CLI options; updated dependencies (Electron 45)
+
 ## 3.2.0
 
 ### Minor Changes
