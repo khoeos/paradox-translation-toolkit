@@ -1,3 +1,4 @@
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRouterState } from '@tanstack/react-router'
 import { MessagesSquare } from 'lucide-react'
 import { useState } from 'react'
@@ -25,7 +26,7 @@ import {
   formatReportPaths,
   formatReportSettings
 } from '@renderer/lib/report-context'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 import { useJobsStore } from '@renderer/store/jobs'
 
@@ -34,6 +35,7 @@ interface ReportProblemDialogProps {
 }
 
 export function ReportProblemDialog({ trigger }: ReportProblemDialogProps) {
+  const trpc = useTRPC()
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
@@ -42,19 +44,21 @@ export function ReportProblemDialog({ trigger }: ReportProblemDialogProps) {
 
   const pathname = useRouterState({ select: state => state.location.pathname })
   const selectedGameId = useConverterFormStore(state => state.selectedGameId)
-  const { data: settings } = trpc.settings.getAll.useQuery()
+  const { data: settings } = useQuery(trpc.settings.getAll.queryOptions())
   const jobs = useJobsStore(state => state.jobs)
 
-  const send = trpc.report.send.useMutation({
-    onSuccess: () => {
-      toast.success(t('report.success'))
-      setMessage('')
-      setContact('')
-      setIncludeTechnical(false)
-      setOpen(false)
-    },
-    onError: err => toast.error(t('report.error', { message: err.message }))
-  })
+  const send = useMutation(
+    trpc.report.send.mutationOptions({
+      onSuccess: () => {
+        toast.success(t('report.success'))
+        setMessage('')
+        setContact('')
+        setIncludeTechnical(false)
+        setOpen(false)
+      },
+      onError: err => toast.error(t('report.error', { message: err.message }))
+    })
+  )
 
   const handleSubmit = (): void => {
     if (!settings || message.trim().length === 0) return

@@ -1,9 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
 import type { GameSummary } from '@ptt/shared'
 
 import { targetListError, targetListWarning } from '@renderer/lib/targets'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 
 export interface TargetValidation {
@@ -14,8 +15,9 @@ export interface TargetValidation {
 }
 
 export function useTargetValidation(): TargetValidation {
+  const trpc = useTRPC()
   const { t } = useTranslation()
-  const { data } = trpc.games.list.useQuery()
+  const { data } = useQuery(trpc.games.list.queryOptions())
   const selectedGameId = useConverterFormStore(s => s.selectedGameId)
   const targets = useConverterFormStore(s => s.targets)
   const sourceLanguage = useConverterFormStore(s => s.sourceLanguage)

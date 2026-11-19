@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query'
+
 import { cn } from '@ptt/ui/lib/utils'
 
 import ck3Img from '@renderer/assets/img/ck3.webp'
@@ -7,7 +9,7 @@ import hoi4Img from '@renderer/assets/img/hoi4.webp'
 import imperatorImg from '@renderer/assets/img/imperator.webp'
 import stellarisImg from '@renderer/assets/img/stellaris.webp'
 import vic3Img from '@renderer/assets/img/vic3.webp'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 
 const gameImages: Record<string, string> = {
@@ -21,7 +23,8 @@ const gameImages: Record<string, string> = {
 }
 
 export function GameTabs() {
-  const { data, isLoading } = trpc.games.list.useQuery()
+  const trpc = useTRPC()
+  const { data, isLoading } = useQuery(trpc.games.list.queryOptions())
   const selectedGameId = useConverterFormStore(s => s.selectedGameId)
   const setGame = useConverterFormStore(s => s.setGame)
 

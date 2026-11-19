@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -17,10 +18,11 @@ import { Switch } from '@ptt/ui/components/switch'
 import { KnownPathsPicker } from '@renderer/components/converter/KnownPathsPicker'
 import { ModelPicker } from '@renderer/components/converter/ModelPicker'
 import { RESULT_TOAST_DURATION_MS } from '@renderer/lib/toast'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { runTranslateConfig, useConverterFormStore } from '@renderer/store/converter-form'
 
 export function TranslateSettings() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
   const gamePathInputId = useId()
   const retranslateOwnKeysId = useId()
@@ -36,37 +38,41 @@ export function TranslateSettings() {
 
   const defaults = PROVIDER_DEFAULTS[translate.provider]
 
-  const testProvider = trpc.translate.testProvider.useMutation({
-    onSuccess: result => {
-      if (!result.ok) {
-        toast.error(t('translate.testFailed', { message: result.error ?? '' }), {
-          duration: RESULT_TOAST_DURATION_MS
-        })
-        return
-      }
-      if (result.markupKept === false) {
-        toast.warning(t('translate.testMarkupLost'), {
-          duration: RESULT_TOAST_DURATION_MS,
-          description: t('translate.testMarkupLostDetail', {
-            source: result.markupSource ?? '',
-            text: result.markupAnswer ?? ''
+  const testProvider = useMutation(
+    trpc.translate.testProvider.mutationOptions({
+      onSuccess: result => {
+        if (!result.ok) {
+          toast.error(t('translate.testFailed', { message: result.error ?? '' }), {
+            duration: RESULT_TOAST_DURATION_MS
           })
+          return
+        }
+        if (result.markupKept === false) {
+          toast.warning(t('translate.testMarkupLost'), {
+            duration: RESULT_TOAST_DURATION_MS,
+            description: t('translate.testMarkupLostDetail', {
+              source: result.markupSource ?? '',
+              text: result.markupAnswer ?? ''
+            })
+          })
+          return
+        }
+        toast.success(t('translate.testOk', { text: result.translated ?? '' }), {
+          duration: RESULT_TOAST_DURATION_MS,
+          description: t('translate.testMarkupOk', { text: result.markupAnswer ?? '' })
         })
-        return
-      }
-      toast.success(t('translate.testOk', { text: result.translated ?? '' }), {
-        duration: RESULT_TOAST_DURATION_MS,
-        description: t('translate.testMarkupOk', { text: result.markupAnswer ?? '' })
-      })
-    },
+      },
 
-    onError: error => toast.error(t('translate.testFailed', { message: error.message }))
-  })
+      onError: error => toast.error(t('translate.testFailed', { message: error.message }))
+    })
+  )
 
-  const clearMemory = trpc.translate.clearMemory.useMutation({
-    onSuccess: () => toast.success(t('translate.memoryCleared')),
-    onError: error => toast.error(error.message)
-  })
+  const clearMemory = useMutation(
+    trpc.translate.clearMemory.mutationOptions({
+      onSuccess: () => toast.success(t('translate.memoryCleared')),
+      onError: error => toast.error(error.message)
+    })
+  )
 
   const probeLanguage = targets.map(target => target.language).find(isLanguageCode)
 

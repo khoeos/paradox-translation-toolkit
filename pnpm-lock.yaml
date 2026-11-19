@@ -165,12 +165,12 @@ importers:
       '@trpc/client':
         specifier: ^11.29.4
         version: 11.29.4(@trpc/server@11.29.4(typescript@7.0.2))(typescript@7.0.2)
-      '@trpc/react-query':
-        specifier: ^11.29.4
-        version: 11.29.4(@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.29.4(@trpc/server@11.29.4(typescript@7.0.2))(typescript@7.0.2))(@trpc/server@11.29.4(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2)
       '@trpc/server':
         specifier: ^11.29.4
         version: 11.29.4(typescript@7.0.2)
+      '@trpc/tanstack-react-query':
+        specifier: ^11.29.4
+        version: 11.29.4(@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.29.4(@trpc/server@11.29.4(typescript@7.0.2))(typescript@7.0.2))(@trpc/server@11.29.4(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2)
       electron-log:
         specifier: ^5.4.4
         version: 5.4.4
@@ -2259,16 +2259,6 @@ packages:
       '@trpc/server': 11.29.4
       typescript: '>=5.7.2'
 
-  '@trpc/react-query@11.29.4':
-    resolution: {integrity: sha512-oN3QUfXPD3mfScrul96s/uai2kwiiuTpnzskoS0D4Isrza/jbKm3FGJm321NOW/Upmj4bny1oPjHALPp+lHzRQ==}
-    deprecated: '@trpc/react-query only gets bug fixes and will be removed in the next major version of tRPC. Use @trpc/tanstack-react-query instead: https://trpc.io/docs/client/tanstack-react-query/migrating'
-    peerDependencies:
-      '@tanstack/react-query': ^5.80.3
-      '@trpc/client': 11.29.4
-      '@trpc/server': 11.29.4
-      react: '>=18.2.0'
-      typescript: '>=5.7.2'
-
   '@trpc/server@11.29.4':
     resolution: {integrity: sha512-UPBsGC3kBAT9jrTHG0ozvxxwDAm7fcixEPhJf4unxnZ86JwZ/8RjaYwICizvFrgrA2ajr5gSxFaHtTA1ICtTfg==}
     peerDependencies:
@@ -2289,6 +2279,15 @@ packages:
         optional: true
       next:
         optional: true
+
+  '@trpc/tanstack-react-query@11.29.4':
+    resolution: {integrity: sha512-MUHqLHsNN6A3rUvLkiby5Y4+mJi62u0arkerQ2M1HrR22HIgcoPvFi255RShmoN856JviPWClCJ89xOswdtOmQ==}
+    peerDependencies:
+      '@tanstack/react-query': ^5.106.0
+      '@trpc/client': 11.29.4
+      '@trpc/server': 11.29.4
+      react: '>=18.2.0'
+      typescript: '>=5.7.2'
 
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
@@ -6642,16 +6641,16 @@ snapshots:
       '@trpc/server': 11.29.4(typescript@7.0.2)
       typescript: 7.0.2
 
-  '@trpc/react-query@11.29.4(@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.29.4(@trpc/server@11.29.4(typescript@7.0.2))(typescript@7.0.2))(@trpc/server@11.29.4(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2)':
+  '@trpc/server@11.29.4(typescript@7.0.2)':
+    dependencies:
+      typescript: 7.0.2
+
+  '@trpc/tanstack-react-query@11.29.4(@tanstack/react-query@5.108.0(@types/react@19.3.0)(react@19.3.1))(@trpc/client@11.29.4(@trpc/server@11.29.4(typescript@7.0.2))(typescript@7.0.2))(@trpc/server@11.29.4(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2)':
     dependencies:
       '@tanstack/react-query': 5.108.0(@types/react@19.3.0)(react@19.3.1)
       '@trpc/client': 11.29.4(@trpc/server@11.29.4(typescript@7.0.2))(typescript@7.0.2)
       '@trpc/server': 11.29.4(typescript@7.0.2)
       react: 19.3.1
-      typescript: 7.0.2
-
-  '@trpc/server@11.29.4(typescript@7.0.2)':
-    dependencies:
       typescript: 7.0.2
 
   '@ts-morph/common@0.27.0':

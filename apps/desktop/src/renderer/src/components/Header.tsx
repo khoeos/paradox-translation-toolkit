@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Bug, SettingsIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -13,7 +14,7 @@ import {
 import { cn } from '@ptt/ui/lib/utils'
 
 import { ReportProblemDialog } from '@renderer/components/ReportProblemDialog'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 const links = [
   { to: '/', key: 'header.nav.converter' },
@@ -24,11 +25,14 @@ const links = [
 ] as const
 
 function UiLanguageSelect() {
-  const utils = trpc.useUtils()
-  const { data: settings } = trpc.settings.getAll.useQuery()
-  const update = trpc.settings.update.useMutation({
-    onSuccess: () => utils.settings.getAll.invalidate()
-  })
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const { data: settings } = useQuery(trpc.settings.getAll.queryOptions())
+  const update = useMutation(
+    trpc.settings.update.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(trpc.settings.getAll.queryFilter())
+    })
+  )
 
   const current: UiLanguage = isUiLanguage(settings?.uiLanguage) ? settings.uiLanguage : 'en'
 
@@ -54,8 +58,9 @@ function UiLanguageSelect() {
 }
 
 function ReportButton() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
-  const { data: enabled } = trpc.report.isEnabled.useQuery()
+  const { data: enabled } = useQuery(trpc.report.isEnabled.queryOptions())
 
   if (!enabled) return null
 

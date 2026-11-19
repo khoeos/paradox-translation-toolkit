@@ -1,3 +1,4 @@
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLazyRoute, Link } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -35,7 +36,7 @@ import {
   getRunCreatedDeltas,
   sortRuns
 } from '@renderer/lib/run-history'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 const MODE_VALUES: readonly ConvertMode[] = [
   'add-to-current',
@@ -60,12 +61,13 @@ function findLatest(items: readonly RunReportSummary[]): RunReportSummary | unde
 }
 
 function RunHistoryPage() {
+  const trpc = useTRPC()
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const [now] = useState(() => new Date())
 
-  const { data, isLoading, error } = trpc.runReports.list.useQuery()
-  const { data: games } = trpc.games.list.useQuery()
+  const { data, isLoading, error } = useQuery(trpc.runReports.list.queryOptions())
+  const { data: games } = useQuery(trpc.games.list.queryOptions())
 
   const [outcome, setOutcome] = useState<RunOutcomeFilter>('all')
   const [gameId, setGameId] = useState('all')
@@ -113,9 +115,11 @@ function RunHistoryPage() {
   )
   const latest = useMemo(() => findLatest(items), [items])
 
-  const openReportsFolder = trpc.fs.openPath.useMutation({
-    onError: err => toast.error(t('runs.history.toast.revealError', { message: err.message }))
-  })
+  const openReportsFolder = useMutation(
+    trpc.fs.openPath.mutationOptions({
+      onError: err => toast.error(t('runs.history.toast.revealError', { message: err.message }))
+    })
+  )
 
   const listLabel =
     filtered.length === items.length

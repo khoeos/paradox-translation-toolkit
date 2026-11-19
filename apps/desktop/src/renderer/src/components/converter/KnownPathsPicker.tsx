@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { isTRPCClientError } from '@trpc/client'
 import {
   ChevronDown,
@@ -46,7 +47,7 @@ import {
   PATH_CATEGORY_FILTERS,
   type PathCategoryFilter
 } from '@renderer/lib/path-search'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 interface KnownPathsPickerProps {
   id?: string
@@ -88,9 +89,10 @@ export function KnownPathsPicker({
   className
 }: KnownPathsPickerProps) {
   const { t } = useTranslation()
-  const utils = trpc.useUtils()
-  const { data: settings } = trpc.settings.getAll.useQuery()
-  const { data: platform } = trpc.app.platform.useQuery()
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const { data: settings } = useQuery(trpc.settings.getAll.queryOptions())
+  const { data: platform } = useQuery(trpc.app.platform.queryOptions())
   const detected = useDetectedPaths(gameId, kind)
 
   const [open, setOpen] = useState(false)
@@ -114,16 +116,22 @@ export function KnownPathsPicker({
     setActiveIndex(null)
   }, [query, filter])
 
-  const pickFolder = trpc.fs.pickFolder.useMutation()
-  const addKnownPath = trpc.settings.addKnownPath.useMutation({
-    onSuccess: () => utils.settings.getAll.invalidate()
-  })
-  const togglePin = trpc.settings.togglePinKnownPath.useMutation({
-    onSuccess: () => utils.settings.getAll.invalidate()
-  })
-  const clearHistory = trpc.settings.clearKnownPaths.useMutation({
-    onSuccess: () => utils.settings.getAll.invalidate()
-  })
+  const pickFolder = useMutation(trpc.fs.pickFolder.mutationOptions())
+  const addKnownPath = useMutation(
+    trpc.settings.addKnownPath.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(trpc.settings.getAll.queryFilter())
+    })
+  )
+  const togglePin = useMutation(
+    trpc.settings.togglePinKnownPath.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(trpc.settings.getAll.queryFilter())
+    })
+  )
+  const clearHistory = useMutation(
+    trpc.settings.clearKnownPaths.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(trpc.settings.getAll.queryFilter())
+    })
+  )
 
   const caseSensitive = platform === 'linux'
   const entries = filterByGame(settings?.knownPaths ?? [], gameId, kind)
@@ -173,7 +181,7 @@ export function KnownPathsPicker({
   }
 
   const validate = (path: string): Promise<PathValidationStatus> =>
-    utils.fs.validatePath.fetch({ path })
+    queryClient.fetchQuery(trpc.fs.validatePath.queryOptions({ path }))
 
   const persistKnownPathQuietly = (path: string): Promise<void> =>
     runIgnoringExpectedAddKnownPathErrors(async () => {
@@ -241,7 +249,7 @@ export function KnownPathsPicker({
   }
 
   const handlePasteFromClipboard = async (): Promise<void> => {
-    const text = await utils.fs.readClipboardText.fetch()
+    const text = await queryClient.fetchQuery(trpc.fs.readClipboardText.queryOptions())
     if (text === null) return
     setQuery(text)
     searchInputRef.current?.focus()

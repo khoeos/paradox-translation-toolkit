@@ -1,3 +1,5 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { inferRouterInputs } from '@trpc/server'
 import { useEffect, useRef } from 'react'
 
 import type { LanguageCode } from '@ptt/shared'
@@ -9,11 +11,12 @@ import {
   uniqueTargetLanguages
 } from '@ptt/shared/languages'
 
-import { trpc } from '@renderer/lib/trpc'
+import type { AppRouter } from '@main/ipc/trpc-router'
+import { useTRPC } from '@renderer/lib/trpc'
 import type { BackendsByProvider, PersistedTranslate } from '@renderer/store/converter-form'
 import { backendsWith, useConverterFormStore } from '@renderer/store/converter-form'
 
-type SettingsPatch = Parameters<ReturnType<typeof trpc.settings.update.useMutation>['mutate']>[0]
+type SettingsPatch = inferRouterInputs<AppRouter>['settings']['update']
 
 const PERSIST_DEBOUNCE_MS = 400
 
@@ -98,18 +101,19 @@ export const translateChanged = (a: PersistedTranslate, b: PersistedTranslate): 
  * - persist form changes back to settings, debounced (400ms) and merged.
  */
 export function useSettingsSync(): void {
-  const utils = trpc.useUtils()
-  const settingsQuery = trpc.settings.getAll.useQuery()
-  const gamesQuery = trpc.games.list.useQuery()
-  const updateMutation = trpc.settings.update.useMutation({
-    onSuccess: data => utils.settings.getAll.setData(undefined, data)
-  })
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const settingsQuery = useQuery(trpc.settings.getAll.queryOptions())
+  const gamesQuery = useQuery(trpc.games.list.queryOptions())
+  const updateMutation = useMutation(
+    trpc.settings.update.mutationOptions({
+      onSuccess: data => queryClient.setQueryData(trpc.settings.getAll.queryKey(), data)
+    })
+  )
 
   // Refs let the subscribe effect read the latest values without re-subscribing.
   const persistRef = useRef(updateMutation.mutate)
   persistRef.current = updateMutation.mutate
-  const utilsRef = useRef(utils)
-  utilsRef.current = utils
   const gamesRef = useRef(gamesQuery.data)
   gamesRef.current = gamesQuery.data
 
@@ -167,7 +171,7 @@ export function useSettingsSync(): void {
       if (!hydrated.current) return
       if (isHydrating.current) return
 
-      const fresh = utilsRef.current.settings.getAll.getData()
+      const fresh = queryClient.getQueryData(trpc.settings.getAll.queryKey())
       const patch: SettingsPatch = {}
       const newGameId =
         state.selectedGameId !== prev.selectedGameId && state.selectedGameId
@@ -237,5 +241,5 @@ export function useSettingsSync(): void {
       }
       unsubscribe()
     }
-  }, [])
+  }, [queryClient, trpc])
 }

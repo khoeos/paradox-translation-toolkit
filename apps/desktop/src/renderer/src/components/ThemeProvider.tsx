@@ -1,9 +1,11 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { data: settings } = trpc.settings.getAll.useQuery()
+  const trpc = useTRPC()
+  const { data: settings } = useQuery(trpc.settings.getAll.queryOptions())
   const theme = settings?.themeOverride ?? 'system'
 
   useEffect(() => {

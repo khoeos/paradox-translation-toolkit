@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { Download, ExternalLink, RefreshCcw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -5,10 +6,11 @@ import { Button } from '@ptt/ui/components/button'
 import { Progress } from '@ptt/ui/components/progress'
 import { cn } from '@ptt/ui/lib/utils'
 
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { isUpdateBannerVisible, useUpdaterStore } from '@renderer/store/updater'
 
 export function UpdateBanner() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
   const status = useUpdaterStore(s => s.status)
   const latestVersion = useUpdaterStore(s => s.latestVersion)
@@ -17,8 +19,8 @@ export function UpdateBanner() {
   const visible = useUpdaterStore(isUpdateBannerVisible)
   const autoUpdateSupported = useUpdaterStore(s => s.autoUpdateSupported)
 
-  const downloadMutation = trpc.updater.download.useMutation()
-  const installMutation = trpc.updater.installNow.useMutation()
+  const downloadMutation = useMutation(trpc.updater.download.mutationOptions())
+  const installMutation = useMutation(trpc.updater.installNow.mutationOptions())
 
   if (!visible) return null
 

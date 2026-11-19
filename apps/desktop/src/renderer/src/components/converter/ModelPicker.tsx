@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { Check, ListFilter, LoaderCircle, RefreshCw } from 'lucide-react'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,7 @@ import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@ptt/ui/c
 import { ScrollArea } from '@ptt/ui/components/scroll-area'
 import { cn } from '@ptt/ui/lib/utils'
 
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 interface ModelPickerProps {
   id: string
@@ -32,12 +33,13 @@ export function ModelPicker({
   placeholder,
   onChange
 }: ModelPickerProps) {
+  const trpc = useTRPC()
   const { t } = useTranslation()
   const filterInputId = useId()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
 
-  const listModels = trpc.translate.listModels.useMutation()
+  const listModels = useMutation(trpc.translate.listModels.mutationOptions())
 
   const detect = (): void => {
     setQuery('')

@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -18,7 +19,7 @@ import { Button } from '@ptt/ui/components/button'
 
 import { useTargetValidation } from '@renderer/hooks/useTargetValidation'
 import { findShadowingTarget, languageLabel } from '@renderer/lib/targets'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { canRun, runTranslateConfig, useConverterFormStore } from '@renderer/store/converter-form'
 import { useJobsStore } from '@renderer/store/jobs'
 
@@ -50,6 +51,7 @@ function commonInput(): {
 }
 
 export function RunButton() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
   const targets = useConverterFormStore(s => s.targets)
   const mode = useConverterFormStore(s => s.mode)
@@ -69,14 +71,18 @@ export function RunButton() {
     toast.error(t('converter.runError', { message }))
   }
 
-  const scanModsMutation = trpc.converter.scanMods.useMutation({
-    onSuccess: ({ jobId }) => startJob(jobId),
-    onError: err => onError(err.message)
-  })
-  const convertMutation = trpc.converter.convert.useMutation({
-    onSuccess: ({ jobId }) => startJob(jobId),
-    onError: err => onError(err.message)
-  })
+  const scanModsMutation = useMutation(
+    trpc.converter.scanMods.mutationOptions({
+      onSuccess: ({ jobId }) => startJob(jobId),
+      onError: err => onError(err.message)
+    })
+  )
+  const convertMutation = useMutation(
+    trpc.converter.convert.mutationOptions({
+      onSuccess: ({ jobId }) => startJob(jobId),
+      onError: err => onError(err.message)
+    })
+  )
 
   const pending = scanModsMutation.isPending || convertMutation.isPending
   const hasScan = scannedCount > 0

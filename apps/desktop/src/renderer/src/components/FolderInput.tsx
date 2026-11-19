@@ -1,9 +1,10 @@
+import { useMutation } from '@tanstack/react-query'
 import { FolderIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { cn } from '@ptt/ui/lib/utils'
 
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 interface FolderInputProps {
   value: string
@@ -13,8 +14,9 @@ interface FolderInputProps {
 }
 
 export function FolderInput({ value, onChange, placeholder, className }: FolderInputProps) {
+  const trpc = useTRPC()
   const { t } = useTranslation()
-  const pickFolder = trpc.fs.pickFolder.useMutation()
+  const pickFolder = useMutation(trpc.fs.pickFolder.mutationOptions())
 
   const handlePick = async (): Promise<void> => {
     const result = await pickFolder.mutateAsync(value ? { defaultPath: value } : undefined)

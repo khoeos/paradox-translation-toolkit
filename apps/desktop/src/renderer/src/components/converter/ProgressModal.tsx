@@ -1,3 +1,4 @@
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -25,7 +26,7 @@ import { getLogSeverityStyle } from '@renderer/lib/log-severity'
 import { formatElapsed, scanPhasePercent } from '@renderer/lib/scan-progress'
 import { languageLabel, targetLabel } from '@renderer/lib/targets'
 import { formatEta, settledPercent } from '@renderer/lib/translation-eta'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 import { keyProgressPercent, settledCount } from '@renderer/store/jobs'
 import type { JobState, JobStatus, LogEntry } from '@renderer/store/jobs'
@@ -143,19 +144,22 @@ function FilesByLanguageSection({ files, onPick, targets, tokens }: FilesByLangu
 }
 
 export function ProgressModal() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
   const activeJobId = useJobsStore(s => s.activeJobId)
   const job = useJobsStore(s => (activeJobId ? s.jobs.get(activeJobId) : null))
   const setActive = useJobsStore(s => s.setActive)
-  const { data: games } = trpc.games.list.useQuery()
+  const { data: games } = useQuery(trpc.games.list.queryOptions())
   const selectedGameId = useConverterFormStore(s => s.selectedGameId)
   const tokens = games?.find(g => g.id === selectedGameId)?.languageFileToken
-  const cancelMutation = trpc.converter.cancel.useMutation()
-  const openPath = trpc.fs.openPath.useMutation({
-    onError: err => {
-      toast.error(t('modal.openPathError', { message: err.message }))
-    }
-  })
+  const cancelMutation = useMutation(trpc.converter.cancel.mutationOptions())
+  const openPath = useMutation(
+    trpc.fs.openPath.mutationOptions({
+      onError: err => {
+        toast.error(t('modal.openPathError', { message: err.message }))
+      }
+    })
+  )
 
   if (!job) return null
 
@@ -464,19 +468,24 @@ interface ConversionSummaryProps {
 }
 
 function ConversionSummary({ output }: ConversionSummaryProps) {
+  const trpc = useTRPC()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const setActive = useJobsStore(s => s.setActive)
-  const openPath = trpc.fs.openPath.useMutation({
-    onError: err => {
-      toast.error(t('modal.openPathError', { message: err.message }))
-    }
-  })
-  const showItemInFolder = trpc.fs.showItemInFolder.useMutation({
-    onError: err => {
-      toast.error(t('modal.openPathError', { message: err.message }))
-    }
-  })
+  const openPath = useMutation(
+    trpc.fs.openPath.mutationOptions({
+      onError: err => {
+        toast.error(t('modal.openPathError', { message: err.message }))
+      }
+    })
+  )
+  const showItemInFolder = useMutation(
+    trpc.fs.showItemInFolder.mutationOptions({
+      onError: err => {
+        toast.error(t('modal.openPathError', { message: err.message }))
+      }
+    })
+  )
   const { totals } = output
 
   return (

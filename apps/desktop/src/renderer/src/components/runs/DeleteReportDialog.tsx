@@ -1,3 +1,4 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isValidElement, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +16,7 @@ import {
   AlertDialogTrigger
 } from '@ptt/ui/components/alert-dialog'
 
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 interface DeleteReportDialogProps {
   file: string
@@ -26,17 +27,20 @@ interface DeleteReportDialogProps {
 export function DeleteReportDialog({ file, onDeleted, trigger }: DeleteReportDialogProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const utils = trpc.useUtils()
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
 
-  const remove = trpc.runReports.remove.useMutation({
-    onSuccess: () => {
-      utils.runReports.list.invalidate()
-      toast.success(t('runs.history.toast.deleted'))
-      setOpen(false)
-      onDeleted?.()
-    },
-    onError: err => toast.error(t('runs.history.toast.deleteError', { message: err.message }))
-  })
+  const remove = useMutation(
+    trpc.runReports.remove.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.runReports.list.queryFilter())
+        toast.success(t('runs.history.toast.deleted'))
+        setOpen(false)
+        onDeleted?.()
+      },
+      onError: err => toast.error(t('runs.history.toast.deleteError', { message: err.message }))
+    })
+  )
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>

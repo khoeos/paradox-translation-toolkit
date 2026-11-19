@@ -1,12 +1,16 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { isUpdaterEvent, useUpdaterStore } from '@renderer/store/updater'
 
 export function useUpdaterEventsSubscription(): void {
+  const trpc = useTRPC()
   const applyEvent = useUpdaterStore(s => s.applyEvent)
   const hydrate = useUpdaterStore(s => s.hydrateFromState)
-  const stateQuery = trpc.updater.getState.useQuery(undefined, { staleTime: Infinity })
+  const stateQuery = useQuery(
+    trpc.updater.getState.queryOptions(undefined, { staleTime: Infinity })
+  )
 
   // Hydrate once with the current main-process state (covers events fired
   // before the renderer subscribed).

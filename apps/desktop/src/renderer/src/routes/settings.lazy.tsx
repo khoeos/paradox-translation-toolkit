@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createLazyRoute } from '@tanstack/react-router'
 import { Bug, FileText, MessagesSquare, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -12,7 +13,7 @@ import { Switch } from '@ptt/ui/components/switch'
 import { ReportProblemDialog } from '@renderer/components/ReportProblemDialog'
 import { formatPath } from '@renderer/lib/format-path'
 import { DISCORD_INVITE_URL } from '@renderer/lib/links'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { updaterStatusKey } from '@renderer/lib/updater-status'
 
 const THEMES = [
@@ -23,14 +24,19 @@ const THEMES = [
 
 function SettingsPage() {
   const { t } = useTranslation()
-  const utils = trpc.useUtils()
-  const { data: settings } = trpc.settings.getAll.useQuery()
-  const update = trpc.settings.update.useMutation({
-    onSuccess: () => utils.settings.getAll.invalidate()
-  })
-  const reset = trpc.settings.reset.useMutation({
-    onSuccess: () => utils.settings.getAll.invalidate()
-  })
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const { data: settings } = useQuery(trpc.settings.getAll.queryOptions())
+  const update = useMutation(
+    trpc.settings.update.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(trpc.settings.getAll.queryFilter())
+    })
+  )
+  const reset = useMutation(
+    trpc.settings.reset.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(trpc.settings.getAll.queryFilter())
+    })
+  )
 
   if (!settings) return <p className="text-muted-foreground">{t('settings.loading')}</p>
 
@@ -130,10 +136,13 @@ function SettingsPage() {
 }
 
 function DiagnosticsCard() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
-  const openLogs = trpc.app.openLogsFolder.useMutation({
-    onError: err => toast.error(t('settings.diagnostics.openLogsError', { message: err.message }))
-  })
+  const openLogs = useMutation(
+    trpc.app.openLogsFolder.mutationOptions({
+      onError: err => toast.error(t('settings.diagnostics.openLogsError', { message: err.message }))
+    })
+  )
 
   return (
     <Card>
@@ -152,8 +161,9 @@ function DiagnosticsCard() {
 }
 
 function ReportProblemCard() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
-  const { data: enabled } = trpc.report.isEnabled.useQuery()
+  const { data: enabled } = useQuery(trpc.report.isEnabled.queryOptions())
 
   if (!enabled) return null
 
@@ -201,11 +211,14 @@ function CommunityCard() {
 
 function AllowedFoldersCard() {
   const { t } = useTranslation()
-  const utils = trpc.useUtils()
-  const { data: settings } = trpc.settings.getAll.useQuery()
-  const update = trpc.settings.update.useMutation({
-    onSuccess: data => utils.settings.getAll.setData(undefined, data)
-  })
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const { data: settings } = useQuery(trpc.settings.getAll.queryOptions())
+  const update = useMutation(
+    trpc.settings.update.mutationOptions({
+      onSuccess: data => queryClient.setQueryData(trpc.settings.getAll.queryKey(), data)
+    })
+  )
 
   if (!settings) return null
 
@@ -252,14 +265,17 @@ function AllowedFoldersCard() {
 
 function UpdaterCard() {
   const { t } = useTranslation()
-  const utils = trpc.useUtils()
-  const { data: state } = trpc.updater.getState.useQuery()
-  const { data: settings } = trpc.settings.getAll.useQuery()
-  const { data: reportEnabled } = trpc.report.isEnabled.useQuery()
-  const check = trpc.updater.check.useMutation()
-  const update = trpc.settings.update.useMutation({
-    onSuccess: () => utils.settings.getAll.invalidate()
-  })
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const { data: state } = useQuery(trpc.updater.getState.queryOptions())
+  const { data: settings } = useQuery(trpc.settings.getAll.queryOptions())
+  const { data: reportEnabled } = useQuery(trpc.report.isEnabled.queryOptions())
+  const check = useMutation(trpc.updater.check.mutationOptions())
+  const update = useMutation(
+    trpc.settings.update.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries(trpc.settings.getAll.queryFilter())
+    })
+  )
 
   if (!state || !settings) return null
 

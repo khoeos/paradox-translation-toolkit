@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
 import {
@@ -8,12 +9,13 @@ import {
   SelectValue
 } from '@ptt/ui/components/select'
 
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 import { useConverterFormStore } from '@renderer/store/converter-form'
 
 export function SourceLanguage() {
+  const trpc = useTRPC()
   const { t } = useTranslation()
-  const { data } = trpc.games.list.useQuery()
+  const { data } = useQuery(trpc.games.list.queryOptions())
   const selectedGameId = useConverterFormStore(s => s.selectedGameId)
   const sourceLanguage = useConverterFormStore(s => s.sourceLanguage)
   const setSourceLanguage = useConverterFormStore(s => s.setSourceLanguage)

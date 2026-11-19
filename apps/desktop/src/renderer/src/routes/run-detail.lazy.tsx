@@ -1,3 +1,4 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createLazyRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
 import { ChevronLeft } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -23,7 +24,7 @@ import { formatDateTime, formatSeconds, formatTime } from '@renderer/lib/format-
 import type { RunErrorCategory } from '@renderer/lib/run-errors'
 import { getErrorCategorySummaries, getReadErrorsByLanguageFolder } from '@renderer/lib/run-errors'
 import { getOutcomeClasses } from '@renderer/lib/run-tone'
-import { trpc } from '@renderer/lib/trpc'
+import { useTRPC } from '@renderer/lib/trpc'
 
 function RunReportPage() {
   const { t, i18n } = useTranslation()
@@ -33,13 +34,16 @@ function RunReportPage() {
 
   const [activeCategory, setActiveCategory] = useState<RunErrorCategory | null>(null)
 
-  const { data, isLoading, error } = trpc.runReports.get.useQuery({ file })
-  const { data: games } = trpc.games.list.useQuery()
-  const utils = trpc.useUtils()
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const { data, isLoading, error } = useQuery(trpc.runReports.get.queryOptions({ file }))
+  const { data: games } = useQuery(trpc.games.list.queryOptions())
 
-  const showItemInFolder = trpc.fs.showItemInFolder.useMutation({
-    onError: err => toast.error(t('runs.report.toast.revealError', { message: err.message }))
-  })
+  const showItemInFolder = useMutation(
+    trpc.fs.showItemInFolder.mutationOptions({
+      onError: err => toast.error(t('runs.report.toast.revealError', { message: err.message }))
+    })
+  )
 
   const toggleCategory = (category: RunErrorCategory): void => {
     setActiveCategory(previous => (previous === category ? null : category))
@@ -97,7 +101,7 @@ function RunReportPage() {
             <DeleteReportDialog
               file={data.file}
               onDeleted={() => {
-                utils.runReports.get.reset({ file })
+                queryClient.resetQueries(trpc.runReports.get.queryFilter({ file }))
                 navigate({ to: '/runs' })
               }}
               trigger={
