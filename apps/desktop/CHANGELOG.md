@@ -1,5 +1,22 @@
 # @ptt/desktop
 
+## 3.2.2
+
+### Patch Changes
+
+- [`c0e4ba7`](https://github.com/khoeos/paradox-translation-toolkit/commit/c0e4ba75e67840305696510dfe377b94205b364a) Thanks [@khoeos](https://github.com/khoeos)! - Update dependencies
+  
+  - Electron 45.3.4
+  - tRPC 11.29.4
+  - i18next 27 and react-i18next 18
+  - TanStack Query 5.108 and TanStack Router plugin 1.169
+  - Vite 8.3.8 and @vitejs/plugin-react 6.3
+  - Vitest 5.1.1, Playwright 1.65.1
+  - Tailwind CSS 4.3.5, lucide-react 1.75, zustand 5.1
+  - Tooling: oxlint 1.94, oxfmt 0.79, turbo 2.11.12, i18next-cli 1.91
+
+- [`0af3bc9`](https://github.com/khoeos/paradox-translation-toolkit/commit/0af3bc9fc1c68ebb816b06297abc9db8f2370b48) Thanks [@khoeos](https://github.com/khoeos)! - Changed: moved the renderer off the deprecated `@trpc/react-query` to `@trpc/tanstack-react-query` (`useTRPC()` with TanStack Query's `queryOptions` / `mutationOptions`), no behaviour change
+
 ## 3.2.1
 
 ### Patch Changes
